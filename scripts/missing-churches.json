@@ -1,0 +1,942 @@
+[
+  {
+    "name": "Byron Center Bible Church",
+    "address": "8855 Byron Center Ave SW, Byron Center, MI 49315, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://www.byronbible.org/about",
+    "denomination": null,
+    "latitude": 42.803522,
+    "longitude": -85.723514,
+    "tags": [
+      "Byron Center",
+      "Bama (Byron Area Ministerial Association)"
+    ]
+  },
+  {
+    "name": "Saint Sebastian Catholic Church",
+    "address": "9408 Wilson Ave SW, Byron Center, MI 49315",
+    "phone": null,
+    "email": null,
+    "website": "https://stsebastianmi.org/",
+    "denomination": "Catholic",
+    "latitude": 42.793937,
+    "longitude": -85.762239,
+    "tags": [
+      "Byron Center",
+      "Bama (Byron Area Ministerial Association)"
+    ]
+  },
+  {
+    "name": "South Harbor Church",
+    "address": "1907 64th St SW, Byron Center, MI 49315, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://harborchurches.org/south/",
+    "denomination": null,
+    "latitude": 42.85149,
+    "longitude": -85.710869,
+    "tags": [
+      "Byron Center",
+      "Bama (Byron Area Ministerial Association)"
+    ]
+  },
+  {
+    "name": "The Well Byron Center",
+    "address": "8425 Byron Center Ave SW, Byron Center, MI 49315, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://www.wellmovement.org/aboutus",
+    "denomination": null,
+    "latitude": 42.812018,
+    "longitude": -85.724214,
+    "tags": [
+      "Byron Center",
+      "Bama (Byron Area Ministerial Association)"
+    ]
+  },
+  {
+    "name": "Holy Family Catholic Church – Caledonia",
+    "address": "9669 Kraft Ave SE, Caledonia, MI 49316",
+    "phone": null,
+    "email": null,
+    "website": "https://www.holyfamilycaledonia.org/",
+    "denomination": "Catholic",
+    "latitude": 42.789201,
+    "longitude": -85.528714,
+    "tags": []
+  },
+  {
+    "name": "Holy Trinity Catholic Church",
+    "address": "1200 Alpine Church Rd, Comstock Park, MI 49321",
+    "phone": null,
+    "email": null,
+    "website": "https://holytrinitycp.org/",
+    "denomination": "Catholic",
+    "latitude": 43.050402,
+    "longitude": -85.700693,
+    "tags": [
+      "Comstock Park"
+    ]
+  },
+  {
+    "name": "Ada Bible Church - Knapp St Campus",
+    "address": "3869 Knapp Street NE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.adabible.org/locations/knapp-street/",
+    "denomination": null,
+    "latitude": 43.000058,
+    "longitude": -85.572306,
+    "tags": []
+  },
+  {
+    "name": "Basilica of St. Adalbert Parish",
+    "address": "654 Davis Ave NW",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "denomination": "Catholic",
+    "latitude": 42.975228,
+    "longitude": -85.68458,
+    "tags": []
+  },
+  {
+    "name": "Bethel Reformed Church",
+    "address": "1700 Coit Ave NE, Grand Rapids, MI 49505",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "denomination": "Reformed",
+    "latitude": 42.99387,
+    "longitude": -85.664261,
+    "tags": []
+  },
+  {
+    "name": "Boston Square Christian Church",
+    "address": "1803 Kalamazoo Ave SE, Grand Rapids, MI 49507",
+    "phone": null,
+    "email": null,
+    "website": "https://www.bostonsquarechurch.org/",
+    "denomination": null,
+    "latitude": 42.930579,
+    "longitude": -85.636935,
+    "tags": []
+  },
+  {
+    "name": "Cathedral of Saint Andrew(Diocesan Cathedral)",
+    "address": "301 Sheldon Blvd SE, Grand Rapids, MI 49503",
+    "phone": null,
+    "email": null,
+    "website": "https://grcathedral.org/",
+    "denomination": null,
+    "latitude": 42.95807,
+    "longitude": -85.667015,
+    "tags": []
+  },
+  {
+    "name": "Cathedral of St. Andrew",
+    "address": "215 Sheldon Blvd SE",
+    "phone": null,
+    "email": null,
+    "website": "https://grcathedral.org/",
+    "denomination": null,
+    "latitude": 42.95903,
+    "longitude": -85.666778,
+    "tags": []
+  },
+  {
+    "name": "Christian Reformed Ch In N Amer",
+    "address": "2100 Chelsea Dr NE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.crcna.org/",
+    "denomination": "Reformed",
+    "latitude": 42.98894,
+    "longitude": -85.617694,
+    "tags": []
+  },
+  {
+    "name": "Church of Divine Light",
+    "address": "226 Leonard St NE",
+    "phone": null,
+    "email": null,
+    "website": "https://divineoffice.org/",
+    "denomination": null,
+    "latitude": 42.984321,
+    "longitude": -85.663383,
+    "tags": []
+  },
+  {
+    "name": "DayStar Ministries of the Assemblies of God",
+    "address": "2220 3 Mile Rd NE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.arcchurches.com/",
+    "denomination": "Assemblies of God",
+    "latitude": 43.012825,
+    "longitude": -85.61428,
+    "tags": []
+  },
+  {
+    "name": "First Evangelical Free Church",
+    "address": "3950 Burton St SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.elca.org/",
+    "denomination": "Evangelical",
+    "latitude": 42.926083,
+    "longitude": -85.570351,
+    "tags": []
+  },
+  {
+    "name": "First Park Congregational Church",
+    "address": "10 E Park Pl NE",
+    "phone": null,
+    "email": null,
+    "website": "https://parkchurchgr.org/",
+    "denomination": null,
+    "latitude": 42.964125,
+    "longitude": -85.665568,
+    "tags": []
+  },
+  {
+    "name": "Free Reformed Church Of N. America",
+    "address": "950 Ball Ave NE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.frcgrandrapids.org/",
+    "denomination": "Reformed",
+    "latitude": 42.980471,
+    "longitude": -85.62935,
+    "tags": []
+  },
+  {
+    "name": "Grand Rapids Central SDA Church",
+    "address": "100 Sheldon Blvd SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.grcsda.org/",
+    "denomination": null,
+    "latitude": 42.960555,
+    "longitude": -85.666249,
+    "tags": []
+  },
+  {
+    "name": "Grand Rapids LIvestream FMC",
+    "address": "800 Maryland Ave NE, Grand Rapids, MI 49505, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://www.amazon.com/fmc/m/30003175?almBrandId=QW1hem9uIEZyZXNo",
+    "denomination": null,
+    "latitude": 42.977534,
+    "longitude": -85.609511,
+    "tags": []
+  },
+  {
+    "name": "Holy Spirit School",
+    "address": "2222 Lake Michigan Dr NW",
+    "phone": null,
+    "email": null,
+    "website": "https://www.facebook.com/HolySpiritSchoolGR/",
+    "denomination": null,
+    "latitude": 42.970182,
+    "longitude": -85.722704,
+    "tags": []
+  },
+  {
+    "name": "Ignite USA",
+    "address": "2777 Knapp St NE, Grand Rapids, MI 49525, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://www.ignite-usa.org",
+    "denomination": null,
+    "latitude": 42.999944,
+    "longitude": -85.601452,
+    "tags": [
+      "Connected To The Churches Platform"
+    ]
+  },
+  {
+    "name": "Immaculate Heart of Mary Catholic Church",
+    "address": "1935 Plymouth Ave SE, Grand Rapids, MI 49506",
+    "phone": null,
+    "email": null,
+    "website": "https://ihmparish.com/",
+    "denomination": "Catholic",
+    "latitude": 42.927864,
+    "longitude": -85.626066,
+    "tags": []
+  },
+  {
+    "name": "Millbrook Christian Reformed Chruch",
+    "address": "3661 Poinsettia Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.calvin.edu/library/database/crcnasynod/1979agenda.pdf",
+    "denomination": "Reformed",
+    "latitude": 42.897113,
+    "longitude": -85.635786,
+    "tags": []
+  },
+  {
+    "name": "Millbrook Christian Reformed Church",
+    "address": "3661 Poinsettia Ave SE, Grand Rapids, MI 49508",
+    "phone": null,
+    "email": null,
+    "website": "https://dutch-reformed.fandom.com/wiki/Millbrook_Christian_Reformed_Church,_Grand_Rapids,_Michigan",
+    "denomination": "Reformed",
+    "latitude": 42.897113,
+    "longitude": -85.635786,
+    "tags": []
+  },
+  {
+    "name": "Nehemiah Church",
+    "address": "1975 Jefferson Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.jffh.com/obituaries/Nehemiah-Valour-Dykstra?obId=20106936",
+    "denomination": null,
+    "latitude": 42.9278,
+    "longitude": -85.663274,
+    "tags": []
+  },
+  {
+    "name": "New Life",
+    "address": "2777 Knapp St NE, Grand Rapids, MI 49525, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://newlifegr.com/",
+    "denomination": null,
+    "latitude": 42.999869,
+    "longitude": -85.601531,
+    "tags": [
+      "Connected To The Churches Platform",
+      "Anchor Churches"
+    ]
+  },
+  {
+    "name": "North Park Baptist",
+    "address": "3365 Coit Ave NE",
+    "phone": null,
+    "email": null,
+    "website": "https://grandrapids.church/",
+    "denomination": "Baptist",
+    "latitude": 43.025177,
+    "longitude": -85.654516,
+    "tags": []
+  },
+  {
+    "name": "North Park Presbyterian",
+    "address": "500 N Park St NE",
+    "phone": null,
+    "email": null,
+    "website": "https://northparkchurchgr.org/",
+    "denomination": "Presbyterian",
+    "latitude": 43.02175,
+    "longitude": -85.65688,
+    "tags": []
+  },
+  {
+    "name": "Open Bible Church the lfca",
+    "address": "3065 Alger St SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.minnesotafca.org/",
+    "denomination": null,
+    "latitude": 42.920353,
+    "longitude": -85.591944,
+    "tags": []
+  },
+  {
+    "name": "Orchard View Church of God",
+    "address": "2777 Leffingwell Ave NE, Grand Rapids, MI 49525",
+    "phone": null,
+    "email": null,
+    "website": "https://www.orchardviewchurch.com/",
+    "denomination": null,
+    "latitude": 43.012273,
+    "longitude": -85.60089,
+    "tags": [
+      "Connected To The Churches Platform",
+      "Catalyst Churches",
+      "Church Of God"
+    ]
+  },
+  {
+    "name": "Parish of the Holy Spirit",
+    "address": "2230 Lake Michigan Drive NW",
+    "phone": null,
+    "email": null,
+    "website": "https://www.hsparish.org/",
+    "denomination": "Catholic",
+    "latitude": 42.970339,
+    "longitude": -85.723402,
+    "tags": []
+  },
+  {
+    "name": "Plainfield United Methodist Church",
+    "address": "214 Spencer St NE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.graldersgate.org/",
+    "denomination": "Methodist",
+    "latitude": 42.988089,
+    "longitude": -85.664638,
+    "tags": []
+  },
+  {
+    "name": "Plymouth Heights",
+    "address": "1800 Plymouth Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.phcrc.org/",
+    "denomination": null,
+    "latitude": 42.930345,
+    "longitude": -85.623615,
+    "tags": []
+  },
+  {
+    "name": "Richmond Reformed Church",
+    "address": "1814 Walker Ave NW",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "denomination": "Reformed",
+    "latitude": 42.992263,
+    "longitude": -85.715098,
+    "tags": []
+  },
+  {
+    "name": "Sacred Heart of Jesus Catholic Church",
+    "address": "156 Valley Ave SW, Grand Rapids, MI 49504",
+    "phone": null,
+    "email": null,
+    "website": "https://www.sacredheartgr.org/",
+    "denomination": "Catholic",
+    "latitude": 42.960517,
+    "longitude": -85.69846,
+    "tags": []
+  },
+  {
+    "name": "Saint Mary’s Catholic Church – Grand Rapids",
+    "address": "431 1st St NW, Grand Rapids, MI 49504",
+    "phone": null,
+    "email": null,
+    "website": "https://stmarygr.org/",
+    "denomination": "Catholic",
+    "latitude": 42.971878,
+    "longitude": -85.680453,
+    "tags": []
+  },
+  {
+    "name": "Saint Paul the Apostle Catholic Church",
+    "address": "2750 Burton St SE, Grand Rapids, MI 49546",
+    "phone": null,
+    "email": null,
+    "website": "https://spagr.org/",
+    "denomination": "Catholic",
+    "latitude": 42.925802,
+    "longitude": -85.600558,
+    "tags": []
+  },
+  {
+    "name": "Saint Peter & Paul Catholic Church",
+    "address": "1440 Quarry Ave NW, Grand Rapids, MI 49504",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "denomination": "Catholic",
+    "latitude": 42.989416,
+    "longitude": -85.680943,
+    "tags": []
+  },
+  {
+    "name": "SS Peter and Paul's Church",
+    "address": "1440 Quarry Ave NW",
+    "phone": null,
+    "email": null,
+    "website": "https://ssppjesuit.org/",
+    "denomination": null,
+    "latitude": 42.989416,
+    "longitude": -85.680943,
+    "tags": []
+  },
+  {
+    "name": "St George Church",
+    "address": "334 La Grave Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://stgeorgegr.com/",
+    "denomination": null,
+    "latitude": 42.956777,
+    "longitude": -85.664887,
+    "tags": []
+  },
+  {
+    "name": "St Isidore Church",
+    "address": "628 Diamond Ave NE",
+    "phone": null,
+    "email": null,
+    "website": "https://saintisidorechurch.org/",
+    "denomination": null,
+    "latitude": 42.974176,
+    "longitude": -85.644205,
+    "tags": []
+  },
+  {
+    "name": "St James Church",
+    "address": "701 4th St NW, Grand Rapids, MI 49504, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://www.stjamesgr.com/",
+    "denomination": null,
+    "latitude": 42.975033,
+    "longitude": -85.685072,
+    "tags": []
+  },
+  {
+    "name": "St Paul's Anglican Catholic Church",
+    "address": "2560 Lake Michigan Dr NW",
+    "phone": null,
+    "email": null,
+    "website": "https://saintpaulsanglicancatholic.net/",
+    "denomination": "Catholic",
+    "latitude": 42.97104,
+    "longitude": -85.732275,
+    "tags": []
+  },
+  {
+    "name": "St Thomas the Apostle Parish",
+    "address": "1449 Wilcox Park Dr SE",
+    "phone": null,
+    "email": null,
+    "website": "https://stthomasapostlegr.org/",
+    "denomination": "Catholic",
+    "latitude": 42.961612,
+    "longitude": -85.634894,
+    "tags": []
+  },
+  {
+    "name": "St. Francis Xavier Parish",
+    "address": "250 Brown St SE",
+    "phone": null,
+    "email": null,
+    "website": "https://sfxolg.org/welcome",
+    "denomination": "Catholic",
+    "latitude": 42.93149,
+    "longitude": -85.660793,
+    "tags": []
+  },
+  {
+    "name": "St. Nicholas Orthodox Church",
+    "address": "2250 East Paris Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://stnicholastroy.org/",
+    "denomination": null,
+    "latitude": 42.922743,
+    "longitude": -85.565783,
+    "tags": []
+  },
+  {
+    "name": "Sudanese Grace Episcopal Church",
+    "address": "1550 Oswego St NW",
+    "phone": null,
+    "email": null,
+    "website": "https://sudanesegec.org/",
+    "denomination": "Episcopal",
+    "latitude": 42.967046,
+    "longitude": -85.706488,
+    "tags": []
+  },
+  {
+    "name": "Tallmadge Wesleyan Community Church",
+    "address": "1428 Leonard St NW",
+    "phone": null,
+    "email": null,
+    "website": "https://www.migenweb.org/ottawa/churches/index.html",
+    "denomination": null,
+    "latitude": 42.988876,
+    "longitude": -85.825272,
+    "tags": []
+  },
+  {
+    "name": "West Leonard St NW",
+    "address": "1053 Leonard St NW",
+    "phone": null,
+    "email": null,
+    "website": "https://blandfordnaturecenter.org/",
+    "denomination": null,
+    "latitude": 42.985826,
+    "longitude": -85.695171,
+    "tags": []
+  },
+  {
+    "name": "Westminister Presbyterian Church",
+    "address": "47 Jefferson Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://westminstergr.org/",
+    "denomination": "Presbyterian",
+    "latitude": 42.961737,
+    "longitude": -85.664527,
+    "tags": []
+  },
+  {
+    "name": "Westview Christian Reformed",
+    "address": "2929 Leonard St NW",
+    "phone": null,
+    "email": null,
+    "website": "https://westviewcrc.org/",
+    "denomination": "Reformed",
+    "latitude": 42.987144,
+    "longitude": -85.740343,
+    "tags": []
+  },
+  {
+    "name": "Wintersville Baptist Church(Example Inactive)",
+    "address": "123 Example St, Grand Rapids, MI 495XX",
+    "phone": null,
+    "email": null,
+    "website": "https://getstarpro.com/abuse-citations-list",
+    "denomination": "Baptist",
+    "latitude": 42.970415,
+    "longitude": -85.672195,
+    "tags": []
+  },
+  {
+    "name": "400 Franklin St SW",
+    "address": "400 Franklin St SW, Grand Rapids, MI 49503, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://churchofgod.org/church_locator/churches.php?int_cur_position=40&mode=citystate_search&searchtext=&state=MI",
+    "denomination": null,
+    "latitude": 42.9484282,
+    "longitude": -85.6588222,
+    "tags": []
+  },
+  {
+    "name": "Knapp Valley Church",
+    "address": "4025 Knapp St NE, Grand Rapids, MI 49525, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://knappvalley.org",
+    "denomination": null,
+    "latitude": 43.0014345,
+    "longitude": -85.5699723,
+    "tags": [
+      "2025 Church Prayer Focus"
+    ]
+  },
+  {
+    "name": "Resurrection Life Church (Grandville)",
+    "address": "5100 Ivanrest Ave SW, Grandville, MI 49418",
+    "phone": null,
+    "email": null,
+    "website": "https://reslife.org/",
+    "denomination": null,
+    "latitude": 42.873493,
+    "longitude": -85.737179,
+    "tags": []
+  },
+  {
+    "name": "Harbor Life Church",
+    "address": "2700 Baldwin St, Hudsonville, MI 49426",
+    "phone": null,
+    "email": null,
+    "website": "https://harborchurches.org/harborlife/",
+    "denomination": null,
+    "latitude": 42.90603,
+    "longitude": -85.849139,
+    "tags": []
+  },
+  {
+    "name": "Calvary Baptist Church (Holland)",
+    "address": "517 W 32nd St, Holland, MI 49423",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "denomination": "Baptist",
+    "latitude": 42.768666,
+    "longitude": -86.13095,
+    "tags": []
+  },
+  {
+    "name": "Christ Memorial Reformed Church",
+    "address": "595 Graafschap Rd, Holland, MI 49423",
+    "phone": null,
+    "email": null,
+    "website": "https://christmemorial.org/",
+    "denomination": "Reformed",
+    "latitude": 42.775447,
+    "longitude": -86.136179,
+    "tags": []
+  },
+  {
+    "name": "First Assembly of God – Holland",
+    "address": "1331 E 16th St, Holland, MI 49423",
+    "phone": null,
+    "email": null,
+    "website": "https://www.hollandfirst.org/",
+    "denomination": "Assemblies of God",
+    "latitude": 42.785739,
+    "longitude": -86.05138,
+    "tags": []
+  },
+  {
+    "name": "First Christian Reformed Church – Holland",
+    "address": "15 E 24th St, Holland, MI 49423",
+    "phone": null,
+    "email": null,
+    "website": "https://www.cityofholland.com/167/Elections",
+    "denomination": "Reformed",
+    "latitude": 42.776086,
+    "longitude": -86.106431,
+    "tags": []
+  },
+  {
+    "name": "First Reformed Church – Holland",
+    "address": "630 State St, Holland, MI 49423",
+    "phone": null,
+    "email": null,
+    "website": "https://www.frcholland.org/",
+    "denomination": "Reformed",
+    "latitude": 42.77348,
+    "longitude": -86.103181,
+    "tags": []
+  },
+  {
+    "name": "Pillar Church (Dual-affiliation RCA/CRC)",
+    "address": "57 E 10th St, Holland, MI 49423",
+    "phone": null,
+    "email": null,
+    "website": "https://www.thebanner.org/news/2021/10/as-the-reformed-church-in-america-anticipates-restructuring-dually-affiliated-churches",
+    "denomination": "Reformed",
+    "latitude": 42.788793,
+    "longitude": -86.104871,
+    "tags": []
+  },
+  {
+    "name": "Saint Francis de Sales Catholic Church",
+    "address": "171 W 13th St, Holland, MI 49423",
+    "phone": null,
+    "email": null,
+    "website": "https://www.stfrancisholland.org/",
+    "denomination": "Catholic",
+    "latitude": 42.786203,
+    "longitude": -86.115268,
+    "tags": []
+  },
+  {
+    "name": "Baldwin Street Christian Reformed Church",
+    "address": "2101 Baldwin St, Jenison, MI 49428",
+    "phone": null,
+    "email": null,
+    "website": "https://www.baldwinstreetcrc.org/",
+    "denomination": "Reformed",
+    "latitude": 42.907578,
+    "longitude": -85.834502,
+    "tags": []
+  },
+  {
+    "name": "First Jenison Christian Reformed Church",
+    "address": "8360 Cottonwood Dr, Jenison, MI 49428",
+    "phone": null,
+    "email": null,
+    "website": "https://www.crcna.org/classis/44",
+    "denomination": "Reformed",
+    "latitude": 42.920457,
+    "longitude": -85.80907,
+    "tags": []
+  },
+  {
+    "name": "Grace Bible Fellowship",
+    "address": "1260 Chicago Dr, Jenison, MI 49428",
+    "phone": null,
+    "email": null,
+    "website": "https://www.gbfjenison.org/",
+    "denomination": null,
+    "latitude": 42.894349,
+    "longitude": -85.813169,
+    "tags": []
+  },
+  {
+    "name": "Holy Redeemer Catholic Parish",
+    "address": "2700 Baldwin St, Jenison, MI 49428",
+    "phone": null,
+    "email": null,
+    "website": "https://holyredeemerparish.org/",
+    "denomination": "Catholic",
+    "latitude": 42.90603,
+    "longitude": -85.849139,
+    "tags": []
+  },
+  {
+    "name": "Ridgewood Christian Reformed Church",
+    "address": "1571 Baldwin St, Jenison, MI 49428",
+    "phone": null,
+    "email": null,
+    "website": "https://ridgewoodcrc.com/",
+    "denomination": "Reformed",
+    "latitude": 42.90763,
+    "longitude": -85.820968,
+    "tags": []
+  },
+  {
+    "name": "Rock of Ages Evangelical Lutheran Church",
+    "address": "1905 Baldwin St, Jenison, MI 49428",
+    "phone": null,
+    "email": null,
+    "website": "https://www.redeemerclc.info/ministries/",
+    "denomination": "Lutheran",
+    "latitude": 42.907396,
+    "longitude": -85.8295,
+    "tags": []
+  },
+  {
+    "name": "Solomon’s Porch Community Church",
+    "address": "1675 Baldwin St, Jenison, MI 49428",
+    "phone": null,
+    "email": null,
+    "website": "https://youthministry.mattcleaver.com/solomons-porch-your-average-everyday-cutting-edge-church/",
+    "denomination": null,
+    "latitude": 42.907613,
+    "longitude": -85.824299,
+    "tags": []
+  },
+  {
+    "name": "Church of The Servant",
+    "address": "3835 Burton St SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.facebook.com/churchoftheservant/",
+    "denomination": null,
+    "latitude": 42.92858,
+    "longitude": -85.573537,
+    "tags": []
+  },
+  {
+    "name": "East Paris Christian Church",
+    "address": "3065 East Paris Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://www.adabible.org/",
+    "denomination": null,
+    "latitude": 42.907726,
+    "longitude": -85.568904,
+    "tags": []
+  },
+  {
+    "name": "St Nicholas Church",
+    "address": "2250 East Paris Ave SE",
+    "phone": null,
+    "email": null,
+    "website": "https://stnicholasgr.com/",
+    "denomination": null,
+    "latitude": 42.922743,
+    "longitude": -85.565783,
+    "tags": []
+  },
+  {
+    "name": "Ada Bible - Bella Vista Campus",
+    "address": "5100 Belding Rd NE, Rockford, MI 49341",
+    "phone": null,
+    "email": null,
+    "website": "https://www.adabible.org/locations/bella-vista/",
+    "denomination": null,
+    "latitude": 43.085051,
+    "longitude": -85.542587,
+    "tags": []
+  },
+  {
+    "name": "Wyoming Seventh-day Adventist Church",
+    "address": "2580 44th St SW, Wyoming, MI 49519",
+    "phone": null,
+    "email": null,
+    "website": "https://www.wymisda.org/",
+    "denomination": null,
+    "latitude": 42.884107,
+    "longitude": -85.728263,
+    "tags": [
+      "Seventh-Day Adventist"
+    ]
+  },
+  {
+    "name": "Gospel Light Baptist",
+    "address": "840 Wilson Ave NW",
+    "phone": null,
+    "email": null,
+    "website": "https://gospellightmarion.com/",
+    "denomination": "Baptist",
+    "latitude": 42.981929,
+    "longitude": -85.775932,
+    "tags": []
+  },
+  {
+    "name": "Mount Olive Lutheran Church",
+    "address": "3950 Leonard St NW",
+    "phone": null,
+    "email": null,
+    "website": "https://churchrealestatesales.com/view-listing.asp?id=5196",
+    "denomination": "Lutheran",
+    "latitude": 42.985943,
+    "longitude": -85.766008,
+    "tags": []
+  },
+  {
+    "name": "Westwood Community Church",
+    "address": "2828 Richmond St NW",
+    "phone": null,
+    "email": null,
+    "website": "https://www.storehousemi.org/",
+    "denomination": null,
+    "latitude": 43.000335,
+    "longitude": -85.738263,
+    "tags": []
+  },
+  {
+    "name": "Mosaic Life Church",
+    "address": "2777 Knapp St NE, Grand Rapids, MI 49525, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://www.lifecenterchurchgr.org",
+    "denomination": null,
+    "latitude": 42.9999908,
+    "longitude": -85.6015166,
+    "tags": []
+  },
+  {
+    "name": "Ada Bible - Kentwood Campus",
+    "address": "2045 68th St SE, Caledonia, MI 49316, USA",
+    "phone": null,
+    "email": null,
+    "website": "https://www.adabible.org/locations/kentwood/",
+    "denomination": null,
+    "latitude": 42.842245,
+    "longitude": -85.613053,
+    "tags": []
+  },
+  {
+    "name": "Harderwyk Church",
+    "address": null,
+    "phone": null,
+    "email": null,
+    "website": "https://www.harderwyk.com/",
+    "denomination": null,
+    "latitude": 42.804467,
+    "longitude": -86.176154,
+    "tags": []
+  },
+  {
+    "name": "Holy Spirit",
+    "address": null,
+    "phone": null,
+    "email": null,
+    "website": "https://www.hsparish.org/",
+    "denomination": "Catholic",
+    "latitude": 42.97048,
+    "longitude": -85.723433,
+    "tags": []
+  }
+]

@@ -1,0 +1,2 @@
+-- Basic initialization
+-- This migration initializes the database

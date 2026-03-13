@@ -1,0 +1,19 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+# Large data files
+*.mbtiles
+*.mbtiles-journal
+scripts/*.geojson
+public/all-churches-sampled.geojson
+all-churches-*.geojson
+all-churches-*.mbtiles
+
+# Attached assets (chat reference files - not needed in repo)
+attached_assets/
+node_modules/
+
+.git.backup.*

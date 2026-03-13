@@ -1,0 +1,161 @@
+import { Request, Response} from "express";
+import { supabaseServer } from "../../../../lib/supabaseServer";
+
+// State FIPS to abbreviation mapping
+const STATE_FIPS_TO_ABBREV: Record<string, string> = {
+  '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA', '08': 'CO', '09': 'CT',
+  '10': 'DE', '11': 'DC', '12': 'FL', '13': 'GA', '15': 'HI', '16': 'ID', '17': 'IL',
+  '18': 'IN', '19': 'IA', '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME', '24': 'MD',
+  '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS', '29': 'MO', '30': 'MT', '31': 'NE',
+  '32': 'NV', '33': 'NH', '34': 'NJ', '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND',
+  '39': 'OH', '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI', '45': 'SC', '46': 'SD',
+  '47': 'TN', '48': 'TX', '49': 'UT', '50': 'VT', '51': 'VA', '53': 'WA', '54': 'WV',
+  '55': 'WI', '56': 'WY', '72': 'PR', '78': 'VI',
+};
+
+// State abbreviation to FIPS mapping (reverse)
+const STATE_ABBREV_TO_FIPS: Record<string, string> = Object.fromEntries(
+  Object.entries(STATE_FIPS_TO_ABBREV).map(([fips, abbrev]) => [abbrev, fips])
+);
+
+// Map frontend filter values to actual database type values
+// Same mapping as used in viewport route for consistency
+const TYPE_MAPPINGS: Record<string, string[]> = {
+  'city': ['place', 'Place'],
+  'City': ['place', 'Place'],
+  'Place': ['place', 'Place'],
+  'place': ['place', 'Place'],
+  'county': ['county', 'County'],
+  'County': ['county', 'County'],
+  'zip': ['zip', 'Zip', 'ZIP'],
+  'ZIP': ['zip', 'Zip', 'ZIP'],
+  'Zip': ['zip', 'Zip', 'ZIP'],
+  'county_subdivision': ['county_subdivision', 'county subdivision'],
+  'school_district': ['school_district', 'School District'],
+  'School District': ['school_district', 'School District'],
+};
+
+/**
+ * GET /api/boundaries/search?q=<query>&type=<type>&state=<state_code>
+ * 
+ * Search boundaries by name with optional type and state filters
+ * Returns up to 50 results, prioritizing state matches when specified
+ * 
+ * Query params:
+ *   - q: Search query (partial match, case-insensitive)
+ *   - type: Optional filter by boundary type (county, city, zip, neighborhood, school_district, other)
+ *   - state: Optional 2-letter state code to prioritize/filter results (e.g., "MI", "CA")
+ * 
+ * Note: This endpoint searches the boundaries table, NOT areas.
+ * Boundaries are large-scale datasets (cities, counties, etc.) used for lookup only.
+ */
+export async function GET(req: Request, res: Response) {
+  try {
+    const q = (req.query.q as string) || '';
+    const type = req.query.type as string | undefined;
+    const stateCode = (req.query.state as string)?.toUpperCase();
+    const withGeometry = req.query.with_geometry === 'true';
+
+    if (!q || q.trim().length === 0) {
+      return res.status(400).json({ error: 'Query parameter "q" is required' });
+    }
+
+    // Map the incoming type to the database type
+    // The RPC uses exact matching, so we need to try multiple variants
+    let mappedType = type || null;
+    if (type && TYPE_MAPPINGS[type]) {
+      // Use the first variant (lowercase version typically used in DB)
+      mappedType = TYPE_MAPPINGS[type][0];
+    }
+
+    // Convert state code to FIPS for filtering
+    const stateFips = stateCode ? STATE_ABBREV_TO_FIPS[stateCode] : null;
+
+    // Use direct query instead of RPC to include state_fips
+    const supabase = supabaseServer();
+    const searchQuery = `%${q.trim()}%`;
+    
+    let query = supabase
+      .from('boundaries')
+      .select('id, name, type, external_id, state_fips')
+      .ilike('name', searchQuery)
+      .limit(50);
+    
+    if (mappedType) {
+      query = query.eq('type', mappedType);
+    }
+    
+    // If state is specified, filter to that state only
+    if (stateFips) {
+      query = query.eq('state_fips', stateFips);
+    }
+    
+    // Order by exact match first, then prefix match, then alphabetical
+    query = query.order('name');
+    
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error searching boundaries:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Enrich with state_fips from external_id if not set, and add state_code
+    // For place/county/tract boundaries, external_id often starts with state FIPS code
+    const isZipType = (type: string) => type === 'zip' || type === 'Zip' || type === 'ZIP';
+    
+    const enrichedData = (data || []).map((b: any) => {
+      if (isZipType(b.type)) {
+        return { ...b, state_fips: null, state_code: null };
+      }
+      
+      let finalStateFips = b.state_fips;
+      
+      if (!finalStateFips && b.external_id) {
+        const potentialStateFips = b.external_id.substring(0, 2);
+        const fipsNum = parseInt(potentialStateFips, 10);
+        if (!isNaN(fipsNum) && ((fipsNum >= 1 && fipsNum <= 56) || fipsNum === 72 || fipsNum === 78)) {
+          finalStateFips = potentialStateFips;
+        }
+      }
+      
+      const stateAbbrev = finalStateFips ? STATE_FIPS_TO_ABBREV[finalStateFips] : null;
+      
+      return { 
+        ...b, 
+        state_fips: finalStateFips,
+        state_code: stateAbbrev 
+      };
+    });
+
+    // If with_geometry is requested, fetch full boundary data with GeoJSON conversion
+    if (withGeometry && enrichedData.length > 0) {
+      const ids = enrichedData.map((b: any) => b.id);
+      
+      // Use raw SQL to fetch boundaries with ST_AsGeoJSON conversion
+      // This avoids the UUID/text type mismatch issue in the RPC function
+      const { data: fullData, error: fullError } = await supabase.rpc('fn_get_boundaries_with_geometry', {
+        ids_json: JSON.stringify(ids)
+      });
+      
+      if (fullError) {
+        console.error('Error fetching boundary geometries:', fullError);
+        return res.status(500).json({ error: fullError.message });
+      }
+      
+      // Merge state_fips from the enriched data into fullData
+      const stateMap = new Map(enrichedData.map((b: any) => [b.id, b.state_fips]));
+      const resultWithGeometry = (fullData || []).map((b: any) => ({
+        ...b,
+        state_fips: stateMap.get(b.id) || null
+      }));
+      
+      return res.json(resultWithGeometry);
+    }
+
+    return res.json(enrichedData);
+  } catch (err: any) {
+    console.error('Error in boundaries search:', err);
+    return res.status(500).json({ error: err.message });
+  }
+}

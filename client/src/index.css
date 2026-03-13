@@ -1,0 +1,730 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* LIGHT MODE */
+:root {
+  --button-outline: rgba(0,0,0, .10);
+  --badge-outline: rgba(0,0,0, .05);
+  --opaque-button-border-intensity: -8;
+  --elevate-1: rgba(0,0,0, .03);
+  --elevate-2: rgba(0,0,0, .08);
+  --background: 0 0% 100%;
+  --foreground: 0 0% 10%;
+  --border: 0 0% 90%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 10%;
+  --card-border: 0 0% 94%;
+  --sidebar: 0 0% 96%;
+  --sidebar-foreground: 0 0% 10%;
+  --sidebar-border: 0 0% 92%;
+  --sidebar-primary: 217 91% 35%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 217 15% 88%;
+  --sidebar-accent-foreground: 217 10% 20%;
+  --sidebar-ring: 217 91% 35%;
+  --popover: 0 0% 95%;
+  --popover-foreground: 0 0% 10%;
+  --popover-border: 0 0% 91%;
+  --primary: 217 91% 35%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 92%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 217 5% 90%;
+  --muted-foreground: 217 5% 35%;
+  --accent: 217 10% 92%;
+  --accent-foreground: 217 10% 15%;
+  --destructive: 0 84% 35%;
+  --destructive-foreground: 0 0% 98%;
+  --input: 0 0% 75%;
+  --ring: 217 91% 35%;
+  --chart-1: 217 91% 35%;
+  --chart-2: 25 95% 40%;
+  --chart-3: 340 82% 38%;
+  --chart-4: 160 75% 32%;
+  --chart-5: 280 65% 38%;
+  
+  /* Unified Calling Colors - exact match to CALLING_COLORS in schema.ts */
+  --calling-place: 200 58% 42%;       /* #2E86AB - Blue */
+  --calling-people: 145 54% 42%;      /* #27AE60 - Green */
+  --calling-problem: 28 81% 52%;      /* #E67E22 - Orange */
+  --calling-purpose: 283 39% 53%;     /* #9B59B6 - Purple */
+  
+  /* Primary Ministry Area - Yellow/Gold (unique, not used for callings) */
+  --primary-area: 45 93% 47%;         /* #EAB308 - Yellow */
+  
+  /* Boundaries - Blue for city/place boundaries */
+  --boundary: 217 91% 60%;            /* #3B82F6 - Blue */
+  --font-sans: Open Sans, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: .5rem;
+  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+  --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+  --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.08);
+  --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 4px 6px -1px hsl(0 0% 0% / 0.12);
+  --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 8px 10px -1px hsl(0 0% 0% / 0.15);
+  --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+/* Fallback for older browsers */
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --primary-border: hsl(var(--primary));
+  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --secondary-border: hsl(var(--secondary));
+  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --muted-border: hsl(var(--muted));
+  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --accent-border: hsl(var(--accent));
+  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --destructive-border: hsl(var(--destructive));
+  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+}
+
+.dark {
+  --button-outline: rgba(255,255,255, .10);
+  --badge-outline: rgba(255,255,255, .05);
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .09);
+  --background: 0 0% 8%;
+  --foreground: 0 0% 95%;
+  --border: 0 0% 18%;
+  --card: 0 0% 10%;
+  --card-foreground: 0 0% 95%;
+  --card-border: 0 0% 14%;
+  --sidebar: 0 0% 12%;
+  --sidebar-foreground: 0 0% 95%;
+  --sidebar-border: 0 0% 16%;
+  --sidebar-primary: 217 91% 45%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 217 15% 18%;
+  --sidebar-accent-foreground: 217 10% 85%;
+  --sidebar-ring: 217 91% 45%;
+  --popover: 0 0% 14%;
+  --popover-foreground: 0 0% 95%;
+  --popover-border: 0 0% 18%;
+  --primary: 217 91% 35%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 18%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 217 5% 20%;
+  --muted-foreground: 217 5% 70%;
+  --accent: 217 10% 16%;
+  --accent-foreground: 217 10% 90%;
+  --destructive: 0 84% 32%;
+  --destructive-foreground: 0 0% 98%;
+  --input: 0 0% 30%;
+  --ring: 217 91% 45%;
+  --chart-1: 217 91% 65%;
+  --chart-2: 25 95% 65%;
+  --chart-3: 340 82% 65%;
+  --chart-4: 160 75% 60%;
+  --chart-5: 280 65% 65%;
+  
+  /* Unified Calling Colors - exact match to CALLING_COLORS in schema.ts (same in dark mode for consistency) */
+  --calling-place: 200 58% 42%;       /* #2E86AB - Blue */
+  --calling-people: 283 39% 53%;      /* #9B59B6 - Purple */
+  --calling-problem: 28 81% 52%;      /* #E67E22 - Orange */
+  --calling-purpose: 145 54% 42%;     /* #27AE60 - Green */
+  
+  /* Primary Ministry Area - Yellow/Gold (unique, not used for callings) */
+  --primary-area: 45 93% 47%;         /* #EAB308 - Yellow */
+  
+  /* Boundaries - Blue for city/place boundaries */
+  --boundary: 217 91% 60%;            /* #3B82F6 - Blue */
+  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+  --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+  --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.08);
+  --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 4px 6px -1px hsl(0 0% 0% / 0.12);
+  --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 8px 10px -1px hsl(0 0% 0% / 0.15);
+  --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+
+/* Fallback for older browsers */
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --primary-border: hsl(var(--primary));
+  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --secondary-border: hsl(var(--secondary));
+  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --muted-border: hsl(var(--muted));
+  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --accent-border: hsl(var(--accent));
+  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --destructive-border: hsl(var(--destructive));
+  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/**
+ * Using the elevate system.
+ * Automatic contrast adjustment.
+ *
+ * <element className="hover-elevate" />
+ * <element className="active-elevate-2" />
+ *
+ * // Using the tailwind utility when a data attribute is "on"
+ * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
+ * // Or manually controlling the toggle state
+ * <element className="toggle-elevate toggle-elevated" />
+ *
+ * Elevation systems have to handle many states.
+ * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
+ * - toggled or not
+ * - focused or not (this is not handled with these utilities)
+ *
+ * Even without handling focused or not, this is six possible combinations that
+ * need to be distinguished from eachother visually.
+ */
+@layer utilities {
+
+  /* Hide ugly search cancel button in Chrome until we can style it properly */
+  input[type="search"]::-webkit-search-cancel-button {
+    @apply hidden;
+  }
+
+  /* Placeholder styling for contentEditable div */
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+
+  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
+   * buttons/badges can remove the automatic brightness adjustment on interactions
+   * and program their own. */
+  .no-default-hover-elevate {}
+
+  .no-default-active-elevate {}
+
+
+  /**
+   * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
+   * This way they can stack/compound. Both will overlap the parent's borders!
+   * So borders will be automatically adjusted both on toggle, and hover/active,
+   * and they will be compounded.
+   */
+  .toggle-elevate::before,
+  .toggle-elevate-2::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
+    border-radius: inherit;
+    z-index: -1;
+    /* sits behind content but above backdrop */
+  }
+
+  .toggle-elevate.toggle-elevated::before {
+    background-color: var(--elevate-2);
+  }
+
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
+  .border.toggle-elevate::before {
+    inset: -1px;
+  }
+
+  /* Does not work on elements with overflow:hidden! */
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
+    border-radius: inherit;
+    z-index: 999;
+    /* sits in front of content */
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+    inset: -1px;
+  }
+
+  /* Selected church marker on map - blue glow and thicker border */
+  /* Size is controlled dynamically by JavaScript (1.5x base size at current zoom) */
+  /* Don't use transform:scale as it interferes with Mapbox's positioning transforms */
+  .selected-church-marker {
+    border-width: 4px !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4), 0 0 20px rgba(59, 130, 246, 0.6) !important;
+    z-index: 1000 !important;
+    transition: width 200ms ease-in-out, height 200ms ease-in-out, border-width 200ms ease-in-out, box-shadow 200ms ease-in-out !important;
+  }
+}
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ProseMirror a:hover {
+  text-decoration: none;
+}
+
+/* Headings in editor */
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.2;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.4;
+}
+
+/* Image styles */
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid hsl(var(--primary));
+}
+
+/* Code inline */
+.ProseMirror code {
+  background-color: hsl(var(--muted));
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+/* Lists */
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror li {
+  margin: 0.25rem 0;
+}
+
+/* Blockquote */
+.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin-left: 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Gap cursor */
+.ProseMirror-gapcursor {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+}
+
+.ProseMirror-gapcursor:after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid hsl(var(--foreground));
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes ProseMirror-cursor-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* Internal tag marker styles */
+.internal-tag-styled {
+  /* Don't set position - it breaks Mapbox marker geo-positioning */
+  overflow: visible !important;
+}
+
+/* Default pin icon - shown when Platform Settings configures a default icon */
+.default-pin-icon {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.default-pin-icon svg {
+  fill: white !important;
+  stroke: white !important;
+  color: white !important;
+}
+
+.internal-tag-icon {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.internal-tag-icon svg {
+  fill: white !important;
+  stroke: white !important;
+  color: white !important;
+  width: 55% !important;
+  height: 55% !important;
+}
+
+/* Internal tag marker pulse animation - use box-shadow only, not transform (transform breaks Mapbox positioning) */
+@keyframes internal-tag-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px rgba(234, 179, 8, 0.6);
+  }
+}
+
+/* New comment glow animation - very noticeable for prayers */
+@keyframes new-comment-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 8px 2px rgba(245, 158, 11, 0.4),
+      0 0 16px 4px rgba(245, 158, 11, 0.2),
+      inset 0 0 4px rgba(245, 158, 11, 0.1);
+    background-color: rgba(245, 158, 11, 0.08);
+  }
+  50% {
+    box-shadow: 
+      0 0 16px 6px rgba(245, 158, 11, 0.6),
+      0 0 32px 8px rgba(245, 158, 11, 0.3),
+      inset 0 0 8px rgba(245, 158, 11, 0.15);
+    background-color: rgba(245, 158, 11, 0.15);
+  }
+}
+
+/* Sparkle/shimmer effect for new comments */
+@keyframes sparkle-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.new-comment-highlight {
+  animation: new-comment-glow 1.5s ease-in-out infinite;
+  border: 1px solid rgba(245, 158, 11, 0.5) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.new-comment-highlight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 25%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.3) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: sparkle-shimmer 2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.dark .new-comment-highlight {
+  animation: new-comment-glow 1.5s ease-in-out infinite;
+}
+
+.dark .new-comment-highlight::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 158, 11, 0.2) 25%,
+    rgba(245, 158, 11, 0.3) 50%,
+    rgba(245, 158, 11, 0.2) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Soft glow border animation for CTA buttons */
+@keyframes soft-border-trace {
+  0% {
+    background-position: 0% 0%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.sparkle-border {
+  position: relative;
+  overflow: visible !important;
+}
+
+.sparkle-border::before,
+.sparkle-border::after {
+  content: '';
+  position: absolute;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Bottom edge - gold glow (using box-shadow fallback) */
+.sparkle-border {
+  --glow-position: -50%;
+  animation: sparkle-glow-position 8s ease-in-out infinite;
+}
+
+@keyframes sparkle-glow-position {
+  0%, 10% {
+    --glow-position: -50%;
+  }
+  90%, 100% {
+    --glow-position: 150%;
+  }
+}
+
+/* Top edge - gold glow */
+.sparkle-border::before {
+  top: 0px;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    hsl(45, 93%, 50%, 0.5) 45%,
+    hsl(45, 93%, 60%, 0.7) 50%,
+    hsl(45, 93%, 50%, 0.5) 55%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: soft-border-trace-horizontal 8s ease-in-out infinite;
+  z-index: 10;
+}
+
+/* Bottom edge - gold glow */
+.sparkle-border::after {
+  top: auto;
+  bottom: 0px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    hsl(45, 93%, 50%, 0.5) 45%,
+    hsl(45, 93%, 60%, 0.7) 50%,
+    hsl(45, 93%, 50%, 0.5) 55%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: soft-border-trace-horizontal 8s ease-in-out infinite;
+  z-index: 10;
+}
+
+@keyframes soft-border-trace-horizontal {
+  0%, 10% {
+    background-position: -50% 0;
+  }
+  90%, 100% {
+    background-position: 150% 0;
+  }
+}
+
+.dark .sparkle-border::before,
+.dark .sparkle-border::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    hsl(45, 93%, 45%, 0.6) 45%,
+    hsl(45, 93%, 55%, 0.8) 50%,
+    hsl(45, 93%, 45%, 0.6) 55%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Prayer coverage percentage popup */
+.prayer-pct-popup .mapboxgl-popup-content {
+  background: rgba(0, 0, 0, 0.78);
+  border-radius: 6px;
+  padding: 4px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  min-width: auto;
+}
+.prayer-pct-popup .mapboxgl-popup-tip {
+  border-top-color: rgba(0, 0, 0, 0.78);
+}
+.tippy-box {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.tippy-box > .tippy-content {
+  padding: 0 !important;
+}
+.tippy-box > .tippy-arrow {
+  display: none !important;
+}
+
+.prayer-pct-label {
+  color: #FCD34D;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.saturation-hover-popup .mapboxgl-popup-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  color: #1a1a1a;
+}
+.saturation-hover-popup .mapboxgl-popup-tip {
+  border-top-color: #fff;
+}
+.tap-popup .mapboxgl-popup-content {
+  padding: 10px 14px 10px 14px;
+}
+.tap-popup .mapboxgl-popup-close-button {
+  font-size: 18px;
+  padding: 4px 8px;
+  color: #666;
+  right: 2px;
+  top: 2px;
+}

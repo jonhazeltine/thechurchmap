@@ -1,0 +1,23 @@
+cat > /tmp/sd.js << 'ENDSCRIPT'
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+async function run() {
+  const { count: start } = await supabase.from('crime_incidents').select('*', { count: 'exact', head: true }).eq('city', 'San Diego');
+  console.log('Starting from:', start);
+  let cur = start;
+
+  while (cur < 682344) {
+    const res = await fetch(`https://opendata.sandag.org/resource/pr74-d3tr.json?$limit=10000&$offset=${cur}&$order=incident_number`);
+    const data = await res.json();
+    if (!data || !data.length) { console.log('Done:', cur); break; }
+
+    const rows = data.map(r => ({ source_id: 'sandiego_' + r.incident_number, city: 'San Diego', state: 'CA', incident_date: r.incident_date?.split('T')[0], offense_type: r.cibrs_offense_description, offense_category: r.crime_against_category, location_name: r.block_address, source_url: 'https://opendata.sandag.org' }));
+
+    await supabase.from('crime_incidents').upsert(rows, { onConflict: 'source_id' });
+    cur += data.length;
+    console.log(cur.toLocaleString(), '/ 682,344');
+  }
+}
+run();
+ENDSCRIPT
