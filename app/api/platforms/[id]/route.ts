@@ -107,11 +107,11 @@ export async function GET(req: Request, res: Response) {
       .eq('city_platform_id', platformId)
       .eq('is_active', true);
 
-    // Get boundary names
+    // Get boundary names and derive state code
     const { data: platformBoundaries } = await adminClient
       .from('city_platform_boundaries')
       .select(`
-        boundary:boundaries(name)
+        boundary:boundaries(name, state_fips, external_id)
       `)
       .eq('city_platform_id', platformId)
       .in('role', ['primary', 'included']);
@@ -119,6 +119,31 @@ export async function GET(req: Request, res: Response) {
     const boundaryNames = (platformBoundaries || [])
       .map((pb: any) => pb.boundary?.name)
       .filter(Boolean);
+
+    const STATE_FIPS_TO_ABBREV: Record<string, string> = {
+      '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA', '08': 'CO', '09': 'CT',
+      '10': 'DE', '11': 'DC', '12': 'FL', '13': 'GA', '15': 'HI', '16': 'ID', '17': 'IL',
+      '18': 'IN', '19': 'IA', '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME', '24': 'MD',
+      '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS', '29': 'MO', '30': 'MT', '31': 'NE',
+      '32': 'NV', '33': 'NH', '34': 'NJ', '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND',
+      '39': 'OH', '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI', '45': 'SC', '46': 'SD',
+      '47': 'TN', '48': 'TX', '49': 'UT', '50': 'VT', '51': 'VA', '53': 'WA', '54': 'WV',
+      '55': 'WI', '56': 'WY',
+    };
+    let derivedStateCode: string | null = null;
+    for (const pb of (platformBoundaries || [])) {
+      const b = (pb as any).boundary;
+      if (b?.state_fips && STATE_FIPS_TO_ABBREV[b.state_fips]) {
+        derivedStateCode = STATE_FIPS_TO_ABBREV[b.state_fips];
+        break;
+      }
+      if (!derivedStateCode && b?.external_id) {
+        const fips = b.external_id.substring(0, 2);
+        if (STATE_FIPS_TO_ABBREV[fips]) {
+          derivedStateCode = STATE_FIPS_TO_ABBREV[fips];
+        }
+      }
+    }
 
     // Convert combined_geometry from WKB hex string to GeoJSON
     let combinedGeometryGeoJSON = null;
@@ -138,6 +163,7 @@ export async function GET(req: Request, res: Response) {
       church_count: churchCount || 0,
       member_count: memberCount || 0,
       boundary_names: boundaryNames,
+      state_code: derivedStateCode,
     });
 
   } catch (error) {
