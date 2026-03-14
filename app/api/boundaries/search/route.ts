@@ -100,8 +100,6 @@ export async function GET(req: Request, res: Response) {
       return res.status(500).json({ error: error.message });
     }
 
-    // Enrich with state_fips from external_id if not set, and add state_code
-    // For place/county/tract boundaries, external_id often starts with state FIPS code
     const isZipType = (type: string) => type === 'zip' || type === 'Zip' || type === 'ZIP';
     
     const enrichedData = (data || []).map((b: any) => {
@@ -128,9 +126,20 @@ export async function GET(req: Request, res: Response) {
       };
     });
 
+    const deduped = (() => {
+      const seen = new Map<string, any>();
+      for (const b of enrichedData) {
+        const key = `${b.name}|${b.type}|${b.external_id || ''}`;
+        if (!seen.has(key)) {
+          seen.set(key, b);
+        }
+      }
+      return Array.from(seen.values());
+    })();
+
     // If with_geometry is requested, fetch full boundary data with GeoJSON conversion
-    if (withGeometry && enrichedData.length > 0) {
-      const ids = enrichedData.map((b: any) => b.id);
+    if (withGeometry && deduped.length > 0) {
+      const ids = deduped.map((b: any) => b.id);
       
       // Use raw SQL to fetch boundaries with ST_AsGeoJSON conversion
       // This avoids the UUID/text type mismatch issue in the RPC function
@@ -143,17 +152,19 @@ export async function GET(req: Request, res: Response) {
         return res.status(500).json({ error: fullError.message });
       }
       
-      // Merge state_fips from the enriched data into fullData
-      const stateMap = new Map(enrichedData.map((b: any) => [b.id, b.state_fips]));
-      const resultWithGeometry = (fullData || []).map((b: any) => ({
-        ...b,
-        state_fips: stateMap.get(b.id) || null
-      }));
+      const stateMap = new Map(deduped.map((b: any) => [b.id, b.state_fips]));
+      const dedupedIds = new Set(deduped.map((b: any) => b.id));
+      const resultWithGeometry = (fullData || [])
+        .filter((b: any) => dedupedIds.has(b.id))
+        .map((b: any) => ({
+          ...b,
+          state_fips: stateMap.get(b.id) || null
+        }));
       
       return res.json(resultWithGeometry);
     }
 
-    return res.json(enrichedData);
+    return res.json(deduped);
   } catch (err: any) {
     console.error('Error in boundaries search:', err);
     return res.status(500).json({ error: err.message });
