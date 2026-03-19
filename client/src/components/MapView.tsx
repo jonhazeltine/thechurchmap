@@ -191,6 +191,7 @@ interface MapViewProps {
   onShapeSelected?: (featureId: string) => void;
   onShapeDeselected?: () => void;
   onMinistryAreaClick?: (churchId: string, areaId?: string) => void;
+  onSaturationTractClick?: (churchIds: string[], tractGeoid: string) => void;
   onMapBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
   drawingAreaMode?: boolean;
   drawingPrimaryArea?: boolean;  // True when drawing primary ministry area - hides all other elements
@@ -277,6 +278,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   onShapeSelected,
   onShapeDeselected,
   onMinistryAreaClick,
+  onSaturationTractClick,
   onMapBoundsChange,
   drawingAreaMode = false,
   drawingPrimaryArea = false,
@@ -394,6 +396,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   
   // Tooltip visibility ref for use in click handler closure
   const saturationTooltipVisibleRef = useRef(saturationTooltipVisible);
+  const onSaturationTractClickRef = useRef(onSaturationTractClick);
   
   // Performance mode ref for clustering
   const performanceModeRef = useRef(performanceMode);
@@ -527,6 +530,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   onMapClickForPrayerRef.current = onMapClickForPrayer;
   performanceModeRef.current = performanceMode;
   saturationTooltipVisibleRef.current = saturationTooltipVisible;
+  onSaturationTractClickRef.current = onSaturationTractClick;
   onPolygonDrawnRef.current = onPolygonDrawn;
 
   // Expose methods to parent
@@ -4328,8 +4332,30 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
       m.on('mouseleave', 'ministry-saturation-fill', handleSaturationMouseLeave);
     }
 
+    const handleSaturationClick = (e: mapboxgl.MapMouseEvent) => {
+      if (e.originalEvent instanceof TouchEvent) return;
+      if (mapOverlayModeRef.current !== 'saturation') return;
+      if (!m.getLayer('ministry-saturation-fill')) return;
+      const features = m.queryRenderedFeatures(e.point, { layers: ['ministry-saturation-fill'] });
+      if (features.length === 0) return;
+      const uniqueChurchIds = new Map<string, boolean>();
+      let tractGeoid = '';
+      features.forEach(f => {
+        const cid = f.properties?.church_id;
+        if (cid && cid !== '') uniqueChurchIds.set(cid, true);
+        if (!tractGeoid && f.properties?.tract_geoid) tractGeoid = f.properties.tract_geoid;
+      });
+      const churchIds = [...uniqueChurchIds.keys()];
+      if (churchIds.length > 0 && onSaturationTractClickRef.current) {
+        e.originalEvent.stopPropagation();
+        onSaturationTractClickRef.current(churchIds, tractGeoid);
+      }
+    };
+    m.on('click', handleSaturationClick);
+
     return () => {
       m.off('mousemove', throttledMouseMove);
+      m.off('click', handleSaturationClick);
       if (m.getLayer('ministry-saturation-fill')) {
         m.off('mouseleave', 'ministry-saturation-fill', handleSaturationMouseLeave);
       }

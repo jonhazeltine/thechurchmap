@@ -49,6 +49,7 @@ export interface IStorage {
       properties: {
         tract_geoid: string,
         area_id: string,
+        church_id: string,
         saturation: number,
         raw_saturation: number,
         overlap_fraction: number,
@@ -459,6 +460,7 @@ export class DatabaseStorage implements IStorage {
       properties: {
         tract_geoid: string,
         area_id: string,
+        church_id: string,
         saturation: number,
         raw_saturation: number,
         overlap_fraction: number,
@@ -648,6 +650,7 @@ export class DatabaseStorage implements IStorage {
         properties: {
           tract_geoid: r.tract_geoid,
           area_id: r.area_id,
+          church_id: churchId,
           saturation: pieceRawSat * 1500,
           raw_saturation: tractRawSat,
           overlap_fraction: parseFloat(r.overlap_fraction) || 0,
@@ -671,6 +674,7 @@ export class DatabaseStorage implements IStorage {
           properties: {
             tract_geoid: r.tract_geoid,
             area_id: '',
+            church_id: '',
             saturation: 0,
             raw_saturation: 0,
             overlap_fraction: 0,

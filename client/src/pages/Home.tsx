@@ -142,6 +142,7 @@ export default function Home() {
   };
   const [addChurchOpen, setAddChurchOpen] = useState(false);
   const [selectedChurch, setSelectedChurch] = useState<ChurchWithCallings | null>(null);
+  const [saturationChurchList, setSaturationChurchList] = useState<ChurchWithCallings[] | null>(null);
   const [drawingArea, setDrawingArea] = useState(false);
   const [drawingChurchId, setDrawingChurchId] = useState<string | null>(null);
   const [drawingCallingId, setDrawingCallingId] = useState<string | null>(null);
@@ -2999,6 +3000,7 @@ export default function Home() {
 
   const handleChurchClick = (church: ChurchWithCallings) => {
     setSelectedChurch(church);
+    setSaturationChurchList(null);
     if (!isMobile) {
       openRightSidebar();
     }
@@ -3089,6 +3091,7 @@ export default function Home() {
     const church = churches.find(c => c.id === churchId);
     if (church) {
       setSelectedChurch(church);
+      setSaturationChurchList(null);
       // Open the appropriate UI based on device
       if (isMobile) {
         setMobileDetailOpen(true);
@@ -3102,6 +3105,29 @@ export default function Home() {
         // Set highlighted area - this will also keep it visible on the map
         // via the ministryAreas prop logic that preserves highlighted areas
         setHighlightedAreaId(areaId);
+      }
+    }
+  };
+
+  const handleSaturationTractClick = (churchIds: string[], _tractGeoid: string) => {
+    if (isMobile) return;
+    if (churchIds.length === 1) {
+      const church = churches.find(c => c.id === churchIds[0]);
+      if (church) {
+        setSaturationChurchList(null);
+        setSelectedChurch(church);
+        openRightSidebar();
+        setActiveTab('details');
+        setChurchDetailSubTab('areas');
+      }
+    } else if (churchIds.length > 1) {
+      const matchingChurches = churches.filter(c => churchIds.includes(c.id));
+      if (matchingChurches.length > 0) {
+        setSelectedChurch(null);
+        setHighlightedAreaId(null);
+        setSaturationChurchList(matchingChurches);
+        openRightSidebar();
+        setActiveTab('details');
       }
     }
   };
@@ -3533,6 +3559,7 @@ export default function Home() {
             onShapeSelected={handleShapeSelected}
             onShapeDeselected={handleShapeDeselected}
             onMinistryAreaClick={handleMinistryAreaClick}
+            onSaturationTractClick={handleSaturationTractClick}
             onMapBoundsChange={setMapBounds}
             drawingAreaMode={drawingArea || editingGeometry}
             drawingPrimaryArea={drawingPrimaryArea}
@@ -3678,7 +3705,7 @@ export default function Home() {
           <div className={`${isMobile ? 'absolute inset-0 z-50' : 'w-[420px]'} flex-shrink-0 border-l bg-background overflow-hidden flex flex-col z-10`}>
             <div className="p-4 border-b flex items-center justify-between">
               <h2 className="font-semibold">
-                {selectedChurch ? selectedChurch.name : "Explore"}
+                {selectedChurch ? selectedChurch.name : saturationChurchList ? "Ministry Coverage" : "Explore"}
               </h2>
               <Button
                 variant="ghost"
@@ -3726,6 +3753,45 @@ export default function Home() {
                           <Skeleton className="h-24 w-full" />
                         </div>
                       ))}
+                    </div>
+                  ) : saturationChurchList && saturationChurchList.length > 0 && !selectedChurch ? (
+                    <div className="flex flex-col h-full min-w-0">
+                      <div className="px-4 pt-4 pb-3 border-b flex items-center justify-between gap-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSaturationChurchList(null)}
+                          data-testid="button-back-from-saturation-list"
+                        >
+                          <ChevronLeft className="w-4 h-4 mr-1" />
+                          Back
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          {saturationChurchList.length} {saturationChurchList.length === 1 ? 'church' : 'churches'} serving this area
+                        </span>
+                      </div>
+                      <div className="divide-y">
+                        {saturationChurchList.map(church => (
+                          <button
+                            key={church.id}
+                            className="w-full px-4 py-3 text-left hover-elevate flex items-center gap-3"
+                            onClick={() => {
+                              setSelectedChurch(church);
+                              setSaturationChurchList(null);
+                              setChurchDetailSubTab('areas');
+                            }}
+                            data-testid={`button-saturation-church-${church.id}`}
+                          >
+                            <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm truncate">{church.name}</div>
+                              {church.city && (
+                                <div className="text-xs text-muted-foreground truncate">{church.city}, {church.state}</div>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   ) : selectedChurch ? (
                     <div className="flex flex-col h-full min-w-0">
