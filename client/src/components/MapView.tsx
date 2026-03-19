@@ -349,32 +349,26 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
     const activeId = hoveredAreaIdRef.current || highlightedAreaIdRef.current;
     const isBoundaries = mapOverlayModeRef.current === 'boundaries';
     
-    const isSaturation = mapOverlayModeRef.current === 'saturation';
     if (activeId) {
       m.setPaintProperty('areas-fill', 'fill-opacity', isBoundaries ? [
         'case',
         ['==', ['get', 'id'], activeId],
         0.45,
         0.15
-      ] : isSaturation ? [
-        'case',
-        ['==', ['get', 'id'], activeId],
-        0.35,
-        0.01
       ] : 0);
       m.setPaintProperty('areas-outline', 'line-width', [
         'case',
         ['==', ['get', 'id'], activeId],
         3.5,
-        isSaturation ? 1.5 : 2
+        2
       ]);
     } else {
-      m.setPaintProperty('areas-fill', 'fill-opacity', isBoundaries ? 0.15 : isSaturation ? 0.01 : 0);
-      m.setPaintProperty('areas-outline', 'line-width', isSaturation ? 1.5 : 2);
+      m.setPaintProperty('areas-fill', 'fill-opacity', isBoundaries ? 0.15 : 0);
+      m.setPaintProperty('areas-outline', 'line-width', 2);
     }
     
     if (m.getLayer('primary-area-fill')) {
-      m.setPaintProperty('primary-area-fill', 'fill-opacity', isBoundaries ? 0.4 : isSaturation ? 0.01 : 0);
+      m.setPaintProperty('primary-area-fill', 'fill-opacity', isBoundaries ? 0.4 : 0);
     }
   }, []);
 
@@ -397,6 +391,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   const prayerOverlayVisibleRef = useRef(prayerOverlayVisible);
   const onChurchPrayerFocusRef = useRef(onChurchPrayerFocus);
   const onMapClickForPrayerRef = useRef(onMapClickForPrayer);
+  const onMinistryAreaClickRef = useRef(onMinistryAreaClick);
   
   // Tooltip visibility ref for use in click handler closure
   const saturationTooltipVisibleRef = useRef(saturationTooltipVisible);
@@ -531,6 +526,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   prayerOverlayVisibleRef.current = prayerOverlayVisible;
   onChurchPrayerFocusRef.current = onChurchPrayerFocus;
   onMapClickForPrayerRef.current = onMapClickForPrayer;
+  onMinistryAreaClickRef.current = onMinistryAreaClick;
   performanceModeRef.current = performanceMode;
   saturationTooltipVisibleRef.current = saturationTooltipVisible;
   onPolygonDrawnRef.current = onPolygonDrawn;
@@ -2197,7 +2193,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
     // Filter visible areas from both contexts
     // Sprint 1.8: When showAllAreas is true, use ministryAreas with calling colors from DB
     const visibleGlobal = globalAreas.filter(a => visibleGlobalAreaIds?.has(a.id));
-    const visibleChurch = (showAllAreas || mapOverlayMode === 'boundaries' || mapOverlayMode === 'saturation')
+    const visibleChurch = (showAllAreas || mapOverlayMode === 'boundaries')
       ? (ministryAreas || [])
       : (churchAreas || []).filter(a => visibleChurchAreaIds?.has(a.id));
     const allVisibleAreas = [...visibleGlobal, ...visibleChurch];
@@ -2248,7 +2244,9 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
         data: featureCollection as any,
       });
 
-      const areasBeforeId = undefined;
+      const areasBeforeId = map.current.getLayer('ministry-saturation-fill') 
+        ? 'ministry-saturation-fill' 
+        : undefined;
 
       map.current.addLayer({
         id: 'areas-fill',
@@ -2266,8 +2264,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
           'fill-opacity': [
             'case',
             ['==', ['get', 'is_primary'], true],
-            mapOverlayModeRef.current === 'boundaries' ? 0.3 : mapOverlayModeRef.current === 'saturation' ? 0.01 : 0,
-            mapOverlayModeRef.current === 'boundaries' ? 0.15 : mapOverlayModeRef.current === 'saturation' ? 0.01 : 0
+            mapOverlayModeRef.current === 'boundaries' ? 0.3 : 0,
+            mapOverlayModeRef.current === 'boundaries' ? 0.15 : 0
           ],
         },
       }, areasBeforeId);
@@ -2634,7 +2632,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
         source: 'primary-area',
         paint: {
           'fill-color': MAP_AREA_COLORS.primaryMinistryArea,
-          'fill-opacity': mapOverlayModeRef.current === 'boundaries' ? 0.4 : mapOverlayModeRef.current === 'saturation' ? 0.01 : 0,
+          'fill-opacity': mapOverlayModeRef.current === 'boundaries' ? 0.4 : 0,
         },
       }, firstLabelLayer);
 
@@ -3880,7 +3878,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
 
       applyAreaHighlight(map.current);
       if (map.current.getLayer('primary-area-fill')) {
-        map.current.setPaintProperty('primary-area-fill', 'fill-opacity', mapOverlayMode === 'boundaries' ? 0.4 : mapOverlayMode === 'saturation' ? 0.01 : 0);
+        map.current.setPaintProperty('primary-area-fill', 'fill-opacity', mapOverlayMode === 'boundaries' ? 0.4 : 0);
       }
       
       if (mapOverlayMode !== 'saturation') return;
@@ -4332,8 +4330,24 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
       m.on('mouseleave', 'ministry-saturation-fill', handleSaturationMouseLeave);
     }
 
+    const handleSaturationClick = (e: mapboxgl.MapMouseEvent) => {
+      if (e.originalEvent instanceof TouchEvent) return;
+      if (mapOverlayModeRef.current !== 'saturation') return;
+      if (!m.getLayer('ministry-saturation-fill')) return;
+      const features = m.queryRenderedFeatures(e.point, { layers: ['ministry-saturation-fill'] });
+      if (features.length === 0) return;
+      const f = features[0];
+      const churchId = f.properties?.church_id;
+      const areaId = f.properties?.area_id;
+      if (churchId && onMinistryAreaClickRef.current) {
+        onMinistryAreaClickRef.current(churchId, areaId);
+      }
+    };
+    m.on('click', 'ministry-saturation-fill', handleSaturationClick);
+
     return () => {
       m.off('mousemove', throttledMouseMove);
+      m.off('click', 'ministry-saturation-fill', handleSaturationClick);
       if (m.getLayer('ministry-saturation-fill')) {
         m.off('mouseleave', 'ministry-saturation-fill', handleSaturationMouseLeave);
       }
