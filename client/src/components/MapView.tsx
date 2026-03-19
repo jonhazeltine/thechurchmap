@@ -909,6 +909,19 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
         const clickedFeatures = map.current?.queryRenderedFeatures(e.point, { layers: existingLayers });
         clickedOnInteractiveLayer = !!(clickedFeatures && clickedFeatures.length > 0);
       }
+
+      // Saturation layer click: open church detail for the clicked tract's church
+      if (!clickedOnInteractiveLayer && mapOverlayModeRef.current === 'saturation' && map.current?.getLayer('ministry-saturation-fill')) {
+        const satFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['ministry-saturation-fill'] });
+        if (satFeatures.length > 0) {
+          const churchId = satFeatures[0].properties?.church_id;
+          const areaId = satFeatures[0].properties?.area_id;
+          if (churchId && onMinistryAreaClickRef.current) {
+            onMinistryAreaClickRef.current(churchId, areaId);
+            return;
+          }
+        }
+      }
       
       // In prayer mode, forward map clicks for prayer location selection
       // Prayer coverage layers are click-through - they don't block prayer mode clicks
@@ -4330,24 +4343,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
       m.on('mouseleave', 'ministry-saturation-fill', handleSaturationMouseLeave);
     }
 
-    const handleSaturationClick = (e: mapboxgl.MapMouseEvent) => {
-      if (e.originalEvent instanceof TouchEvent) return;
-      if (mapOverlayModeRef.current !== 'saturation') return;
-      if (!m.getLayer('ministry-saturation-fill')) return;
-      const features = m.queryRenderedFeatures(e.point, { layers: ['ministry-saturation-fill'] });
-      if (features.length === 0) return;
-      const f = features[0];
-      const churchId = f.properties?.church_id;
-      const areaId = f.properties?.area_id;
-      if (churchId && onMinistryAreaClickRef.current) {
-        onMinistryAreaClickRef.current(churchId, areaId);
-      }
-    };
-    m.on('click', 'ministry-saturation-fill', handleSaturationClick);
-
     return () => {
       m.off('mousemove', throttledMouseMove);
-      m.off('click', 'ministry-saturation-fill', handleSaturationClick);
       if (m.getLayer('ministry-saturation-fill')) {
         m.off('mouseleave', 'ministry-saturation-fill', handleSaturationMouseLeave);
       }
