@@ -73,6 +73,63 @@ export async function PATCH(req: Request, res: Response) {
 
     if (error) throw error;
 
+    if (!area_id) {
+      const { data: oldPrimaryAreas } = await supabase
+        .from('areas')
+        .select('id')
+        .eq('church_id', id)
+        .eq('is_primary', true);
+
+      const oldAreaIds = (oldPrimaryAreas || []).map((a: any) => a.id);
+
+      const { error: deleteOldError } = await supabase
+        .from('areas')
+        .delete()
+        .eq('church_id', id)
+        .eq('is_primary', true);
+
+      if (deleteOldError) throw deleteOldError;
+
+      for (const oldId of oldAreaIds) {
+        invalidateAreaOverlaps(oldId).catch(err =>
+          console.error('[primary-ministry-area/PATCH] Background overlap invalidation failed for old area:', err)
+        );
+      }
+
+      const { data: church } = await supabase
+        .from('churches')
+        .select('name')
+        .eq('id', id)
+        .single();
+
+      const areaName = `${church?.name || 'Church'} Ministry Area`;
+      const geometryGeoJSON = JSON.stringify(finalGeometry);
+
+      const { data: newArea, error: createAreaError } = await supabase.rpc('create_area', {
+        p_name: areaName,
+        p_type: 'church',
+        p_church_id: id,
+        p_geometry_geojson: geometryGeoJSON,
+      });
+
+      if (createAreaError) throw createAreaError;
+
+      const newAreaId = typeof newArea === 'object' && 'id' in newArea ? newArea.id : newArea;
+
+      const { error: setPrimaryError } = await supabase
+        .from('areas')
+        .update({ is_primary: true })
+        .eq('id', newAreaId);
+
+      if (setPrimaryError) throw setPrimaryError;
+
+      if (newAreaId) {
+        computeAreaTractOverlaps(String(newAreaId), finalGeometry, id).catch(err =>
+          console.error('[primary-ministry-area/PATCH] Background area overlap compute failed:', err)
+        );
+      }
+    }
+
     computeAreaTractOverlaps(`primary-${id}`, finalGeometry, id).catch(err =>
       console.error('[primary-ministry-area/PATCH] Background overlap compute failed:', err)
     );
@@ -97,15 +154,21 @@ export async function DELETE(req: Request, res: Response) {
 
     const supabase = supabaseServer();
 
-    const { error: unsetError } = await supabase
+    const { data: primaryAreas } = await supabase
       .from('areas')
-      .update({ is_primary: false })
+      .select('id')
       .eq('church_id', id)
       .eq('is_primary', true);
 
-    if (unsetError) {
-      console.error('[primary-ministry-area/DELETE] Error unsetting primary on areas:', unsetError);
-    }
+    const areaIds = (primaryAreas || []).map((a: any) => a.id);
+
+    const { error: deleteAreasError } = await supabase
+      .from('areas')
+      .delete()
+      .eq('church_id', id)
+      .eq('is_primary', true);
+
+    if (deleteAreasError) throw deleteAreasError;
 
     const { error } = await supabase.rpc('fn_delete_primary_ministry_area', {
       church_uuid: id
@@ -113,6 +176,11 @@ export async function DELETE(req: Request, res: Response) {
 
     if (error) throw error;
 
+    for (const areaId of areaIds) {
+      invalidateAreaOverlaps(areaId).catch(err =>
+        console.error('[primary-ministry-area/DELETE] Background overlap invalidation failed:', err)
+      );
+    }
     invalidateAreaOverlaps(`primary-${id}`).catch(err =>
       console.error('[primary-ministry-area/DELETE] Background overlap invalidation failed:', err)
     );
