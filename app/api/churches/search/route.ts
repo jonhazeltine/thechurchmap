@@ -110,7 +110,8 @@ export async function GET(req: Request, res: Response) {
             name,
             address,
             city,
-            state
+            state,
+            zip
           )
         `)
         .eq('city_platform_id', city_platform_id)
@@ -128,7 +129,8 @@ export async function GET(req: Request, res: Response) {
         return (
           (church.name && church.name.toLowerCase().includes(searchLower)) ||
           (church.city && church.city.toLowerCase().includes(searchLower)) ||
-          (church.address && church.address.toLowerCase().includes(searchLower))
+          (church.address && church.address.toLowerCase().includes(searchLower)) ||
+          (church.zip && church.zip.toLowerCase().includes(searchLower))
         );
       });
       
@@ -148,7 +150,7 @@ export async function GET(req: Request, res: Response) {
       }
       
       const { data: allMatches, error: allSearchError } = await query
-        .or(`name.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
+        .or(`name.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,zip.ilike.%${searchTerm}%`)
         .order('name', { ascending: true })
         .limit(10);
       

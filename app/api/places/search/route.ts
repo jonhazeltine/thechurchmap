@@ -102,7 +102,7 @@ export async function GET(req: Request, res: Response) {
       `&country=us` +
       `&language=en` +
       `&limit=${limit}` +
-      `&types=poi,address`;
+      `&types=poi,address,postcode`;
 
     console.log(`[Places Search] Searching for: "${q}"`);
     
@@ -205,7 +205,7 @@ async function fallbackToGeocoding(
   const encodedQuery = encodeURIComponent(query);
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedQuery}.json?` +
     `access_token=${token}` +
-    `&types=poi,address,place` +
+    `&types=poi,address,place,postcode` +
     `&country=us` +
     `&proximity=${proximity}` +
     `&bbox=${bbox}` +

@@ -2700,7 +2700,8 @@ export default function Home() {
             const matchesName = church.name?.toLowerCase().includes(searchTerm);
             const matchesCity = church.city?.toLowerCase().includes(searchTerm);
             const matchesAddress = church.address?.toLowerCase().includes(searchTerm);
-            if (!matchesName && !matchesCity && !matchesAddress) {
+            const matchesZip = church.zip?.toLowerCase().includes(searchTerm);
+            if (!matchesName && !matchesCity && !matchesAddress && !matchesZip) {
               return false;
             }
           }
