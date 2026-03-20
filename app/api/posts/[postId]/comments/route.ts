@@ -27,7 +27,7 @@ export async function GET(req: Request, res: Response) {
       `)
       .eq('post_id', postId)
       .or('status.eq.published,status.is.null') // Show published or legacy comments without status
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
     

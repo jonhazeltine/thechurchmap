@@ -659,30 +659,6 @@ export default function CommunityPost() {
               </h2>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Textarea
-                  placeholder={post.post_type === 'prayer_post' 
-                    ? "Share a prayer or encouragement..." 
-                    : "Write a comment..."}
-                  value={commentBody}
-                  onChange={(e) => setCommentBody(e.target.value)}
-                  rows={3}
-                  data-testid="textarea-comment"
-                />
-                <Button
-                  onClick={handleCommentSubmit}
-                  disabled={!commentBody.trim() || createCommentMutation.isPending}
-                  data-testid="button-submit-comment"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  {createCommentMutation.isPending 
-                    ? "Posting..." 
-                    : post.post_type === 'prayer_post' 
-                      ? "Add Prayer" 
-                      : "Post Comment"}
-                </Button>
-              </div>
-
               {isLoadingComments ? (
                 <div className="space-y-4">
                   {[1, 2].map((i) => (
@@ -751,6 +727,31 @@ export default function CommunityPost() {
                   </p>
                 </div>
               )}
+
+              <Separator />
+              <div className="space-y-2">
+                <Textarea
+                  placeholder={post.post_type === 'prayer_post' 
+                    ? "Share a prayer or encouragement..." 
+                    : "Write a comment..."}
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                  rows={3}
+                  data-testid="textarea-comment"
+                />
+                <Button
+                  onClick={handleCommentSubmit}
+                  disabled={!commentBody.trim() || createCommentMutation.isPending}
+                  data-testid="button-submit-comment"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {createCommentMutation.isPending 
+                    ? "Posting..." 
+                    : post.post_type === 'prayer_post' 
+                      ? "Add Prayer" 
+                      : "Post Comment"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
