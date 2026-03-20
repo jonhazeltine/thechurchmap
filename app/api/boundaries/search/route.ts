@@ -79,21 +79,27 @@ export async function GET(req: Request, res: Response) {
       .from('boundaries')
       .select('id, name, type, external_id, state_fips')
       .ilike('name', searchQuery)
-      .limit(50);
+      .limit(300);
     
     if (mappedType) {
       query = query.eq('type', mappedType);
     }
     
-    // If state is specified, filter to that state only
-    if (stateFips) {
-      query = query.eq('state_fips', stateFips);
-    }
-    
-    // Order by exact match first, then prefix match, then alphabetical
+    // Order alphabetically
     query = query.order('name');
     
-    const { data, error } = await query;
+    const { data: rawData, error } = await query;
+    
+    // Apply state filter in memory. Zip codes are always included because their state_fips
+    // is unreliable in the DB (e.g. zip "49507" gets fips "49" = Utah, not Michigan).
+    // The enrichment step already nullifies state_fips for zip types.
+    const isZipRaw = (type: string) => ['zip', 'Zip', 'ZIP'].includes(type);
+    const data = (rawData || []).filter((b: any) => {
+      if (!stateFips) return true; // No state filter — include everything
+      if (isZipRaw(b.type)) return true; // Zips have unreliable state_fips — always include
+      if (!b.state_fips) return true; // No state_fips — include (can't filter)
+      return b.state_fips === stateFips; // Match state
+    });
 
     if (error) {
       console.error('Error searching boundaries:', error);
