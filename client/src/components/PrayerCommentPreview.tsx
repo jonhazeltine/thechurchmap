@@ -84,36 +84,33 @@ export function PrayerCommentPreview({
   const hasMoreComments = totalCommentCount > 3;
 
   return (
-    <div className="mt-3 pt-3 border-t-2 border-amber-200/50 dark:border-amber-800/30 bg-gradient-to-b from-amber-50/20 to-transparent dark:from-amber-950/10 dark:to-transparent">
+    <div className="mx-4 mt-3 rounded-lg border border-border/40 overflow-hidden">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <div className="px-4 pb-2">
-          <CollapsibleTrigger className="w-full" data-testid={`toggle-prayers-${postId}`}>
-            <div className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
+        <CollapsibleTrigger className="w-full" data-testid={`toggle-prayers-${postId}`}>
+          <div className="px-4 py-3 hover:bg-muted/30 transition-colors">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-amber-100/50 dark:bg-amber-900/30 px-2 py-1 rounded-md">
-                  <Hand className="w-3.5 h-3.5 text-amber-600/80 dark:text-amber-400/70" />
-                  <span className="text-xs font-semibold text-amber-700/80 dark:text-amber-400/80 tracking-wide uppercase">
-                    Prayers
-                  </span>
-                </div>
-                {totalCommentCount > 0 && (
-                  <span className="text-xs text-muted-foreground/60 font-medium">
-                    {totalCommentCount}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
+                <Hand className="w-4 h-4 text-primary/60" />
+                <span className="text-sm font-medium">
+                  {totalCommentCount > 0 ? `${totalCommentCount} Praying` : "Prayers"}
+                </span>
                 {newCommentIds.length > 0 && (
-                  <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
-                    {newCommentIds.length} NEW
+                  <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {newCommentIds.length} new
                   </span>
                 )}
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
               </div>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
-          </CollapsibleTrigger>
-        </div>
-        
+            {/* Teaser — show snippet of most recent prayer when collapsed */}
+            {!isOpen && displayedComments.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 text-left italic">
+                "{displayedComments[0].body?.slice(0, 120)}{(displayedComments[0].body?.length || 0) > 120 ? "..." : ""}"
+              </p>
+            )}
+          </div>
+        </CollapsibleTrigger>
+
         <CollapsibleContent>
           <div className="px-4 space-y-2">
             {displayedComments.map((comment) => {

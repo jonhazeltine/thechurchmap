@@ -687,7 +687,12 @@ function PostCard({ post, index }: { post: PostWithDetails; index: number }) {
           )}
         </div>
 
-        {/* Prayer post comment previews - always show for prayer posts */}
+        {/* Church prayer needs - show first */}
+        {isPrayerPost && linkedChurch && (
+          <ChurchPrayerMiniCards churchId={linkedChurch.id} />
+        )}
+
+        {/* Prayer responses and encouragement */}
         {isPrayerPost && (
           <PrayerCommentPreview
             postId={post.id}
@@ -695,11 +700,6 @@ function PostCard({ post, index }: { post: PostWithDetails; index: number }) {
             totalCommentCount={post.comment_count || 0}
             isFirstPrayerPost={post.is_first_prayer_post || false}
           />
-        )}
-
-        {/* Church prayer mini-cards - show on each prayer post, filtered to its linked church */}
-        {isPrayerPost && linkedChurch && (
-          <ChurchPrayerMiniCards churchId={linkedChurch.id} />
         )}
 
         <div className="px-4 py-3 border-t border-border/50">
