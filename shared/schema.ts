@@ -429,9 +429,11 @@ export interface ChurchUserRoleRecord {
 }
 
 // Platform role types
+// @deprecated - Use CityPlatformRole from city_platform_users instead
 export type PlatformRole = 'platform_admin';
 
 // Platform role (Sprint 2.0)
+// @deprecated - Use CityPlatformUser instead. Kept for backward compatibility.
 export interface PlatformRoleRecord {
   id: string;
   user_id: string;
@@ -439,6 +441,9 @@ export interface PlatformRoleRecord {
   is_active: boolean;
   created_at: string;
 }
+
+// Canonical admin role type (from city_platform_users)
+export type CityPlatformRole = 'super_admin' | 'platform_owner' | 'platform_admin' | 'church_admin' | 'member';
 
 // Prayer status types
 export type PrayerStatus = 'pending' | 'approved' | 'rejected' | 'archived';
