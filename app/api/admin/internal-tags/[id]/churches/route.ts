@@ -20,12 +20,13 @@ async function checkPlatformAdminAccess(req: Request): Promise<{ user: any; erro
   const isSuperAdmin = user.user_metadata?.super_admin === true;
   
   const { data: platformRoles } = await adminClient
-    .from('platform_roles')
+    .from('city_platform_users')
     .select('role')
     .eq('user_id', user.id)
+    .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
     .eq('is_active', true);
-  
-  const hasPlatformAdminRole = platformRoles?.some(r => r.role === 'platform_admin') || false;
+
+  const hasPlatformAdminRole = (platformRoles || []).length > 0;
   
   if (!isSuperAdmin && !hasPlatformAdminRole) {
     return { user: null, error: "Forbidden: Platform admin access required" };

@@ -24,10 +24,12 @@ async function verifyAdminAccess(req: Request): Promise<{ authorized: boolean; u
   const supabase = supabaseServer();
   
   const { data: platformRole } = await supabase
-    .from('platform_roles')
+    .from('city_platform_users')
     .select('role')
     .eq('user_id', user.id)
-    .in('role', ['super_admin', 'platform_admin'])
+    .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
+    .eq('is_active', true)
+    .limit(1)
     .single();
 
   if (!platformRole) {

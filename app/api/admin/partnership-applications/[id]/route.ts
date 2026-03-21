@@ -20,14 +20,13 @@ export async function GET(req: Request, res: Response) {
     const isSuperAdmin = user.user_metadata?.super_admin === true;
     if (!isSuperAdmin) {
       const { data: platformRoles } = await adminClient
-        .from('platform_roles')
-        .select('role, is_active')
+        .from('city_platform_users')
+        .select('role')
         .eq('user_id', user.id)
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
         .eq('is_active', true);
 
-      const isPlatformAdmin = (platformRoles || []).some(
-        (role: any) => role.role === 'platform_admin' && role.is_active
-      );
+      const isPlatformAdmin = (platformRoles || []).length > 0;
 
       if (!isPlatformAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -80,14 +79,13 @@ export async function PATCH(req: Request, res: Response) {
     const isSuperAdmin = user.user_metadata?.super_admin === true;
     if (!isSuperAdmin) {
       const { data: platformRoles } = await adminClient
-        .from('platform_roles')
-        .select('role, is_active')
+        .from('city_platform_users')
+        .select('role')
         .eq('user_id', user.id)
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
         .eq('is_active', true);
 
-      const isPlatformAdmin = (platformRoles || []).some(
-        (role: any) => role.role === 'platform_admin' && role.is_active
-      );
+      const isPlatformAdmin = (platformRoles || []).length > 0;
 
       if (!isPlatformAdmin) {
         return res.status(403).json({ error: 'Admin access required' });

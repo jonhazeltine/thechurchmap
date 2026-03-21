@@ -83,11 +83,12 @@ export async function DELETE(req: Request, res: Response) {
     let isPlatformAdmin = false;
     if (!isSuperAdmin && !isAuthor) {
       const { data: platformRole } = await adminClient
-        .from('platform_roles')
+        .from('city_platform_users')
         .select('role')
         .eq('user_id', user.id)
-        .in('role', ['platform_admin', 'platform_owner'])
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
         .eq('is_active', true)
+        .limit(1)
         .maybeSingle();
       isPlatformAdmin = !!platformRole;
     }

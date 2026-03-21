@@ -25,12 +25,14 @@ export async function GET(req: Request, res: Response) {
     // Check if user is platform admin (bypass RLS recursion by checking metadata)
     let isPlatformAdmin = false;
     if (!isSuperAdmin) {
-      // Only check platform_roles if not super admin (to avoid RLS recursion)
+      // Check city_platform_users for platform admin role
       const { data: platformRole } = await adminClient
-        .from('platform_roles')
+        .from('city_platform_users')
         .select('role')
         .eq('user_id', user.id)
-        .eq('role', 'platform_admin')
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
+        .eq('is_active', true)
+        .limit(1)
         .maybeSingle();
       isPlatformAdmin = !!platformRole;
     }

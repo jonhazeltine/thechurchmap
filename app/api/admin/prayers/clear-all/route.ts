@@ -18,7 +18,7 @@ export async function DELETE(req: Request, res: Response) {
     }
 
     const { data: platformRoles } = await adminClient
-      .from('platform_roles')
+      .from('city_platform_users')
       .select('*')
       .eq('user_id', user.id)
       .in('role', ['super_admin'])

@@ -34,17 +34,16 @@ export async function PATCH(req: Request, res: Response) {
     // Check platform admin status using adminClient to bypass RLS
     console.log('🔍 Checking platform admin status for user:', userData.user.id);
     const { data: platformRoles, error: rolesError } = await adminClient
-      .from('platform_roles')
+      .from('city_platform_users')
       .select('*')
       .eq('user_id', userData.user.id)
+      .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
       .eq('is_active', true);
-    
+
     console.log('📋 Platform roles query result:', { platformRoles, rolesError });
-    
-    const isPlatformAdmin = (platformRoles || []).some(
-      (role: any) => role.role === 'platform_admin' && role.is_active
-    );
-    
+
+    const isPlatformAdmin = (platformRoles || []).length > 0;
+
     console.log('🔐 isPlatformAdmin:', isPlatformAdmin);
 
     // Get church to check ownership

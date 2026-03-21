@@ -23,27 +23,15 @@ export async function POST(req: Request, res: Response) {
     
     let isPlatformAdmin = false;
     if (!isSuperAdmin) {
-      // Check platform_roles table (legacy) for platform_admin or platform_owner
       const { data: platformRole } = await adminClient
-        .from('platform_roles')
+        .from('city_platform_users')
         .select('role')
         .eq('user_id', user.id)
-        .in('role', ['platform_admin', 'platform_owner'])
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
+        .eq('is_active', true)
         .limit(1);
-      
-      if (platformRole && platformRole.length > 0) {
-        isPlatformAdmin = true;
-      } else {
-        // Check city_platform_users table (new system)
-        const { data: platformUser } = await adminClient
-          .from('city_platform_users')
-          .select('role')
-          .eq('user_id', user.id)
-          .in('role', ['platform_admin', 'platform_owner'])
-          .eq('is_active', true)
-          .limit(1);
-        isPlatformAdmin = !!(platformUser && platformUser.length > 0);
-      }
+
+      isPlatformAdmin = !!(platformRole && platformRole.length > 0);
     }
 
     let isChurchAdmin = false;

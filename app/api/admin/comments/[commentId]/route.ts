@@ -2,38 +2,25 @@ import type { Request, Response } from "express";
 import { supabaseServer, supabaseUserClient } from "../../../../../lib/supabaseServer";
 import { updateCommentStatusSchema } from "@shared/schema";
 
-// Helper to check if user has admin access (checks both platform_roles and city_platform_users tables)
+// Helper to check if user has admin access (uses city_platform_users as canonical source)
 async function checkAdminAccess(adminClient: ReturnType<typeof supabaseServer>, userId: string) {
-  // Check legacy platform_roles table
   const { data: platformRoles } = await adminClient
-    .from('platform_roles')
-    .select('role, city_platform_id')
-    .eq('user_id', userId)
-    .eq('is_active', true);
-
-  const hasLegacyAdminRole = platformRoles?.some(r => 
-    r.role === 'super_admin' || r.role === 'platform_owner' || r.role === 'platform_admin'
-  );
-
-  // Check new city_platform_users table
-  const { data: platformUsers } = await adminClient
     .from('city_platform_users')
     .select('role, city_platform_id')
     .eq('user_id', userId)
-    .in('role', ['platform_owner', 'platform_admin']);
+    .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
+    .eq('is_active', true);
 
-  const hasPlatformUserRole = (platformUsers?.length || 0) > 0;
+  const hasAdminRole = (platformRoles || []).length > 0;
 
-  console.log('🔐 Comment moderation auth check:', { 
-    userId, 
-    legacyRolesFound: platformRoles?.length || 0,
-    legacyRoles: platformRoles?.map(r => r.role),
-    platformUsersFound: platformUsers?.length || 0,
-    platformUserRoles: platformUsers?.map(r => r.role),
-    hasAccess: hasLegacyAdminRole || hasPlatformUserRole
+  console.log('🔐 Comment moderation auth check:', {
+    userId,
+    rolesFound: platformRoles?.length || 0,
+    roles: platformRoles?.map(r => r.role),
+    hasAccess: hasAdminRole
   });
 
-  return hasLegacyAdminRole || hasPlatformUserRole;
+  return hasAdminRole;
 }
 
 export async function DELETE(request: Request, response: Response) {

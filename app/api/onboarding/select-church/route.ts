@@ -76,7 +76,7 @@ export async function POST(req: Request, res: Response) {
 
       // Check if user is already a member
       const { data: existingMember } = await supabase
-        .from('platform_roles')
+        .from('city_platform_users')
         .select('id')
         .eq('user_id', user.id)
         .eq('city_platform_id', platformId)
@@ -85,7 +85,7 @@ export async function POST(req: Request, res: Response) {
       if (!existingMember) {
         // Auto-add as member (since they selected their church)
         const { error: memberError } = await supabase
-          .from('platform_roles')
+          .from('city_platform_users')
           .insert({
             user_id: user.id,
             city_platform_id: platformId,

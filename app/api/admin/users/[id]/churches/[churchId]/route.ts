@@ -57,11 +57,11 @@ export async function DELETE(req: Request, res: Response) {
 
       // Check if user is platform admin (for any platform)
       const { data: platformRoles } = await adminClient
-        .from('platform_roles')
-        .select('platform_id, role')
+        .from('city_platform_users')
+        .select('city_platform_id, role')
         .eq('user_id', user.id)
-        .eq('is_active', true)
-        .in('role', ['platform_admin', 'platform_owner']);
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
+        .eq('is_active', true);
 
       const isPlatformAdmin = platformRoles && platformRoles.length > 0;
       const isChurchAdmin = !!churchAdminRole;

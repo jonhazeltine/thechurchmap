@@ -36,11 +36,12 @@ export async function PATCH(request: Request, { params }: { params: { postId: st
       });
     }
 
-    // Check if user is platform admin (RLS enforced)
+    // Check if user is platform admin
     const { data: platformRoles } = await userClient
-      .from('platform_roles')
+      .from('city_platform_users')
       .select('*')
       .eq('user_id', user.id)
+      .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
       .eq('is_active', true);
 
     if (!platformRoles || platformRoles.length === 0) {

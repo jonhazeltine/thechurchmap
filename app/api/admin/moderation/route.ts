@@ -45,9 +45,10 @@ export async function GET(req: Request, res: Response) {
     
     // Check platform admin roles
     const { data: platformRoles } = await adminClient
-      .from('platform_roles')
+      .from('city_platform_users')
       .select('city_platform_id')
       .eq('user_id', user.id)
+      .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
       .eq('is_active', true);
     
     const isPlatformAdmin = (platformRoles || []).length > 0;

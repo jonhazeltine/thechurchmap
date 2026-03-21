@@ -43,9 +43,10 @@ export async function PATCH(req: Request, res: Response) {
 
     // Check if user is admin using service role client (bypasses RLS)
     const { data: platformRoles } = await adminClient
-      .from('platform_roles')
+      .from('city_platform_users')
       .select('*')
       .eq('user_id', user.id)
+      .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
       .eq('is_active', true);
 
     const { data: churchAdminRoles } = await adminClient
@@ -208,9 +209,10 @@ export async function DELETE(req: Request, res: Response) {
 
     // Check if user is admin using service role client (bypasses RLS)
     const { data: platformRoles } = await adminClient
-      .from('platform_roles')
+      .from('city_platform_users')
       .select('*')
       .eq('user_id', user.id)
+      .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
       .eq('is_active', true);
 
     const { data: churchAdminRoles } = await adminClient

@@ -39,9 +39,10 @@ export async function GET(req: Request, res: Response) {
             .single();
 
           const { data: platformRoles } = await adminClient
-            .from('platform_roles')
+            .from('city_platform_users')
             .select('*')
             .eq('user_id', authUser.id)
+            .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
             .eq('is_active', true);
 
           const { data: churchRoles } = await adminClient
@@ -102,9 +103,10 @@ export async function GET(req: Request, res: Response) {
           .single();
 
         const { data: platformRoles } = await adminClient
-          .from('platform_roles')
+          .from('city_platform_users')
           .select('*')
           .eq('user_id', authUser.id)
+          .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
           .eq('is_active', true);
 
         const { data: churchRoles } = await adminClient

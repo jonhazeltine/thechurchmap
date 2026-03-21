@@ -65,11 +65,12 @@ export async function POST(req: Request, res: Response) {
     let isPlatformAdmin = false;
     if (!isSuperAdmin) {
       const { data: platformRole } = await supabase
-        .from('platform_roles')
+        .from('city_platform_users')
         .select('role')
         .eq('user_id', user.id)
-        .eq('role', 'platform_admin')
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
         .eq('is_active', true)
+        .limit(1)
         .maybeSingle();
       isPlatformAdmin = !!platformRole;
     }

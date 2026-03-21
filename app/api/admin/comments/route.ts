@@ -22,39 +22,24 @@ export async function GET(req: Request, res: Response) {
     // Check if user is super admin
     const isSuperAdmin = user.user_metadata?.super_admin === true;
     
-    // Get user's admin platform IDs from both tables
+    // Get user's admin platform IDs from city_platform_users
     let adminPlatformIds: string[] = [];
-    
+
     if (!isSuperAdmin) {
-      // Check legacy platform_roles table
       const { data: platformRoles } = await adminClient
-        .from('platform_roles')
-        .select('role, city_platform_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-
-      const legacyPlatformIds = (platformRoles || [])
-        .filter(r => r.role === 'platform_owner' || r.role === 'platform_admin' || r.role === 'super_admin')
-        .map(r => r.city_platform_id)
-        .filter(Boolean);
-
-      // Check new city_platform_users table
-      const { data: platformUsers } = await adminClient
         .from('city_platform_users')
         .select('role, city_platform_id')
         .eq('user_id', user.id)
-        .in('role', ['platform_owner', 'platform_admin']);
+        .in('role', ['super_admin', 'platform_owner', 'platform_admin'])
+        .eq('is_active', true);
 
-      const newPlatformIds = (platformUsers || [])
+      adminPlatformIds = (platformRoles || [])
         .map(r => r.city_platform_id)
         .filter(Boolean);
 
-      adminPlatformIds = Array.from(new Set([...legacyPlatformIds, ...newPlatformIds]));
-
       console.log('🔐 Admin comments access check:', {
         userId: user.id,
-        legacyRoles: platformRoles?.length || 0,
-        platformUsers: platformUsers?.length || 0,
+        platformRoles: platformRoles?.length || 0,
         adminPlatformIds
       });
 
