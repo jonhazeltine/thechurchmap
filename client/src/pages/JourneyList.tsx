@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
-import { Plus, MapPin, ChevronRight, BookOpen, PenLine, Calendar, Share2 } from "lucide-react";
+import { Plus, MapPin, ChevronRight, ChevronLeft, BookOpen, PenLine, Calendar, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PrayerJourney } from "@shared/schema";
 
@@ -113,6 +113,10 @@ export default function JourneyList() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 py-8">
+        <Button variant="ghost" size="sm" className="mb-4" onClick={() => window.history.back()}>
+          <ChevronLeft className="w-4 h-4 mr-1" /> Back
+        </Button>
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Prayer Journeys</h1>
