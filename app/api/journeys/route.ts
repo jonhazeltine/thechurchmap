@@ -7,41 +7,83 @@ export async function GET(req: Request, res: Response) {
   try {
     const { city_platform_id, church_id, status } = req.query;
     const adminClient = supabaseServer();
-
-    let query = adminClient
-      .from('prayer_journeys')
-      .select('*, prayer_journey_steps(count)')
-      .order('created_at', { ascending: false });
-
-    // If authenticated, include user's own drafts
     const authHeader = req.headers.authorization;
+
+    let userId: string | null = null;
+    let userPrimaryChurchId: string | null = null;
+
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const { data: { user } } = await adminClient.auth.getUser(token);
-      if (user && status === 'draft') {
-        query = query.eq('created_by_user_id', user.id).eq('status', 'draft');
-      } else {
-        query = query.eq('status', 'published');
+      if (user) {
+        userId = user.id;
+        // Get user's primary church for "my church" journey visibility
+        const { data: profile } = await adminClient
+          .from('profiles')
+          .select('primary_church_id')
+          .eq('user_id', user.id)
+          .single();
+        userPrimaryChurchId = profile?.primary_church_id || null;
       }
-    } else {
-      query = query.eq('status', 'published');
     }
 
-    if (city_platform_id) {
-      query = query.eq('city_platform_id', city_platform_id as string);
+    // Mode: drafts (own only)
+    if (status === 'draft' && userId) {
+      const { data, error } = await adminClient
+        .from('prayer_journeys')
+        .select('*, prayer_journey_steps(count)')
+        .eq('created_by_user_id', userId)
+        .eq('status', 'draft')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return res.json(data || []);
     }
+
+    // Mode: church-specific (for church profile pages)
     if (church_id) {
-      query = query.eq('church_id', church_id as string);
+      const { data, error } = await adminClient
+        .from('prayer_journeys')
+        .select('*, prayer_journey_steps(count)')
+        .eq('church_id', church_id as string)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return res.json(data || []);
     }
 
-    const { data, error } = await query.limit(50);
+    // Mode: main journey list (platform or national)
+    // Rules:
+    // 1. Platform-wide journeys (church_id IS NULL) require platform_approved = true
+    // 2. Church-specific journeys only show if it's the user's primary church
+    // 3. User's own journeys always show
+    const { data: allPublished, error } = await adminClient
+      .from('prayer_journeys')
+      .select('*, prayer_journey_steps(count)')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-    if (error) {
-      console.error('Error listing journeys:', error);
-      return res.status(500).json({ error: 'Failed to list journeys' });
-    }
+    if (error) throw error;
 
-    return res.json(data || []);
+    let filtered = (allPublished || []).filter((j: any) => {
+      // Platform filter
+      if (city_platform_id && j.city_platform_id !== city_platform_id) return false;
+
+      // User's own journeys always visible
+      if (userId && j.created_by_user_id === userId) return true;
+
+      // Church-specific journey: only visible if it's the user's primary church
+      if (j.church_id) {
+        return userPrimaryChurchId === j.church_id;
+      }
+
+      // Platform-wide journey: requires platform approval
+      return j.platform_approved === true;
+    });
+
+    return res.json(filtered.slice(0, 50));
   } catch (error) {
     console.error('Error in GET /api/journeys:', error);
     return res.status(500).json({ error: 'Internal server error' });

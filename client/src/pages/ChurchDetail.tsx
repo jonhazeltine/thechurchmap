@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { type ChurchWithCallings } from "@shared/schema";
-import { ChevronLeft, Heart, HandHeart, Eye, Clock, BookOpen } from "lucide-react";
+import { ChevronLeft, Heart, HandHeart, Eye, Clock, BookOpen, MapPin } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { usePlatformNavigation } from "@/hooks/usePlatformNavigation";
 import { usePlatformContext } from "@/contexts/PlatformContext";
@@ -236,8 +236,11 @@ export default function ChurchDetail() {
           />
 
           {/* Prayer Request Form */}
+          {/* Church Prayer Journeys */}
+          <ChurchJourneys churchId={church.id} churchName={church.name} />
+
           <PrayerRequestForm churchId={church.id} churchName={church.name} />
-          
+
           {/* Prayer Requests Display */}
           <ChurchPrayersDisplay churchId={church.id} />
 
@@ -276,5 +279,43 @@ export default function ChurchDetail() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+function ChurchJourneys({ churchId, churchName }: { churchId: string; churchName: string }) {
+  const { data: journeys = [] } = useQuery<any[]>({
+    queryKey: ["church-journeys", churchId],
+    queryFn: async () => {
+      const res = await fetch(`/api/journeys?church_id=${churchId}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { buildPlatformUrl } = usePlatformNavigation();
+
+  if (journeys.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+        <BookOpen className="w-5 h-5" />
+        Prayer Journeys
+      </h3>
+      <div className="space-y-2">
+        {journeys.map((journey: any) => (
+          <a
+            key={journey.id}
+            href={buildPlatformUrl(`/journey/${journey.id}`)}
+            className="block p-3 rounded-lg border hover:shadow-sm transition-shadow"
+          >
+            <p className="font-medium text-sm">{journey.title}</p>
+            {journey.description && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{journey.description}</p>
+            )}
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }

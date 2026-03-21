@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePlatformContext } from "@/contexts/PlatformContext";
+import { useSafePlatformContext } from "@/contexts/PlatformContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import type { PrayerJourney } from "@shared/schema";
 
 export default function JourneyList() {
   const { session, user } = useAuth();
-  const { platform: currentPlatform } = usePlatformContext();
+  const { platform: currentPlatform } = useSafePlatformContext();
   const [, setLocation] = useLocation();
   const [showDrafts, setShowDrafts] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
