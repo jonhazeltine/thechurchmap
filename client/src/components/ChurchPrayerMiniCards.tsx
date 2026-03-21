@@ -182,27 +182,34 @@ export function ChurchPrayerMiniCards({ onPrayerClick, churchId }: ChurchPrayerM
   }
 
   return (
-    <div className="px-4 py-4 mt-2 border-t border-border/30 bg-muted/30 dark:bg-muted/10">
+    <div className="mx-4 mt-3 rounded-lg border border-border/40 overflow-hidden">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger className="w-full" data-testid="toggle-prayer-needs">
-          <div className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity mb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/40">
-                <Megaphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <span className="text-sm font-semibold text-foreground/80 dark:text-foreground/70">
-                Church Prayer Needs
-              </span>
-              {totalRequests > 0 && (
-                <span className="text-xs text-muted-foreground/60 font-medium">
-                  {totalRequests}
+          <div className="px-4 py-3 hover:bg-muted/30 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <IconBuildingChurch className="w-4 h-4 text-amber-600/60 dark:text-amber-400/60" />
+                <span className="text-sm font-medium">
+                  {totalRequests} Prayer {totalRequests === 1 ? 'Need' : 'Needs'}
                 </span>
-              )}
+              </div>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
-            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            {/* Teaser — show first need title + body snippet when collapsed */}
+            {!isOpen && displayedRequests.length > 0 && (
+              <div className="mt-1.5 text-left">
+                <p className="text-xs font-medium text-foreground/70 truncate">{displayedRequests[0].title}</p>
+                {displayedRequests[0].body && (
+                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{displayedRequests[0].body}</p>
+                )}
+                {displayedRequests.length > 1 && (
+                  <p className="text-[11px] text-muted-foreground/50 mt-1">+{displayedRequests.length - 1} more</p>
+                )}
+              </div>
+            )}
           </div>
         </CollapsibleTrigger>
-        
+
         <CollapsibleContent>
           <div className="space-y-4 pt-2">
             <AnimatePresence mode="popLayout">
