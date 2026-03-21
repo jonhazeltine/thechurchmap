@@ -134,8 +134,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: dashboardHref, label: "Dashboard", icon: LayoutDashboard, show: hasPlatformSelected && !isChurchAdminOnly, badge: 0 },
     { href: "/admin/churches", label: "Churches", icon: Church, show: isSuperAdmin || isPlatformAdmin, badge: pendingClaimsCount },
     { href: "/admin/profiles-pending", label: "Pending Profiles", icon: FileEdit, show: isSuperAdmin || isPlatformAdmin, badge: 0 },
-    { href: "/admin/moderation", label: "Moderation", icon: Shield, show: isSuperAdmin || isPlatformAdmin, badge: 0 },
-    { href: "/admin/prayer", label: "Prayer", icon: Heart, show: isSuperAdmin || isPlatformAdmin, badge: 0 },
+    { href: "/admin/content-review", label: "Prayer & Moderation", icon: Shield, show: isSuperAdmin || isPlatformAdmin, badge: 0 },
     { href: "/admin/community", label: "Community", icon: MessageSquare, show: isSuperAdmin || isPlatformAdmin, badge: 0 },
     { href: platformSettingsHref, label: "Platform Settings", icon: Settings, show: hasPlatformSelected && (isSuperAdmin || isPlatformAdmin), badge: 0 },
   ];

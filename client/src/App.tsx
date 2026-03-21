@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -40,6 +40,7 @@ const AdminChurches = lazy(() => import("@/pages/admin/Churches"));
 const AdminUsers = lazy(() => import("@/pages/admin/Users"));
 const AdminUserEdit = lazy(() => import("@/pages/admin/UserEdit"));
 const AdminPrayer = lazy(() => import("@/pages/admin/Prayer"));
+const AdminContentReview = lazy(() => import("@/pages/admin/ContentReview"));
 const AdminCommunity = lazy(() => import("@/pages/admin/Community"));
 const AdminCallings = lazy(() => import("@/pages/admin/Callings"));
 const AdminCollaboration = lazy(() => import("@/pages/admin/Collaboration"));
@@ -128,7 +129,8 @@ function Router() {
       <Route path="/admin/churches">{() => <LazyRoute component={AdminChurches} />}</Route>
       <Route path="/admin/users">{() => <LazyRoute component={AdminUsers} />}</Route>
       <Route path="/admin/users/:id/edit">{() => <LazyRoute component={AdminUserEdit} />}</Route>
-      <Route path="/admin/prayer">{() => <LazyRoute component={AdminPrayer} />}</Route>
+      <Route path="/admin/content-review">{() => <LazyRoute component={AdminContentReview} />}</Route>
+      <Route path="/admin/prayer">{() => <Redirect to="/admin/content-review" />}</Route>
       <Route path="/admin/community">{() => <LazyRoute component={AdminCommunity} />}</Route>
       <Route path="/admin/callings">{() => <LazyRoute component={AdminCallings} />}</Route>
       <Route path="/admin/collaboration">{() => <LazyRoute component={AdminCollaboration} />}</Route>
@@ -147,7 +149,7 @@ function Router() {
       <Route path="/admin/church-claims">{() => <LazyRoute component={AdminChurchClaims} />}</Route>
       <Route path="/admin/profiles-pending">{() => <LazyRoute component={AdminProfilesPending} />}</Route>
       <Route path="/admin/data-sources">{() => <LazyRoute component={AdminDataSources} />}</Route>
-      <Route path="/admin/moderation">{() => <LazyRoute component={AdminModeration} />}</Route>
+      <Route path="/admin/moderation">{() => <Redirect to="/admin/content-review" />}</Route>
       <Route path="/admin/spreadsheet-compare">{() => <LazyRoute component={AdminSpreadsheetCompare} />}</Route>
       <Route path="/admin/partnership-applications">{() => <LazyRoute component={AdminPartnershipApplications} />}</Route>
       <Route path="/admin/sponsors">{() => <LazyRoute component={AdminSponsors} />}</Route>
