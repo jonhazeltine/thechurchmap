@@ -141,30 +141,30 @@ const LAYERS = {
     geoidField: 'GEOID',
     source: 'tigerweb_2024'
   },
-  schools_unified: { 
-    id: 0, 
+  schools_unified: {
+    id: 0,
     base: SCHOOL_BASE,
-    type: 'school_district_unified', 
-    stateField: 'STATEFP', 
-    nameField: 'NAME', 
+    type: 'school_district',
+    stateField: 'STATE',
+    nameField: 'NAME',
     geoidField: 'GEOID',
     source: 'tigerweb_school_2024'
   },
-  schools_elementary: { 
-    id: 2, 
+  schools_elementary: {
+    id: 2,
     base: SCHOOL_BASE,
-    type: 'school_district_elementary', 
-    stateField: 'STATEFP', 
-    nameField: 'NAME', 
+    type: 'school_district',
+    stateField: 'STATE',
+    nameField: 'NAME',
     geoidField: 'GEOID',
     source: 'tigerweb_school_2024'
   },
-  schools_secondary: { 
-    id: 1, 
+  schools_secondary: {
+    id: 1,
     base: SCHOOL_BASE,
-    type: 'school_district_secondary', 
-    stateField: 'STATEFP', 
-    nameField: 'NAME', 
+    type: 'school_district',
+    stateField: 'STATE',
+    nameField: 'NAME',
     geoidField: 'GEOID',
     source: 'tigerweb_school_2024'
   },
@@ -528,8 +528,10 @@ async function fetchZipsWithBbox(bbox: [number, number, number, number], stateFi
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        console.error(`    API error: ${response.status}`);
-        break;
+        console.error(`    API error: ${response.status}, skipping batch and continuing...`);
+        offset += batchSize;
+        await sleep(1000);
+        continue;
       }
       
       const data = await response.json();
@@ -565,8 +567,10 @@ async function fetchZipsWithBbox(bbox: [number, number, number, number], stateFi
         await sleep(100);
       }
     } catch (error: any) {
-      console.error(`    Error: ${error.message}`);
-      break;
+      console.error(`    Error: ${error.message}, skipping batch and continuing...`);
+      offset += batchSize;
+      await sleep(1000);
+      continue;
     }
   }
   
