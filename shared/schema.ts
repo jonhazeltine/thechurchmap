@@ -486,6 +486,9 @@ export interface Prayer {
   formation_prayer_id: string | null; // Links to Formation prayer_request_id for bidirectional sync
   formation_synced_at: string | null; // When this prayer was last synced with Formation
   formation_source: boolean; // true = prayer originated from Formation App
+  // Prayer Journey reference
+  journey_id: string | null;
+  journey_step_id: string | null;
 }
 
 // Prayer interaction types
@@ -499,6 +502,100 @@ export interface PrayerInteraction {
   interaction_type: PrayerInteractionType;
   created_at: string;
 }
+
+// =====================================================================
+// PRAYER JOURNEYS - Admin-curated guided prayer experiences
+// =====================================================================
+
+export type PrayerJourneyStatus = 'draft' | 'published' | 'archived';
+
+export type PrayerJourneyStepType =
+  | 'church'
+  | 'community_need'
+  | 'custom'
+  | 'scripture'
+  | 'user_prayer'
+  | 'thanksgiving'
+  | 'prayer_request';
+
+export interface PrayerJourney {
+  id: string;
+  title: string;
+  description: string | null;
+  cover_image_url: string | null;
+  created_by_user_id: string;
+  church_id: string | null;
+  city_platform_id: string | null;
+  tract_ids: string[];
+  status: PrayerJourneyStatus;
+  published_at: string | null;
+  share_token: string | null;
+  starts_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrayerJourneyStep {
+  id: string;
+  journey_id: string;
+  sort_order: number;
+  step_type: PrayerJourneyStepType;
+  title: string | null;
+  body: string | null;
+  scripture_ref: string | null;
+  scripture_text: string | null;
+  church_id: string | null;
+  metric_key: string | null;
+  ai_generated: boolean;
+  is_excluded: boolean;
+  created_at: string;
+}
+
+export const insertPrayerJourneySchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title too long"),
+  description: z.string().max(1000).optional().nullable(),
+  church_id: z.string().uuid().optional().nullable(),
+  city_platform_id: z.string().uuid().optional().nullable(),
+  tract_ids: z.array(z.string()).default([]),
+});
+
+export const updatePrayerJourneySchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  cover_image_url: z.string().url().optional().nullable(),
+  tract_ids: z.array(z.string()).optional(),
+  starts_at: z.string().optional().nullable(),
+  expires_at: z.string().optional().nullable(),
+});
+
+export const insertPrayerJourneyStepSchema = z.object({
+  step_type: z.enum(['church', 'community_need', 'custom', 'scripture', 'user_prayer', 'thanksgiving', 'prayer_request']),
+  sort_order: z.number().int().min(0).default(0),
+  title: z.string().max(200).optional().nullable(),
+  body: z.string().max(5000).optional().nullable(),
+  scripture_ref: z.string().max(200).optional().nullable(),
+  scripture_text: z.string().max(2000).optional().nullable(),
+  church_id: z.string().uuid().optional().nullable(),
+  metric_key: z.string().optional().nullable(),
+  ai_generated: z.boolean().default(false),
+  is_excluded: z.boolean().default(false),
+});
+
+export const updatePrayerJourneyStepSchema = z.object({
+  title: z.string().max(200).optional().nullable(),
+  body: z.string().max(5000).optional().nullable(),
+  scripture_ref: z.string().max(200).optional().nullable(),
+  scripture_text: z.string().max(2000).optional().nullable(),
+  sort_order: z.number().int().min(0).optional(),
+  is_excluded: z.boolean().optional(),
+  ai_generated: z.boolean().optional(),
+});
+
+export type InsertPrayerJourney = z.infer<typeof insertPrayerJourneySchema>;
+export type UpdatePrayerJourney = z.infer<typeof updatePrayerJourneySchema>;
+export type InsertPrayerJourneyStep = z.infer<typeof insertPrayerJourneyStepSchema>;
+export type UpdatePrayerJourneyStep = z.infer<typeof updatePrayerJourneyStepSchema>;
 
 // Private label types
 export type PrivateLabelKey = 'bridge' | 'anchor' | 'catalyst';
@@ -781,6 +878,8 @@ export const insertPrayerSchema = z.object({
   tract_id: z.string().nullable().optional(),
   click_lat: z.number().min(-90).max(90).nullable().optional(),
   click_lng: z.number().min(-180).max(180).nullable().optional(),
+  journey_id: z.string().uuid().optional().nullable(),
+  journey_step_id: z.string().uuid().optional().nullable(),
 });
 
 // Church admin prayer request schema (church-initiated prayer needs)
@@ -1640,6 +1739,8 @@ export const RESERVED_PLATFORM_SLUGS = [
   'community',
   'explore',
   'facility-sharing',
+  'journey',
+  'journeys',
   'login',
   'map',
   'methodology',

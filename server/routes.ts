@@ -236,6 +236,16 @@ import * as churchMinistryAllocationsRoute from "../app/api/churches/[churchId]/
 // Church Engagement Scores (Sprint 4)
 import * as churchEngagementRoute from "../app/api/churches/[churchId]/engagement/route";
 
+// Prayer Journeys
+import * as journeysRoute from "../app/api/journeys/route";
+import * as journeyByIdRoute from "../app/api/journeys/[id]/route";
+import * as journeyPublishRoute from "../app/api/journeys/[id]/publish/route";
+import * as journeyStepsRoute from "../app/api/journeys/[id]/steps/route";
+import * as journeyStepByIdRoute from "../app/api/journeys/[id]/steps/[stepId]/route";
+import * as journeyStepsReorderRoute from "../app/api/journeys/[id]/steps/reorder/route";
+import * as journeyAiSuggestionsRoute from "../app/api/journeys/[id]/ai-suggestions/route";
+import * as journeyShareRoute from "../app/api/journeys/share/[shareToken]/route";
+
 import * as fs from "fs";
 import * as path from "path";
 
@@ -697,6 +707,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch prayer churches" });
     }
   });
+
+  // Prayer Journeys
+  app.get("/api/journeys", journeysRoute.GET);
+  app.post("/api/journeys", journeysRoute.POST);
+  app.get("/api/journeys/share/:shareToken", journeyShareRoute.GET);
+  app.get("/api/journeys/:id", journeyByIdRoute.GET);
+  app.patch("/api/journeys/:id", journeyByIdRoute.PATCH);
+  app.delete("/api/journeys/:id", journeyByIdRoute.DELETE);
+  app.post("/api/journeys/:id/publish", journeyPublishRoute.POST);
+  app.get("/api/journeys/:id/steps", journeyStepsRoute.GET);
+  app.post("/api/journeys/:id/steps", journeyStepsRoute.POST);
+  app.put("/api/journeys/:id/steps/reorder", journeyStepsReorderRoute.PUT);
+  app.patch("/api/journeys/:id/steps/:stepId", journeyStepByIdRoute.PATCH);
+  app.delete("/api/journeys/:id/steps/:stepId", journeyStepByIdRoute.DELETE);
+  app.post("/api/journeys/:id/ai-suggestions", journeyAiSuggestionsRoute.POST);
 
   // Ministry Saturation (viewport-bounded)
   app.get("/api/ministry-saturation/city", async (req, res) => {

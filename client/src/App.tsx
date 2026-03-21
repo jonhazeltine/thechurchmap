@@ -65,6 +65,11 @@ const AdminMissionFundingSubmissions = lazy(() => import("@/pages/admin/MissionF
 const AdminPartnerships = lazy(() => import("@/pages/admin/Partnerships"));
 const AdminMyChurches = lazy(() => import("@/pages/admin/MyChurches"));
 
+// Prayer Journeys
+const JourneyList = lazy(() => import("@/pages/JourneyList"));
+const JourneyBuilder = lazy(() => import("@/pages/JourneyBuilder"));
+const JourneyViewer = lazy(() => import("@/pages/JourneyViewer"));
+
 function AdminPageLoader() {
   return (
     <div className="flex items-center justify-center h-screen">
@@ -104,6 +109,10 @@ function Router() {
       <Route path="/platform/:slug" component={PlatformDetail} />
       <Route path="/explore" component={Explore} />
       
+      {/* Prayer Journey routes (static, before platform catch-all) */}
+      <Route path="/journey/:shareToken">{() => <LazyRoute component={JourneyViewer} />}</Route>
+      <Route path="/journeys">{() => <LazyRoute component={JourneyList} />}</Route>
+
       {/* National routes (no platform context) */}
       <Route path="/church/:id/answered-prayers" component={AnsweredPrayers} />
       <Route path="/church/:id/fund-the-mission" component={FundTheMission} />
@@ -147,6 +156,9 @@ function Router() {
       <Route path="/admin/my-churches">{() => <LazyRoute component={AdminMyChurches} />}</Route>
       
       {/* Platform-scoped routes (/:platform/...) - platform slug is extracted by PlatformContext */}
+      <Route path="/:platform/journey/:id/builder">{() => <LazyRoute component={JourneyBuilder} />}</Route>
+      <Route path="/:platform/journey/:id">{() => <LazyRoute component={JourneyViewer} />}</Route>
+      <Route path="/:platform/journeys">{() => <LazyRoute component={JourneyList} />}</Route>
       <Route path="/:platform/church-claims">{() => <LazyRoute component={AdminChurchClaims} />}</Route>
       <Route path="/:platform/church/:id/answered-prayers" component={AnsweredPrayers} />
       <Route path="/:platform/church/:id/fund-the-mission" component={FundTheMission} />

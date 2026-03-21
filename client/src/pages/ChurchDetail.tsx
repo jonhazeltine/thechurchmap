@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { type ChurchWithCallings } from "@shared/schema";
-import { ChevronLeft, Heart, HandHeart, Eye, Clock } from "lucide-react";
+import { ChevronLeft, Heart, HandHeart, Eye, Clock, BookOpen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { usePlatformNavigation } from "@/hooks/usePlatformNavigation";
 import { usePlatformContext } from "@/contexts/PlatformContext";
@@ -36,7 +36,7 @@ export default function ChurchDetail() {
   const [matchPlatform, paramsPlatform] = useRoute("/:platform/church/:id");
   const [, setLocation] = useLocation();
   const churchId = paramsNational?.id || paramsPlatform?.id;
-  const { getMapUrl } = usePlatformNavigation();
+  const { getMapUrl, buildPlatformUrl } = usePlatformNavigation();
   const { platformId, setPlatformId } = usePlatformContext();
   const { user, session } = useAuth();
   const { isSuperAdmin, isPlatformAdmin, churchAdminChurchIds } = useAdminAccess();
@@ -133,6 +133,38 @@ export default function ChurchDetail() {
               <Heart className="w-4 h-4 mr-2" />
               Open in Prayer Mode
             </Link>
+          </Button>
+
+          <Button variant="outline" data-testid="button-start-prayer-journey" onClick={async () => {
+            if (!session?.access_token) {
+              setLocation('/login');
+              return;
+            }
+            try {
+              const res = await fetch('/api/journeys', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  title: `Prayer Journey for ${church.name}`,
+                  church_id: church.id,
+                }),
+              });
+              if (!res.ok) {
+                const err = await res.json();
+                alert(err.error || 'Failed to create journey');
+                return;
+              }
+              const journey = await res.json();
+              setLocation(buildPlatformUrl(`/journey/${journey.id}/builder`));
+            } catch {
+              alert('Failed to create journey');
+            }
+          }}>
+            <BookOpen className="w-4 h-4 mr-2" />
+            Start Prayer Journey
           </Button>
           
           <span className="sparkle-border inline-block rounded-md">
