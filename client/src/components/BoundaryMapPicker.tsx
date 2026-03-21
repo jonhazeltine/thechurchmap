@@ -25,13 +25,11 @@ const DEFAULT_CENTER: [number, number] = [-85.6681, 42.9634];
 const DEFAULT_ZOOM = 8;
 
 const BOUNDARY_TYPES = [
-  { value: "auto", label: "Auto (zoom-based)" },
-  { value: "all", label: "All Types" },
-  { value: "county", label: "Counties" },
   { value: "city", label: "Cities/Places" },
-  { value: "zip", label: "ZIP Codes" },
+  { value: "county", label: "Counties" },
   { value: "county_subdivision", label: "Townships" },
   { value: "school_district", label: "School Districts" },
+  { value: "zip", label: "ZIP Codes" },
 ];
 
 // Zoom thresholds for auto boundary type selection (additive - zooming in adds more types)
@@ -113,7 +111,7 @@ export function BoundaryMapPicker({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [boundaryType, setBoundaryType] = useState("auto");
+  const [boundaryType, setBoundaryType] = useState("city");
   const [currentZoom, setCurrentZoom] = useState(initialZoom || DEFAULT_ZOOM);
   const [boundaries, setBoundaries] = useState<BoundaryWithGeometry[]>([]);
   const [selectedBoundaries, setSelectedBoundaries] = useState<BoundaryWithGeometry[]>([]);
@@ -130,10 +128,8 @@ export function BoundaryMapPicker({
   // Derived state for churches visibility from overlay selection
   const showChurches = selectedOverlays.has("churches");
   
-  // Compute effective boundary types: if "auto", use zoom-based array; otherwise single type
-  const effectiveBoundaryTypes = boundaryType === "auto" 
-    ? getZoomBasedBoundaryTypes(currentZoom) 
-    : [boundaryType];
+  // Selected boundary type — always a single type
+  const effectiveBoundaryTypes = [boundaryType];
   
   const selectedIdsSet = useRef(new Set<string>(initialSelectedIds));
   const lastInitialIdsRef = useRef<string>("");
@@ -992,11 +988,6 @@ export function BoundaryMapPicker({
                 </SelectContent>
               </Select>
             </div>
-            {boundaryType === "auto" && (
-              <div className="text-xs text-muted-foreground pl-6">
-                Currently showing: {getZoomBasedTypeLabel(currentZoom)} (zoom: {Math.round(currentZoom)})
-              </div>
-            )}
             
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

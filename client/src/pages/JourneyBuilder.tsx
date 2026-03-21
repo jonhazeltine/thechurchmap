@@ -12,8 +12,9 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { useToast } from "@/hooks/use-toast";
 import {
   MapPin, Church, Heart, PenLine, Sparkles, Eye, ArrowLeft, ArrowRight,
-  Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart
+  Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart, Map
 } from "lucide-react";
+import { BoundaryMapPicker } from "@/components/BoundaryMapPicker";
 import type { PrayerJourney, PrayerJourneyStep } from "@shared/schema";
 
 type BuilderStep = "location" | "churches" | "needs" | "custom" | "refine";
@@ -346,6 +347,7 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave }: any) 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlaces, setSelectedPlaces] = useState<Array<{ id: string; name: string; type: string; state_code?: string }>>([]);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -420,76 +422,133 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave }: any) 
     queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
   };
 
+  const handleMapPickerSave = async (boundaries: any[]) => {
+    // Sync to whatever the map picker returns (handles both adds and removes)
+    const updated = boundaries.map((b: any) => ({
+      id: b.id,
+      name: b.name || b.id,
+      type: b.type || "area",
+      state_code: b.state_code,
+    }));
+    setSelectedPlaces(updated);
+    setMapPickerOpen(false);
+
+    const tractIds = updated.map((p) => p.id);
+    await fetch(`/api/journeys/${journeyId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ tract_ids: tractIds }),
+    });
+    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+    const added = boundaries.filter((b: any) => !selectedPlaces.some((p) => p.id === b.id)).length;
+    const removed = selectedPlaces.filter((p) => !boundaries.some((b: any) => b.id === p.id)).length;
+    const parts = [];
+    if (added > 0) parts.push(`${added} added`);
+    if (removed > 0) parts.push(`${removed} removed`);
+    if (parts.length > 0) {
+      toast({ title: "Areas updated", description: parts.join(", ") });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-2">Select Location</h2>
         <p className="text-muted-foreground">
-          Search for a city, township, or neighborhood to include in this prayer journey.
+          Search for a city, township, or neighborhood — or select areas directly on the map.
         </p>
       </div>
 
-      {/* Autocomplete search — same pattern as Filter by Place */}
-      <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={searchOpen}
-            className="w-full justify-start text-left font-normal"
-          >
-            <MapPin className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-            <span className="text-muted-foreground">
-              {selectedPlaces.length > 0 ? "Add another place..." : "Select city, township..."}
-            </span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[400px] p-0" align="start">
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder="Search places..."
-              value={searchQuery}
-              onValueChange={setSearchQuery}
-            />
-            <CommandList>
-              <CommandEmpty>
-                {searchQuery.length < 2
-                  ? "Type at least 2 characters to search"
-                  : "No places found"}
-              </CommandEmpty>
-              {searchResults.length > 0 && (
-                <CommandGroup>
-                  {searchResults.map((result: any) => {
-                    const resultId = result.id;
-                    const isSelected = selectedPlaces.some((p) => p.id === resultId);
-                    return (
-                      <CommandItem
-                        key={resultId}
-                        value={resultId}
-                        onSelect={() => handleSelectPlace(result)}
-                      >
-                        <span className="mr-2 w-5 h-4 flex items-center justify-center shrink-0">
-                          {isSelected && <Check className="h-4 w-4" />}
-                        </span>
-                        <MapPin className="mr-2 h-4 w-4 opacity-50 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium">
-                            {result.name}
-                            {result.state_code && (
-                              <span className="text-muted-foreground">, {result.state_code}</span>
-                            )}
+      {/* Two options: search or map picker */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Button
+          variant="outline"
+          className="h-auto py-4 flex flex-col items-center gap-2"
+          onClick={() => setSearchOpen(true)}
+        >
+          <MapPin className="h-5 w-5 text-primary" />
+          <span className="font-medium">Search by Name</span>
+          <span className="text-xs text-muted-foreground">Type a city, ZIP, or township</span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto py-4 flex flex-col items-center gap-2"
+          onClick={() => setMapPickerOpen(true)}
+        >
+          <Map className="h-5 w-5 text-primary" />
+          <span className="font-medium">Select on Map</span>
+          <span className="text-xs text-muted-foreground">Click boundaries to select areas</span>
+        </Button>
+      </div>
+
+      {/* Map picker dialog */}
+      <BoundaryMapPicker
+        isOpen={mapPickerOpen}
+        onClose={() => setMapPickerOpen(false)}
+        onSave={handleMapPickerSave}
+        initialSelectedIds={selectedPlaces.map((p) => p.id)}
+        title="Select Prayer Journey Areas"
+        description="Click on regions to select areas for this prayer journey. Zoom in to see smaller boundaries."
+        pickerId="journey-location"
+        selectionColor="#6366F1"
+      />
+
+      {/* Inline search panel — shown when "Search by Name" is clicked */}
+      {searchOpen && (
+        <Card>
+          <CardContent className="p-3">
+            <Command shouldFilter={false} className="rounded-lg border-0">
+              <CommandInput
+                placeholder="Search places..."
+                value={searchQuery}
+                onValueChange={setSearchQuery}
+                autoFocus
+              />
+              <CommandList>
+                <CommandEmpty>
+                  {searchQuery.length < 2
+                    ? "Type at least 2 characters to search"
+                    : "No places found"}
+                </CommandEmpty>
+                {searchResults.length > 0 && (
+                  <CommandGroup>
+                    {searchResults.map((result: any) => {
+                      const resultId = result.id;
+                      const isSelected = selectedPlaces.some((p) => p.id === resultId);
+                      return (
+                        <CommandItem
+                          key={resultId}
+                          value={resultId}
+                          onSelect={() => handleSelectPlace(result)}
+                        >
+                          <span className="mr-2 w-5 h-4 flex items-center justify-center shrink-0">
+                            {isSelected && <Check className="h-4 w-4" />}
+                          </span>
+                          <MapPin className="mr-2 h-4 w-4 opacity-50 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium">
+                              {result.name}
+                              {result.state_code && (
+                                <span className="text-muted-foreground">, {result.state_code}</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{result.type}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground">{result.type}</div>
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                )}
+              </CommandList>
+            </Command>
+            <div className="flex justify-end mt-2">
+              <Button variant="ghost" size="sm" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}>
+                Done
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Selected places */}
       {selectedPlaces.length > 0 && (
