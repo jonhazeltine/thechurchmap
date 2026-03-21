@@ -62,47 +62,16 @@ export function BoundarySearch({
     enabled: query.length >= 2,
   });
 
-  // Normalize boundary name by removing common suffixes
-  function normalizeNameForDedup(name: string): string {
-    let normalized = name.toLowerCase().trim();
-    
-    // Remove common suffixes that indicate duplicates
-    const suffixes = [
-      ' city',
-      ' township', 
-      ' village',
-      ' town',
-      ' borough',
-      ' cdp',
-      ' charter township',
-    ];
-    
-    for (const suffix of suffixes) {
-      if (normalized.endsWith(suffix)) {
-        normalized = normalized.slice(0, -suffix.length);
-        break;
-      }
-    }
-    
-    return normalized.trim();
-  }
-
-  // Deduplicate boundaries with similar names within same type and state
   function deduplicateBoundaries(boundaries: Boundary[]): Boundary[] {
-    const seen = new Map<string, Boundary>();
-    
+    const seen = new Set<string>();
+    const result: Boundary[] = [];
     for (const b of boundaries) {
-      // Normalize name and include state_fips to avoid over-merging across states
-      const normalizedName = normalizeNameForDedup(b.name);
-      const key = `${normalizedName}-${b.type}-${b.state_fips || 'unknown'}`;
-      
-      // Keep the first one we see for each normalized name + type + state combination
-      if (!seen.has(key)) {
-        seen.set(key, b);
+      if (!seen.has(b.id)) {
+        seen.add(b.id);
+        result.push(b);
       }
     }
-    
-    return Array.from(seen.values());
+    return result;
   }
 
   // Show dropdown when we have results

@@ -133,14 +133,15 @@ export async function GET(req: Request, res: Response) {
     });
 
     const deduped = (() => {
-      const seen = new Map<string, any>();
+      const seen = new Set<string>();
+      const result: any[] = [];
       for (const b of enrichedData) {
-        const key = `${b.name}|${b.type}|${b.external_id || ''}`;
-        if (!seen.has(key)) {
-          seen.set(key, b);
+        if (!seen.has(b.id)) {
+          seen.add(b.id);
+          result.push(b);
         }
       }
-      return Array.from(seen.values());
+      return result;
     })();
 
     // If with_geometry is requested, fetch full boundary data with GeoJSON conversion
