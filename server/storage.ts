@@ -8,10 +8,10 @@ import pg from "pg";
 import { computeEffectiveScore, computeRecoveredScore } from "./engagementScore";
 
 const dbUrl = process.env.DATABASE_URL;
-const isLocal = dbUrl?.includes("localhost") || dbUrl?.includes("127.0.0.1");
-const pool = new pg.Pool({
-  ...(isLocal
-    ? { connectionString: dbUrl }
+const isLocal = !!(dbUrl && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")));
+const pool = new pg.Pool(
+  isLocal
+    ? { connectionString: dbUrl, ssl: false }
     : {
         host: process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com',
         port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
@@ -19,7 +19,7 @@ const pool = new pg.Pool({
         user: process.env.SUPABASE_DB_USER || '',
         password: process.env.SUPABASE_DB_PASSWORD || '',
         ssl: { rejectUnauthorized: false },
-      }),
+      },
 });
 
 export interface IStorage {

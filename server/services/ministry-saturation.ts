@@ -1,18 +1,21 @@
 import pg from "pg";
 
 const dbUrl = process.env.DATABASE_URL;
-const isLocal = dbUrl?.includes("localhost") || dbUrl?.includes("127.0.0.1");
-const pool = new pg.Pool({
-  ...(isLocal
-    ? { connectionString: dbUrl }
+const isLocal = !!(dbUrl && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")));
+const dbUser = process.env.SUPABASE_DB_USER || '';
+const dbHost = process.env.SUPABASE_DB_HOST || '';
+console.log(`[pg-pool] isLocal=${isLocal}, DATABASE_URL=${dbUrl ? 'set' : 'unset'}, SUPABASE_DB_USER=${dbUser ? dbUser.substring(0,10) + '...' : 'unset'}, SUPABASE_DB_HOST=${dbHost || 'unset'}`);
+const pool = new pg.Pool(
+  isLocal
+    ? { connectionString: dbUrl, ssl: false }
     : {
-        host: process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com',
+        host: dbHost || 'aws-0-us-west-2.pooler.supabase.com',
         port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
         database: 'postgres',
-        user: process.env.SUPABASE_DB_USER || '',
+        user: dbUser,
         password: process.env.SUPABASE_DB_PASSWORD || '',
         ssl: { rejectUnauthorized: false },
-      }),
+      },
 });
 
 const MIN_OVERLAP_FRACTION = 0.02;
