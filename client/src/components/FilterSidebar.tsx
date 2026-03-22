@@ -492,7 +492,7 @@ export function FilterSidebar({
                                   <span className="text-muted-foreground">, {(boundary as any).state_code}</span>
                                 )}
                               </div>
-                              <div className="text-xs text-muted-foreground">{boundary.type}</div>
+                              <div className="text-xs text-muted-foreground">{boundary.type?.replace(/_/g, ' ')}</div>
                             </div>
                           </CommandItem>
                         );
