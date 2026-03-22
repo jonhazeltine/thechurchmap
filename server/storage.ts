@@ -15,7 +15,7 @@ const pgConfig: pg.PoolConfig = isLocal
       host: process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com',
       port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
       database: 'postgres',
-      user: process.env.SUPABASE_DB_USER || '',
+      user: process.env.SUPABASE_DB_USER || 'postgres.tqxcauuaaipghxvwjyis',
       password: process.env.SUPABASE_DB_PASSWORD || '',
       ssl: { rejectUnauthorized: false },
     };

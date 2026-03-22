@@ -2,14 +2,18 @@ import pg from "pg";
 
 const dbUrl = process.env.DATABASE_URL;
 const isLocal = !!(dbUrl && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")));
+const pgHost = process.env.SUPABASE_DB_HOST;
+const pgUser = process.env.SUPABASE_DB_USER;
+const pgPass = process.env.SUPABASE_DB_PASSWORD;
+console.log(`[ministry-sat pg] isLocal=${isLocal} host=${pgHost} user=${pgUser} pass=${pgPass ? '***' : 'EMPTY'}`);
 const pgConfig: pg.PoolConfig = isLocal
   ? { connectionString: dbUrl }
   : {
-      host: process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com',
+      host: pgHost || 'aws-0-us-west-2.pooler.supabase.com',
       port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
       database: 'postgres',
-      user: process.env.SUPABASE_DB_USER || '',
-      password: process.env.SUPABASE_DB_PASSWORD || '',
+      user: pgUser || 'postgres.tqxcauuaaipghxvwjyis',
+      password: pgPass || '',
       ssl: { rejectUnauthorized: false },
     };
 const pool = new pg.Pool(pgConfig);
