@@ -78,35 +78,19 @@ export async function GET(req: Request, res: Response) {
     let rawData: any[] | null = null;
     let error: any = null;
 
-    // If platform ID is provided, only return boundaries within that platform
+    // If platform ID is provided, use spatial intersection with platform geometry
     if (cityPlatformId) {
-      // Get platform boundary IDs
-      const { data: platformBoundaries } = await supabase
-        .from('city_platform_boundaries')
-        .select('boundary_id')
-        .eq('city_platform_id', cityPlatformId);
-
-      const platformBoundaryIds = (platformBoundaries || []).map((pb: any) => pb.boundary_id);
-
-      if (platformBoundaryIds.length > 0) {
-        let query = supabase
-          .from('boundaries')
-          .select('id, name, type, external_id, state_fips')
-          .ilike('name', searchQuery)
-          .in('id', platformBoundaryIds)
-          .limit(300);
-
-        if (mappedType) {
-          query = query.eq('type', mappedType);
+      const { data: spatialData, error: spatialError } = await supabase.rpc(
+        'fn_search_boundaries_in_platform',
+        {
+          search_query: q.trim(),
+          platform_id: cityPlatformId,
+          boundary_type: mappedType,
+          limit_count: 100,
         }
-        query = query.order('name');
-
-        const result = await query;
-        rawData = result.data;
-        error = result.error;
-      } else {
-        rawData = [];
-      }
+      );
+      rawData = spatialData;
+      error = spatialError;
     } else {
       // No platform context — search all boundaries
       let query = supabase
