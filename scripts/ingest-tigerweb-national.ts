@@ -633,10 +633,12 @@ async function ingestSchools(stateFips?: string): Promise<void> {
 
 async function main() {
   const args = process.argv.slice(2);
-  const typeArg = args.find(a => a.startsWith('--type='))?.split('=')[1] || 
-                  args[args.indexOf('--type') + 1];
+  const typeIdx = args.indexOf('--type');
+  const stateIdx = args.indexOf('--state');
+  const typeArg = args.find(a => a.startsWith('--type='))?.split('=')[1] ||
+                  (typeIdx >= 0 ? args[typeIdx + 1] : undefined);
   const stateArg = args.find(a => a.startsWith('--state='))?.split('=')[1] ||
-                   args[args.indexOf('--state') + 1];
+                   (stateIdx >= 0 ? args[stateIdx + 1] : undefined);
   
   if (!typeArg) {
     console.log(`
