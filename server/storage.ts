@@ -7,9 +7,19 @@ import {
 import pg from "pg";
 import { computeEffectiveScore, computeRecoveredScore } from "./engagementScore";
 
+const dbUrl = process.env.DATABASE_URL;
+const isLocal = dbUrl?.includes("localhost") || dbUrl?.includes("127.0.0.1");
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes("localhost") ? false : { rejectUnauthorized: false },
+  ...(isLocal
+    ? { connectionString: dbUrl }
+    : {
+        host: process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com',
+        port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
+        database: 'postgres',
+        user: process.env.SUPABASE_DB_USER || '',
+        password: process.env.SUPABASE_DB_PASSWORD || '',
+        ssl: { rejectUnauthorized: false },
+      }),
 });
 
 export interface IStorage {
