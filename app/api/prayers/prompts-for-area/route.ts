@@ -208,40 +208,43 @@ export async function GET(req: Request, res: Response) {
     const centerLng = (minLng + maxLng) / 2;
     const centerLat = (minLat + maxLat) / 2;
 
-    // Use a small bbox around center point to fetch candidate tracts (~0.25 mile)
-    // Then validate which tract actually contains the center point
-    const smallDelta = 0.004; // ~0.25 mile in degrees
-    const focusedMinLng = centerLng - smallDelta;
-    const focusedMaxLng = centerLng + smallDelta;
-    const focusedMinLat = centerLat - smallDelta;
-    const focusedMaxLat = centerLat + smallDelta;
-    
-    // Fetch candidate tracts from TIGERweb
-    let candidateTracts = await fetchTractsByBbox(focusedMinLng, focusedMinLat, focusedMaxLng, focusedMaxLat);
-    
-    // Find the tract that actually contains the center point using Turf.js
-    // This ensures we get the correct tract even when center is near a boundary
-    const centerPoint = point([centerLng, centerLat]);
-    let containingTract = null;
-    
-    for (const tract of candidateTracts) {
-      try {
-        if (tract.geometry && booleanPointInPolygon(centerPoint, tract.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) {
-          containingTract = tract;
-          break;
+    const mode = req.query.mode as string;
+    let tracts: any[];
+
+    if (mode === 'journey') {
+      // Journey mode: fetch ALL tracts in the full bbox for aggregate analysis
+      tracts = await fetchTractsByBbox(minLng, minLat, maxLng, maxLat);
+      console.log(`Community needs (journey mode): Found ${tracts.length} tracts in bbox`);
+    } else {
+      // Default mode: single tract at center point for prayer overlay
+      const smallDelta = 0.004;
+      const focusedMinLng = centerLng - smallDelta;
+      const focusedMaxLng = centerLng + smallDelta;
+      const focusedMinLat = centerLat - smallDelta;
+      const focusedMaxLat = centerLat + smallDelta;
+
+      let candidateTracts = await fetchTractsByBbox(focusedMinLng, focusedMinLat, focusedMaxLng, focusedMaxLat);
+
+      const centerPoint = point([centerLng, centerLat]);
+      let containingTract = null;
+
+      for (const tract of candidateTracts) {
+        try {
+          if (tract.geometry && booleanPointInPolygon(centerPoint, tract.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) {
+            containingTract = tract;
+            break;
+          }
+        } catch (e) {
+          continue;
         }
-      } catch (e) {
-        // Skip tracts with invalid geometry
-        continue;
       }
+
+      tracts = containingTract
+        ? [containingTract]
+        : (candidateTracts.length > 0 ? [candidateTracts[0]] : []);
+
+      console.log(`Community needs: Found ${containingTract ? 'exact' : 'fallback'} tract from ${candidateTracts.length} candidates`);
     }
-    
-    // Use the containing tract, or fall back to first candidate if point-in-polygon fails
-    const tracts = containingTract 
-      ? [containingTract] 
-      : (candidateTracts.length > 0 ? [candidateTracts[0]] : []);
-    
-    console.log(`Community needs: Found ${containingTract ? 'exact' : 'fallback'} tract from ${candidateTracts.length} candidates`);
     
     if (tracts.length === 0) {
       return res.json({

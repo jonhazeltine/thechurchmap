@@ -929,7 +929,7 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
       const bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
 
       const res = await fetch(
-        `/api/prayers/prompts-for-area?bbox=${encodeURIComponent(bbox)}&limit=30`
+        `/api/prayers/prompts-for-area?bbox=${encodeURIComponent(bbox)}&limit=30&mode=journey`
       );
       if (!res.ok) return [];
       const data = await res.json();
