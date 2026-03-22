@@ -185,12 +185,14 @@ export function Header({ onAddChurch, showPrayerOverlay, onTogglePrayerOverlay, 
                 )
               )}
 
-              <Link href={buildPlatformUrl('/journeys')}>
-                <Button variant="ghost" size="sm" className="px-2 sm:px-4 gap-1 sm:gap-2" data-testid="button-journeys-nav">
-                  <BookOpen className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm hidden md:inline">Prayer Journeys</span>
-                </Button>
-              </Link>
+              {hasPlatformContext && (
+                <Link href={buildPlatformUrl('/journeys')}>
+                  <Button variant="ghost" size="sm" className="px-2 sm:px-4 gap-1 sm:gap-2" data-testid="button-journeys-nav">
+                    <BookOpen className="w-4 h-4" />
+                    <span className="text-xs sm:text-sm hidden md:inline">Prayer Journeys</span>
+                  </Button>
+                </Link>
+              )}
 
               <Link href={getCommunityUrl()}>
                 <Button variant="ghost" size="sm" className="px-2 sm:px-4 gap-1 sm:gap-2" data-testid="button-community-nav">
