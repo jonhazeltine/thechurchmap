@@ -2,21 +2,16 @@ import pg from "pg";
 
 const dbUrl = process.env.DATABASE_URL;
 const isLocal = !!(dbUrl && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")));
-const pgHost = process.env.SUPABASE_DB_HOST;
-const pgUser = process.env.SUPABASE_DB_USER;
-const pgPass = process.env.SUPABASE_DB_PASSWORD;
-console.log(`[ministry-sat pg] isLocal=${isLocal} host=${pgHost} user=${pgUser} pass=${pgPass ? '***' : 'EMPTY'}`);
-const pgConfig: pg.PoolConfig = isLocal
-  ? { connectionString: dbUrl }
-  : {
-      host: pgHost || 'aws-0-us-west-2.pooler.supabase.com',
-      port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
-      database: 'postgres',
-      user: pgUser || 'postgres.tqxcauuaaipghxvwjyis',
-      password: pgPass || '',
-      ssl: { rejectUnauthorized: false },
-    };
-const pool = new pg.Pool(pgConfig);
+function buildPgConfig(): pg.PoolConfig {
+  if (isLocal) return { connectionString: dbUrl };
+  const user = process.env.SUPABASE_DB_USER || '';
+  const pass = process.env.SUPABASE_DB_PASSWORD || '';
+  const host = process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com';
+  const port = process.env.SUPABASE_DB_PORT || '5432';
+  const connStr = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/postgres`;
+  return { connectionString: connStr, ssl: { rejectUnauthorized: false } };
+}
+const pool = new pg.Pool(buildPgConfig());
 
 const MIN_OVERLAP_FRACTION = 0.02;
 
