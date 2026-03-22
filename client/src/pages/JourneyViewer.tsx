@@ -99,6 +99,61 @@ export default function JourneyViewer() {
     }
   };
 
+  // Get coordinates for current step — churches zoom in, community needs zoom out
+  const getStepCoords = (step: any, defCenter: any): { lng: number; lat: number; zoom: number } | null => {
+    if (!step) return null;
+    const churchData = step.church_data;
+    if (step.step_type === 'church' && churchData) {
+      const lat = churchData.display_lat || churchData.latitude;
+      const lng = churchData.display_lng || churchData.longitude;
+      if (lat && lng) return { lng, lat, zoom: 14.5 };
+    }
+    if (step.step_type === 'community_need') {
+      return defCenter ? { ...defCenter, zoom: 11 } : null;
+    }
+    if (step.step_type === 'scripture' || step.step_type === 'thanksgiving' || step.step_type === 'prayer_request') {
+      return defCenter ? { ...defCenter, zoom: 10 } : null;
+    }
+    return null;
+  };
+
+  // Background map — all hooks must be before early returns
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+
+  const firstChurchStep = activeSteps.find(s => s.step_type === 'church' && (s as any).church_data);
+  const defaultCenter = firstChurchStep ? getStepCoords(firstChurchStep, null) : null;
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+    const token = (import.meta as any).env?.VITE_MAPBOX_TOKEN || '';
+    if (!token) return;
+    mapboxgl.accessToken = token;
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: defaultCenter ? [defaultCenter.lng, defaultCenter.lat] : [-85.67, 42.96],
+      zoom: defaultCenter?.zoom || 11,
+      interactive: false,
+      attributionControl: false,
+    });
+    mapRef.current = map;
+    return () => { map.remove(); mapRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || !currentStep) return;
+    const coords = getStepCoords(currentStep, defaultCenter);
+    if (coords) {
+      mapRef.current.flyTo({
+        center: [coords.lng, coords.lat],
+        zoom: coords.zoom,
+        speed: 0.8,
+        curve: 1.2,
+      });
+    }
+  }, [currentSlide, currentStep]);
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center z-50">
@@ -136,7 +191,6 @@ export default function JourneyViewer() {
         onSubmit={(name) => {
           setGuestName(name);
           setShowNameCapture(false);
-          // Advance to the prayer_request slide
           if (prayerRequestIndex >= 0) {
             setCurrentSlide(prayerRequestIndex);
           }
@@ -147,64 +201,6 @@ export default function JourneyViewer() {
       />
     );
   }
-
-  // Get coordinates for current step — churches zoom in, community needs zoom out
-  const getStepCoords = (step: any): { lng: number; lat: number; zoom: number } | null => {
-    if (!step) return null;
-    const churchData = step.church_data;
-    if (step.step_type === 'church' && churchData) {
-      const lat = churchData.display_lat || churchData.latitude;
-      const lng = churchData.display_lng || churchData.longitude;
-      if (lat && lng) return { lng, lat, zoom: 14.5 };
-    }
-    if (step.step_type === 'community_need') {
-      // Zoom out to show the broader community area
-      return defaultCenter ? { ...defaultCenter, zoom: 11 } : null;
-    }
-    if (step.step_type === 'scripture' || step.step_type === 'thanksgiving' || step.step_type === 'prayer_request') {
-      // Wide view for reflective/closing slides
-      return defaultCenter ? { ...defaultCenter, zoom: 10 } : null;
-    }
-    return null;
-  };
-
-  // Background map ref
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-
-  // Get default center from first church step
-  const firstChurchStep = activeSteps.find(s => s.step_type === 'church' && (s as any).church_data);
-  const defaultCenter = firstChurchStep ? getStepCoords(firstChurchStep) : null;
-
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-    const token = (import.meta as any).env?.VITE_MAPBOX_TOKEN || '';
-    mapboxgl.accessToken = token;
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: defaultCenter ? [defaultCenter.lng, defaultCenter.lat] : [-85.67, 42.96],
-      zoom: defaultCenter?.zoom || 11,
-      interactive: false,
-      attributionControl: false,
-    });
-    mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
-  }, []);
-
-  // Fly to current step's location
-  useEffect(() => {
-    if (!mapRef.current || !currentStep) return;
-    const coords = getStepCoords(currentStep);
-    if (coords) {
-      mapRef.current.flyTo({
-        center: [coords.lng, coords.lat],
-        zoom: coords.zoom,
-        speed: 0.8,
-        curve: 1.2,
-      });
-    }
-  }, [currentSlide, currentStep]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
