@@ -30,6 +30,7 @@ const BOUNDARY_TYPES = [
   { value: "county_subdivision", label: "Townships" },
   { value: "school_district", label: "School Districts" },
   { value: "zip", label: "ZIP Codes" },
+  { value: "census_tract", label: "Census Tracts" },
 ];
 
 // Zoom thresholds for auto boundary type selection (additive - zooming in adds more types)
@@ -208,10 +209,14 @@ export function BoundaryMapPicker({
         includeChurchCounts: "true"
       });
       
-      // Use effectiveBoundaryTypes (which handles "auto" mode with multiple types)
+      // Pass selected boundary type to filter
       if (!effectiveBoundaryTypes.includes("all")) {
-        // Pass multiple types as comma-separated
         params.set("type", effectiveBoundaryTypes.join(","));
+      }
+
+      // Include census tracts when explicitly selected (they're excluded by default)
+      if (effectiveBoundaryTypes.includes("census_tract")) {
+        params.set("include_tracts", "true");
       }
       
       const response = await fetch(`/api/boundaries/viewport?${params}`);

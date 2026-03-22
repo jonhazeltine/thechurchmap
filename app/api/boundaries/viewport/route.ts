@@ -9,6 +9,7 @@ const TYPE_MAPPINGS: Record<string, string[]> = {
   'zip': ['zip', 'Zip'],
   'county_subdivision': ['county_subdivision', 'county subdivision'],
   'school_district': ['school_district', 'School District'],
+  'census_tract': ['census_tract', 'Census Tract', 'tract'],
 };
 
 // Types to always exclude from results
@@ -26,7 +27,7 @@ const isExcludedType = (type: string | null | undefined): boolean => {
  */
 export async function GET(req: Request, res: Response) {
   try {
-    const { minLng, minLat, maxLng, maxLat, type, limit, includeChurchCounts } = req.query;
+    const { minLng, minLat, maxLng, maxLat, type, limit, includeChurchCounts, include_tracts } = req.query;
 
     if (!minLng || !minLat || !maxLng || !maxLat) {
       return res.status(400).json({ 
@@ -90,8 +91,10 @@ export async function GET(req: Request, res: Response) {
 
     let resultData = data || [];
     
-    // Exclude census tracts
-    resultData = resultData.filter((b: any) => !isExcludedType(b.type));
+    // Exclude census tracts unless explicitly requested (admin tools like BoundaryMapPicker)
+    if (include_tracts !== 'true') {
+      resultData = resultData.filter((b: any) => !isExcludedType(b.type));
+    }
     
     // Apply type filtering if needed (handles multiple comma-separated types)
     if (requestedTypes.length > 0 && !requestedTypes.includes('all')) {
