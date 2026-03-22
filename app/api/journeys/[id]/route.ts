@@ -38,7 +38,31 @@ export async function GET(req: Request, res: Response) {
       .eq('journey_id', id)
       .order('sort_order', { ascending: true });
 
-    return res.json({ ...journey, steps: steps || [] });
+    // Enrich church steps with banner/photo data
+    const churchIds = (steps || [])
+      .filter(s => s.step_type === 'church' && s.church_id)
+      .map(s => s.church_id);
+
+    let churchMap = new Map<string, any>();
+    if (churchIds.length > 0) {
+      const { data: churches } = await adminClient
+        .from('churches')
+        .select('id, name, banner_image_url, profile_photo_url, denomination, city, state')
+        .in('id', churchIds);
+      if (churches) {
+        for (const c of churches) churchMap.set(c.id, c);
+      }
+    }
+
+    const enrichedSteps = (steps || []).map(step => {
+      if (step.step_type === 'church' && step.church_id && churchMap.has(step.church_id)) {
+        const church = churchMap.get(step.church_id);
+        return { ...step, church_data: church };
+      }
+      return step;
+    });
+
+    return res.json({ ...journey, steps: enrichedSteps });
   } catch (error) {
     console.error('Error in GET /api/journeys/[id]:', error);
     return res.status(500).json({ error: 'Internal server error' });

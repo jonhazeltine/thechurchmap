@@ -410,23 +410,69 @@ function InlinePrayerInput({ step, journeyId, session, toast, placeholder, churc
 }
 
 function ChurchSlide({ step, journeyId, session, toast, guestName }: { step: PrayerJourneyStep; journeyId: string; session: any; toast: any; guestName?: any }) {
+  const churchData = (step as any).church_data;
+  const bannerUrl = churchData?.banner_image_url;
+  const photoUrl = churchData?.profile_photo_url;
+  const denomination = churchData?.denomination;
+  const churchCity = churchData?.city;
+  const churchState = churchData?.state;
+
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-          <Church className="w-8 h-8 text-primary" />
-        </div>
-        <h2 className="text-2xl font-semibold mt-4">{step.title}</h2>
-        {step.body && (
-          <p className="text-lg text-muted-foreground leading-relaxed mt-3">{step.body}</p>
-        )}
-        {step.scripture_ref && (
-          <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground mt-6 text-left">
-            <p className="text-sm">{step.scripture_text}</p>
-            <cite className="text-xs not-italic font-medium mt-2 block">— {step.scripture_ref}</cite>
-          </blockquote>
+      {/* Church header with banner */}
+      <div className="relative rounded-xl overflow-hidden">
+        {bannerUrl ? (
+          <div className="relative h-40">
+            <img src={bannerUrl} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end gap-3">
+              {photoUrl && (
+                <img src={photoUrl} alt="" className="w-12 h-12 rounded-full border-2 border-white object-cover shrink-0" />
+              )}
+              <div className="text-white">
+                <h2 className="text-xl font-bold leading-tight">{step.title}</h2>
+                {(denomination || churchCity) && (
+                  <p className="text-xs text-white/70 mt-0.5">
+                    {denomination}{denomination && churchCity ? ' · ' : ''}{churchCity}{churchState ? `, ${churchState}` : ''}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="relative h-32 bg-gradient-to-br from-indigo-500/20 via-primary/10 to-blue-500/20 rounded-xl">
+            <div className="absolute inset-0 flex items-center justify-center">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="w-16 h-16 rounded-full border-2 border-white/50 object-cover" />
+              ) : (
+                <Church className="w-10 h-10 text-primary/40" />
+              )}
+            </div>
+            <div className="absolute bottom-3 left-0 right-0 text-center">
+              <h2 className="text-xl font-bold">{step.title}</h2>
+              {(denomination || churchCity) && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {denomination}{denomination && churchCity ? ' · ' : ''}{churchCity}{churchState ? `, ${churchState}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Prayer text */}
+      {step.body && (
+        <p className="text-base text-muted-foreground leading-relaxed">{step.body}</p>
+      )}
+
+      {/* Scripture */}
+      {step.scripture_ref && (
+        <blockquote className="border-l-4 border-primary/30 pl-4 py-2 bg-primary/5 rounded-r-lg">
+          <p className="text-sm italic text-foreground/80">{step.scripture_text}</p>
+          <cite className="text-xs not-italic font-medium text-primary mt-1 block">— {step.scripture_ref}</cite>
+        </blockquote>
+      )}
+
       <InlinePrayerInput
         step={step}
         journeyId={journeyId}
@@ -441,23 +487,39 @@ function ChurchSlide({ step, journeyId, session, toast, guestName }: { step: Pra
 }
 
 function CommunityNeedSlide({ step, journeyId, session, toast, guestName }: { step: PrayerJourneyStep; journeyId: string; session: any; toast: any; guestName?: any }) {
+  // Gradient based on metric category
+  const metricKey = step.metric_key || '';
+  const isHealth = ['depression', 'obesity', 'diabetes', 'frequent_mental_distress', 'general_health', 'high_blood_pressure', 'any_disability'].some(k => metricKey.includes(k));
+  const isSafety = metricKey.includes('rate') || metricKey.includes('assault') || metricKey.includes('theft');
+  const isFamily = ['children', 'single_parent', 'child_poverty'].some(k => metricKey.includes(k));
+  const isEconomic = ['poverty', 'unemployment', 'housing', 'food', 'uninsured', 'utility'].some(k => metricKey.includes(k));
+
+  const gradientClass = isSafety ? 'from-amber-500/15 to-red-500/10'
+    : isHealth ? 'from-blue-500/15 to-teal-500/10'
+    : isFamily ? 'from-purple-500/15 to-pink-500/10'
+    : isEconomic ? 'from-orange-500/15 to-yellow-500/10'
+    : 'from-slate-500/15 to-gray-500/10';
+
+  const iconColor = isSafety ? 'text-amber-500' : isHealth ? 'text-blue-500' : isFamily ? 'text-purple-500' : isEconomic ? 'text-orange-500' : 'text-slate-500';
+
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mx-auto">
-          <Heart className="w-8 h-8 text-red-500" />
-        </div>
-        <h2 className="text-2xl font-semibold mt-4">{step.title}</h2>
-        {step.body && (
-          <p className="text-lg text-muted-foreground leading-relaxed mt-3">{step.body}</p>
-        )}
-        {step.scripture_ref && (
-          <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground mt-6 text-left">
-            <p className="text-sm">{step.scripture_text}</p>
-            <cite className="text-xs not-italic font-medium mt-2 block">— {step.scripture_ref}</cite>
-          </blockquote>
-        )}
+      <div className={`rounded-xl bg-gradient-to-br ${gradientClass} p-6 text-center`}>
+        <Heart className={`w-10 h-10 ${iconColor} mx-auto`} />
+        <h2 className="text-2xl font-bold mt-3">{step.title}</h2>
       </div>
+
+      {step.body && (
+        <p className="text-base text-muted-foreground leading-relaxed">{step.body}</p>
+      )}
+
+      {step.scripture_ref && (
+        <blockquote className="border-l-4 border-primary/30 pl-4 py-2 bg-primary/5 rounded-r-lg">
+          <p className="text-sm italic text-foreground/80">{step.scripture_text}</p>
+          <cite className="text-xs not-italic font-medium text-primary mt-1 block">— {step.scripture_ref}</cite>
+        </blockquote>
+      )}
+
       <InlinePrayerInput
         step={step}
         journeyId={journeyId}
@@ -472,35 +534,40 @@ function CommunityNeedSlide({ step, journeyId, session, toast, guestName }: { st
 
 function ScriptureSlide({ step }: { step: PrayerJourneyStep }) {
   return (
-    <div className="text-center space-y-6">
-      <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
-        <BookOpen className="w-8 h-8 text-amber-600" />
+    <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+      <div className="max-w-md space-y-6">
+        <BookOpen className="w-8 h-8 text-amber-500/60 mx-auto" />
+        {step.scripture_text && (
+          <blockquote className="text-2xl font-serif italic leading-relaxed text-foreground/80">
+            "{step.scripture_text}"
+          </blockquote>
+        )}
+        {step.scripture_ref && (
+          <p className="text-sm font-semibold text-amber-600 tracking-wide uppercase">{step.scripture_ref}</p>
+        )}
+        {step.body && (
+          <p className="text-sm text-muted-foreground mt-4 border-t pt-4">{step.body}</p>
+        )}
       </div>
-      <h2 className="text-xl font-semibold">{step.title}</h2>
-      {step.scripture_text && (
-        <blockquote className="text-xl italic leading-relaxed text-foreground/80 max-w-md mx-auto">
-          "{step.scripture_text}"
-        </blockquote>
-      )}
-      {step.scripture_ref && (
-        <p className="text-sm font-medium text-primary">{step.scripture_ref}</p>
-      )}
-      {step.body && (
-        <p className="text-muted-foreground mt-4">{step.body}</p>
-      )}
     </div>
   );
 }
 
 function CustomSlide({ step }: { step: PrayerJourneyStep }) {
   return (
-    <div className="text-center space-y-6">
-      <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
-        <PenLine className="w-8 h-8 text-blue-500" />
+    <div className="space-y-6">
+      <div className="rounded-xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 p-6 text-center">
+        <PenLine className="w-8 h-8 text-blue-500 mx-auto" />
+        <h2 className="text-2xl font-bold mt-3">{step.title}</h2>
       </div>
-      <h2 className="text-2xl font-semibold">{step.title}</h2>
       {step.body && (
-        <p className="text-lg text-muted-foreground leading-relaxed">{step.body}</p>
+        <p className="text-base text-muted-foreground leading-relaxed">{step.body}</p>
+      )}
+      {step.scripture_ref && (
+        <blockquote className="border-l-4 border-primary/30 pl-4 py-2 bg-primary/5 rounded-r-lg">
+          <p className="text-sm italic text-foreground/80">{step.scripture_text}</p>
+          <cite className="text-xs not-italic font-medium text-primary mt-1 block">— {step.scripture_ref}</cite>
+        </blockquote>
       )}
     </div>
   );
@@ -508,18 +575,18 @@ function CustomSlide({ step }: { step: PrayerJourneyStep }) {
 
 function ThanksgivingSlide({ step }: { step: PrayerJourneyStep }) {
   return (
-    <div className="text-center space-y-6">
-      <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center mx-auto">
-        <HandHeart className="w-8 h-8 text-green-600" />
+    <div className="space-y-6">
+      <div className="rounded-xl bg-gradient-to-br from-green-500/15 to-emerald-500/10 p-8 text-center">
+        <HandHeart className="w-12 h-12 text-green-600 mx-auto" />
+        <h2 className="text-2xl font-bold mt-3">{step.title}</h2>
       </div>
-      <h2 className="text-2xl font-semibold">{step.title}</h2>
       {step.body && (
-        <p className="text-lg text-muted-foreground leading-relaxed">{step.body}</p>
+        <p className="text-base text-muted-foreground leading-relaxed">{step.body}</p>
       )}
       {step.scripture_text && (
-        <blockquote className="border-l-4 border-green-500/30 pl-4 italic text-muted-foreground mt-6 text-left">
-          <p className="text-sm">{step.scripture_text}</p>
-          <cite className="text-xs not-italic font-medium mt-2 block">— {step.scripture_ref}</cite>
+        <blockquote className="border-l-4 border-green-500/30 pl-4 py-2 bg-green-50/50 dark:bg-green-950/20 rounded-r-lg">
+          <p className="text-sm italic text-foreground/80">{step.scripture_text}</p>
+          <cite className="text-xs not-italic font-medium text-green-600 mt-1 block">— {step.scripture_ref}</cite>
         </blockquote>
       )}
     </div>
