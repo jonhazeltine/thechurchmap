@@ -80,15 +80,25 @@ export async function GET(req: Request, res: Response) {
 
     // If platform ID is provided, search within the platform's geographic area
     if (cityPlatformId) {
-      // Get platform boundaries with state_fips
+      // Get platform boundaries with state_fips, name, and external_id for county mapping
       const { data: platformBounds } = await supabase
         .from('city_platform_boundaries')
-        .select('boundary_id, boundaries(state_fips)')
+        .select('boundary_id, boundaries(state_fips, name, external_id, type)')
         .eq('city_platform_id', cityPlatformId);
 
       if (platformBounds && platformBounds.length > 0) {
         // Get state_fips from the first platform boundary
         const platformStateFips = (platformBounds[0] as any)?.boundaries?.state_fips || null;
+
+        // Build county lookup: external_id prefix → county name
+        const countyMap = new Map<string, string>();
+        for (const pb of platformBounds) {
+          const b = (pb as any).boundaries;
+          if (b?.type === 'county' && b.external_id) {
+            // County external_id is state(2)+county(3), e.g. "26081" for Kent County
+            countyMap.set(b.external_id, b.name);
+          }
+        }
 
         // Search by name within the platform's state
         let query = supabase
@@ -107,7 +117,22 @@ export async function GET(req: Request, res: Response) {
         query = query.order('name');
 
         const result = await query;
-        rawData = result.data;
+        // Enrich with county name from FIPS hierarchy
+        rawData = (result.data || []).map((b: any) => {
+          let county_name = null;
+          if (b.external_id && countyMap.size > 0) {
+            // For places: external_id format is state(2)+countySubdivision or state(2)+place
+            // For county subdivisions: external_id is state(2)+county(3)+subdivision(5)
+            // Check if external_id starts with any county's external_id
+            for (const [countyExtId, name] of countyMap) {
+              if (b.external_id.startsWith(countyExtId) && b.external_id !== countyExtId) {
+                county_name = name;
+                break;
+              }
+            }
+          }
+          return { ...b, county_name };
+        });
         error = result.error;
       } else {
         rawData = [];
