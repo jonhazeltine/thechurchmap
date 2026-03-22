@@ -1,60 +1,33 @@
 -- Search boundaries by name within a platform's geographic area
--- Uses combined_geometry if available, otherwise unions the platform's boundary geometries
+-- Uses SETOF boundaries to avoid column naming conflicts with PostgREST
 
-CREATE OR REPLACE FUNCTION fn_search_boundaries_in_platform(
-  search_query text,
-  platform_id uuid,
-  boundary_type text DEFAULT NULL,
-  limit_count integer DEFAULT 100
-)
-RETURNS TABLE (
-  id uuid,
-  name text,
-  type text,
-  external_id text,
-  state_fips text
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  platform_geom geography;
-BEGIN
-  -- Try combined_geometry first
-  SELECT cp.combined_geometry INTO platform_geom
-  FROM city_platforms cp
-  WHERE cp.id = platform_id;
+DROP FUNCTION IF EXISTS fn_search_boundaries_in_platform(text, uuid, text, integer);
 
-  -- Fallback: union the platform's boundary geometries
-  IF platform_geom IS NULL THEN
-    SELECT ST_Union(b.geometry::geometry)::geography INTO platform_geom
-    FROM city_platform_boundaries cpb
-    JOIN boundaries b ON b.id = cpb.boundary_id
-    WHERE cpb.city_platform_id = platform_id;
-  END IF;
-
-  IF platform_geom IS NULL THEN
-    RETURN;
-  END IF;
-
-  RETURN QUERY
-  SELECT
-    b.id,
-    b.name,
-    b.type,
-    b.external_id,
-    b.state_fips
-  FROM boundaries b
-  WHERE b.name ILIKE ('%' || search_query || '%')
-    AND ST_Intersects(b.geometry, platform_geom)
-    AND (boundary_type IS NULL OR b.type = boundary_type)
+CREATE FUNCTION fn_search_boundaries_in_platform(p_query text, p_pid uuid, p_type text DEFAULT NULL, p_limit int DEFAULT 100)
+RETURNS SETOF boundaries
+LANGUAGE sql SECURITY DEFINER AS
+$$
+  SELECT b.*
+  FROM boundaries b,
+       (SELECT COALESCE(
+          cp.combined_geometry,
+          (SELECT ST_Union(bb.geometry::geometry)::geography
+           FROM city_platform_boundaries cpb
+           JOIN boundaries bb ON bb.id = cpb.boundary_id
+           WHERE cpb.city_platform_id = p_pid)
+        ) AS geom
+        FROM city_platforms cp WHERE cp.id = p_pid) AS pg
+  WHERE b.name ILIKE ('%' || p_query || '%')
+    AND pg.geom IS NOT NULL
+    AND ST_Intersects(b.geometry, pg.geom)
+    AND (p_type IS NULL OR b.type = p_type)
     AND b.type != 'census_tract'
   ORDER BY b.name
-  LIMIT limit_count;
-END;
+  LIMIT p_limit;
 $$;
 
 COMMENT ON FUNCTION fn_search_boundaries_in_platform IS
 'Searches boundaries by name within a platform''s geographic area.
 Uses combined_geometry if set, otherwise unions the platform boundary geometries.
-Excludes census tracts from user-facing search results.';
+Excludes census tracts from user-facing search results.
+Returns SETOF boundaries to avoid PostgREST column name conflicts.';

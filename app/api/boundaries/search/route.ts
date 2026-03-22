@@ -78,52 +78,48 @@ export async function GET(req: Request, res: Response) {
     let rawData: any[] | null = null;
     let error: any = null;
 
-    // If platform ID is provided, search within the platform's geographic area
+    // If platform ID is provided, use spatial filtering against platform geometry
     if (cityPlatformId) {
-      // Get platform boundaries with state_fips, name, and external_id for county mapping
-      const { data: platformBounds } = await supabase
-        .from('city_platform_boundaries')
-        .select('boundary_id, boundaries(state_fips, name, external_id, type)')
-        .eq('city_platform_id', cityPlatformId);
-
-      if (platformBounds && platformBounds.length > 0) {
-        // Get state_fips from the first platform boundary
-        const platformStateFips = (platformBounds[0] as any)?.boundaries?.state_fips || null;
-
-        // Build county lookup: external_id prefix → county name
-        const countyMap = new Map<string, string>();
-        for (const pb of platformBounds) {
-          const b = (pb as any).boundaries;
-          if (b?.type === 'county' && b.external_id) {
-            // County external_id is state(2)+county(3), e.g. "26081" for Kent County
-            countyMap.set(b.external_id, b.name);
-          }
+      const { data: spatialData, error: spatialError } = await supabase.rpc(
+        'fn_search_boundaries_in_platform',
+        {
+          p_query: q.trim(),
+          p_pid: cityPlatformId,
+          p_type: mappedType || null,
+          p_limit: 100,
         }
+      );
 
-        // Search by name within the platform's state
-        let query = supabase
+      if (spatialError) {
+        // Fallback to unfiltered search if spatial RPC fails
+        console.error('Spatial search error, falling back:', spatialError.message);
+        const result = await supabase
           .from('boundaries')
           .select('id, name, type, external_id, state_fips')
           .ilike('name', searchQuery)
           .neq('type', 'census_tract')
-          .limit(300);
+          .limit(300)
+          .order('name');
+        rawData = result.data;
+        error = result.error;
+      } else {
+        // Enrich with county name from platform boundaries
+        const { data: platformBounds } = await supabase
+          .from('city_platform_boundaries')
+          .select('boundary_id, boundaries(name, external_id, type)')
+          .eq('city_platform_id', cityPlatformId);
 
-        if (mappedType) {
-          query = query.eq('type', mappedType);
+        const countyMap = new Map<string, string>();
+        for (const pb of (platformBounds || [])) {
+          const b = (pb as any).boundaries;
+          if (b?.type === 'county' && b.external_id) {
+            countyMap.set(b.external_id, b.name);
+          }
         }
-        if (platformStateFips) {
-          query = query.eq('state_fips', platformStateFips);
-        }
-        query = query.order('name');
 
-        const result = await query;
-        // Enrich with county name from FIPS hierarchy
-        rawData = (result.data || []).map((b: any) => {
+        rawData = (spatialData || []).map((b: any) => {
           let county_name = null;
           if (b.external_id && countyMap.size > 0) {
-            // For places: external_id format is state(2)+countySubdivision or state(2)+place
-            // For county subdivisions: external_id is state(2)+county(3)+subdivision(5)
-            // Check if external_id starts with any county's external_id
             for (const [countyExtId, name] of countyMap) {
               if (b.external_id.startsWith(countyExtId) && b.external_id !== countyExtId) {
                 county_name = name;
@@ -133,9 +129,6 @@ export async function GET(req: Request, res: Response) {
           }
           return { ...b, county_name };
         });
-        error = result.error;
-      } else {
-        rawData = [];
       }
     } else {
       // No platform context — search all boundaries
