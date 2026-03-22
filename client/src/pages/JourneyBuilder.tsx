@@ -1303,7 +1303,13 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
   const renderStepCard = (step: any) => {
     const suggestion = getSuggestionForStep(step);
     return (
-      <div key={step.id} className={`border rounded-lg overflow-hidden ${step.is_excluded ? "opacity-40" : ""}`}>
+      <div key={step.id} className={`border rounded-lg overflow-hidden ${step.is_excluded ? "opacity-40 border-dashed" : ""}`}>
+        {step.is_excluded && (
+          <div className="bg-muted/50 px-3 py-1 text-xs text-muted-foreground flex items-center justify-between">
+            <span>Excluded from journey</span>
+            <Button variant="ghost" size="sm" className="h-5 text-xs" onClick={() => onToggle(step.id, false)}>Restore</Button>
+          </div>
+        )}
         <div className="p-3">
           {editingStep === step.id ? (
             <div className="space-y-3">
@@ -1410,55 +1416,20 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
         </p>
       )}
 
-      {/* AI Generate All */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          <p className="text-sm text-muted-foreground">
-            {aiMutation.data
-              ? "Suggestions shown below each step. Click 'Use This' to apply."
-              : "Generate prayer and scripture suggestions for all steps at once."}
+      {/* AI Generate All — updates existing cards in place */}
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border">
+        <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+        <div className="flex-1">
+          <p className="text-sm font-medium">AI Assist</p>
+          <p className="text-xs text-muted-foreground">
+            Generates fresh prayers and scripture for each step above. Suggestions appear below each card — you choose whether to apply them.
           </p>
         </div>
-        <Button onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending} variant="outline" size="sm">
+        <Button onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending} variant="outline" size="sm" className="shrink-0">
           <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-          {aiMutation.isPending ? "Generating..." : aiMutation.data ? "Regenerate All" : "Generate All"}
+          {aiMutation.isPending ? "Generating..." : "Generate"}
         </Button>
       </div>
-
-      {/* Unmatched suggestions — new steps that don't correspond to existing ones */}
-      {unmatchedSuggestions.length > 0 && (
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Additional suggestions (new steps):</p>
-            <div className="space-y-2">
-              {unmatchedSuggestions.map((suggestion: any, i: number) => (
-                <div
-                  key={i}
-                  className={`p-2.5 rounded border cursor-pointer transition-colors text-sm ${
-                    selected.has(i) ? "ring-2 ring-primary bg-primary/5" : "hover:bg-muted/30"
-                  }`}
-                  onClick={() => { const next = new Set(selected); if (next.has(i)) next.delete(i); else next.add(i); setSelected(next); }}
-                >
-                  <div className="flex items-start gap-2">
-                    <input type="checkbox" checked={selected.has(i)} readOnly className="mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{suggestion.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{suggestion.body}</p>
-                      {suggestion.scripture_ref && (
-                        <p className="text-xs text-primary mt-1 italic">{suggestion.scripture_ref}: {suggestion.scripture_text}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {selected.size > 0 && (
-                <Button onClick={handleAddSelected} size="sm">Add {selected.size} Selected</Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Publish */}
       <div className="flex items-center justify-between pt-4 border-t">

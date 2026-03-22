@@ -131,13 +131,23 @@ function generateFallbackSuggestions(context: JourneyContext): AISuggestion[] {
     { ref: '1 Corinthians 12:27', text: 'Now you are the body of Christ and individually members of it.' },
   ];
 
+  const churchPrayers = [
+    (name: string, city: string) => `Lord, we lift up ${name}${city} to You. Strengthen their ministry, unite their congregation, and use them as a beacon of hope in their community.`,
+    (name: string, city: string) => `Father, pour out Your Spirit on ${name}${city}. Give their leaders wisdom and their people courage to love their neighbors well.`,
+    (name: string, city: string) => `God of all grace, bless ${name}${city}. May their doors be wide open to the weary, their hearts tender to the hurting, and their hands ready to serve.`,
+    (name: string, city: string) => `Jesus, You are the head of the church. We pray for ${name}${city} — may they reflect Your love, pursue Your justice, and proclaim Your truth with boldness and humility.`,
+    (name: string, city: string) => `Holy Spirit, breathe new life into ${name}${city}. Ignite a passion for prayer, deepen their fellowship, and empower them for mission in their neighborhood.`,
+  ];
+
   for (let i = 0; i < context.churches.length; i++) {
     const church = context.churches[i];
     const scripture = churchScriptures[i % churchScriptures.length];
+    const cityStr = church.city ? ` in ${church.city}` : '';
+    const prayerTemplate = churchPrayers[i % churchPrayers.length];
     suggestions.push({
       step_type: 'church',
       title: `Pray for ${church.name}`,
-      body: `Lord, we lift up ${church.name}${church.city ? ` in ${church.city}` : ''} to You. Strengthen their ministry, unite their congregation, and use them as a beacon of hope in their community. May they be faithful stewards of the gospel and bear much fruit for Your kingdom.`,
+      body: prayerTemplate(church.name, cityStr),
       church_id: church.id,
       scripture_ref: scripture.ref,
       scripture_text: scripture.text,
