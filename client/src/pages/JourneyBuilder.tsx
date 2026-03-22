@@ -15,6 +15,9 @@ import {
   Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart, Map, X, ChevronRight
 } from "lucide-react";
 import { BoundaryMapPicker } from "@/components/BoundaryMapPicker";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { PrayerJourney, PrayerJourneyStep } from "@shared/schema";
 
 type BuilderStep = "location" | "churches" | "needs" | "custom" | "refine";
@@ -1184,24 +1187,49 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
   const [editScriptureRef, setEditScriptureRef] = useState("");
   const [editScriptureText, setEditScriptureText] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
   const [regeneratingStep, setRegeneratingStep] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const activeSteps = steps.filter((s: any) => !s.is_excluded);
 
-  // Group steps by type
-  const groups = [
-    { key: "church", label: "Churches", icon: <Church className="w-4 h-4" />, steps: steps.filter((s: any) => s.step_type === "church") },
-    { key: "community_need", label: "Community Needs", icon: <Heart className="w-4 h-4" />, steps: steps.filter((s: any) => s.step_type === "community_need") },
-    { key: "other", label: "Custom & Other", icon: <PenLine className="w-4 h-4" />, steps: steps.filter((s: any) => !["church", "community_need"].includes(s.step_type)) },
-  ].filter(g => g.steps.length > 0);
+  const typeBadgeColors: Record<string, string> = {
+    church: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+    community_need: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    custom: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    scripture: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    thanksgiving: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    prayer_request: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  };
+  const typeLabels: Record<string, string> = {
+    church: "Church", community_need: "Community Need", custom: "Custom",
+    scripture: "Scripture", thanksgiving: "Thanksgiving", prayer_request: "Prayer Request",
+  };
 
-  const toggleGroup = (key: string) => {
-    const next = new Set(collapsedGroups);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    setCollapsedGroups(next);
+  // Sort steps by sort_order for display
+  const sortedSteps = [...steps].sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
+  const stepIds = sortedSteps.map((s: any) => s.id);
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = stepIds.indexOf(active.id as string);
+    const newIndex = stepIds.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(stepIds, oldIndex, newIndex);
+    // Save reorder
+    try {
+      await fetch(`/api/journeys/${journeyId}/steps/reorder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ stepIds: newOrder }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+    } catch { /* silent */ }
   };
 
   const startEditing = (step: any) => {
@@ -1300,10 +1328,14 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
     toast({ title: "Updated with AI suggestion" });
   };
 
-  const renderStepCard = (step: any) => {
+  function SortableStepCard({ step }: { step: any }) {
     const suggestion = getSuggestionForStep(step);
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
+    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : undefined };
+    const badgeColor = typeBadgeColors[step.step_type] || "bg-muted text-muted-foreground";
+
     return (
-      <div key={step.id} className={`border rounded-lg overflow-hidden ${step.is_excluded ? "opacity-40 border-dashed" : ""}`}>
+      <div ref={setNodeRef} style={style} className={`border rounded-lg overflow-hidden ${step.is_excluded ? "opacity-40 border-dashed" : ""}`}>
         {step.is_excluded && (
           <div className="bg-muted/50 px-3 py-1 text-xs text-muted-foreground flex items-center justify-between">
             <span>Excluded from journey</span>
@@ -1326,7 +1358,15 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
             </div>
           ) : (
             <div className="flex items-start gap-2">
+              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1 shrink-0">
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
+              </div>
               <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${badgeColor}`}>
+                    {typeLabels[step.step_type] || step.step_type}
+                  </span>
+                </div>
                 <p className="text-sm font-medium">{step.title || "Untitled"}</p>
                 {step.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{step.body}</p>}
                 {step.scripture_ref && (
@@ -1352,7 +1392,7 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
           )}
         </div>
 
-        {/* Inline AI suggestion for this step */}
+        {/* Inline AI suggestion */}
         {suggestion && editingStep !== step.id && (
           <div className="border-t bg-amber-50/50 dark:bg-amber-950/20 p-3">
             <div className="flex items-start gap-2">
@@ -1372,7 +1412,7 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
         )}
       </div>
     );
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -1384,31 +1424,16 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
         </p>
       </div>
 
-      {/* Grouped Steps */}
-      {groups.map(group => {
-        const isCollapsed = collapsedGroups.has(group.key);
-        const activeCount = group.steps.filter((s: any) => !s.is_excluded).length;
-        return (
-          <div key={group.key} className="border rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleGroup(group.key)}
-              className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                {group.icon}
-                <span className="text-sm font-semibold">{group.label}</span>
-                <span className="text-xs text-muted-foreground">({activeCount} active)</span>
-              </div>
-              <ChevronRight className={`w-4 h-4 transition-transform ${isCollapsed ? "" : "rotate-90"}`} />
-            </button>
-            {!isCollapsed && (
-              <div className="p-2 space-y-2">
-                {group.steps.map(renderStepCard)}
-              </div>
-            )}
+      {/* Sortable Steps — flat list, drag across categories */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {sortedSteps.map((step: any) => (
+              <SortableStepCard key={step.id} step={step} />
+            ))}
           </div>
-        );
-      })}
+        </SortableContext>
+      </DndContext>
 
       {steps.length === 0 && (
         <p className="text-muted-foreground text-center py-8">

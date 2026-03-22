@@ -17,3 +17,5 @@ attached_assets/
 node_modules/
 
 .git.backup.*
+.env
+.claude/
