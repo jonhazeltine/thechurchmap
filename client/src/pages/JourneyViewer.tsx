@@ -47,6 +47,8 @@ export default function JourneyViewer() {
       if (!res.ok) throw new Error("Journey not found");
       return res.json();
     },
+    enabled: !!(id || shareToken),
+    retry: 1,
   });
 
   const activeSteps = (journey?.steps || []).filter((s) => !s.is_excluded);
