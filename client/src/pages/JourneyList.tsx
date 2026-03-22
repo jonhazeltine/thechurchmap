@@ -113,8 +113,8 @@ export default function JourneyList() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <Button variant="ghost" size="sm" className="mb-4" onClick={() => window.history.back()}>
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back
+        <Button variant="ghost" size="sm" className="mb-4" onClick={() => setLocation(platformPrefix || "/")}>
+          <ChevronLeft className="w-4 h-4 mr-1" /> Back to Map
         </Button>
 
         <div className="flex items-center justify-between mb-8">
