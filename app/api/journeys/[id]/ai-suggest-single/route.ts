@@ -33,10 +33,42 @@ export async function POST(req: Request, res: Response) {
       return res.json(pick);
     }
 
+    // Fetch rich context for the church if available
+    let churchContext = '';
+    if (step_type === 'church' && req.body.church_id) {
+      const { data: church } = await adminClient
+        .from('churches')
+        .select('name, city, state, denomination, description, collaboration_have, collaboration_need')
+        .eq('id', req.body.church_id)
+        .single();
+
+      const { data: prayers } = await adminClient
+        .from('prayers')
+        .select('title, body, is_church_request')
+        .eq('church_id', req.body.church_id)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (church) {
+        churchContext = `\nChurch: ${church.name}`;
+        if (church.city) churchContext += ` in ${church.city}, ${church.state}`;
+        if (church.denomination) churchContext += ` (${church.denomination})`;
+        if (church.description) churchContext += `\nAbout: ${church.description.substring(0, 300)}`;
+        if (church.collaboration_have?.length) churchContext += `\nMinistry strengths: ${church.collaboration_have.join(', ')}`;
+        if (church.collaboration_need?.length) churchContext += `\nAreas needing support: ${church.collaboration_need.join(', ')}`;
+
+        const requests = (prayers || []).filter(p => p.is_church_request).map(p => p.title || p.body);
+        const othersePrayers = (prayers || []).filter(p => !p.is_church_request).map(p => p.body).filter(Boolean);
+        if (requests.length) churchContext += `\nTheir prayer requests: ${requests.slice(0, 3).join('; ')}`;
+        if (othersePrayers.length) churchContext += `\nWhat others have prayed: ${othersePrayers.slice(0, 3).join('; ')}`;
+      }
+    }
+
     // Use OpenAI for a targeted single suggestion
     const prompt = step_type === 'church'
-      ? `Generate a heartfelt prayer prompt (2-3 sentences) and one relevant scripture reference for praying for "${church_name || title}". Return JSON with fields: body, scripture_ref, scripture_text.`
-      : `Generate a heartfelt prayer prompt (2-3 sentences) and one relevant scripture reference for the community need "${title}". Return JSON with fields: body, scripture_ref, scripture_text.`;
+      ? `Write a heartfelt, specific prayer (2-3 sentences) for this church. Don't be generic — reference their actual context, needs, and strengths. Include one relevant scripture reference and full verse text.\n${churchContext}\n\nReturn JSON with fields: body, scripture_ref, scripture_text.`
+      : `Write a compassionate prayer (2-3 sentences) for this community need: "${title}". Name the specific struggle and ask God for tangible help. Include one scripture that speaks directly to this need.\n\nReturn JSON with fields: body, scripture_ref, scripture_text.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

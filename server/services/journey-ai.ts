@@ -1,6 +1,17 @@
 interface JourneyContext {
-  churches: Array<{ id: string; name: string; city?: string; state?: string; denomination?: string }>;
-  metrics: Array<{ metric_key: string; display_name: string; category_id?: string }>;
+  churches: Array<{
+    id: string;
+    name: string;
+    city?: string;
+    state?: string;
+    denomination?: string;
+    description?: string;
+    strengths?: string[];
+    needs?: string[];
+    prayer_requests?: string[];
+    recent_prayers?: string[];
+  }>;
+  metrics: Array<{ metric_key: string; display_name: string; description?: string; category_id?: string }>;
   customSteps: Array<{ title: string | null; body: string | null }>;
   journeyTitle: string;
   journeyDescription: string | null;
@@ -77,17 +88,27 @@ function buildPrompt(context: JourneyContext): string {
   if (context.churches.length > 0) {
     parts.push('\nChurches in this journey:');
     for (const c of context.churches) {
-      parts.push(`- ${c.name}${c.city ? ` in ${c.city}, ${c.state}` : ''}${c.denomination ? ` (${c.denomination})` : ''}`);
+      let churchContext = `- ${c.name}`;
+      if (c.city) churchContext += ` in ${c.city}, ${c.state}`;
+      if (c.denomination) churchContext += ` (${c.denomination})`;
+      if (c.description) churchContext += `\n  About: ${c.description.substring(0, 200)}`;
+      if (c.strengths && c.strengths.length > 0) churchContext += `\n  Ministry strengths: ${c.strengths.join(', ')}`;
+      if (c.needs && c.needs.length > 0) churchContext += `\n  Areas needing support: ${c.needs.join(', ')}`;
+      if (c.prayer_requests && c.prayer_requests.length > 0) churchContext += `\n  Their prayer requests: ${c.prayer_requests.join('; ')}`;
+      if (c.recent_prayers && c.recent_prayers.length > 0) churchContext += `\n  What others have prayed: ${c.recent_prayers.join('; ')}`;
+      parts.push(churchContext);
     }
-    parts.push('For each church, suggest a prayer prompt that prays for their ministry and community impact. Include a relevant scripture reference and full verse text for each church.');
+    parts.push('\nFor each church, write a unique prayer that reflects their specific context — their denomination, strengths, needs, and prayer requests. Don\'t use generic prayers. Reference their actual situation. Include a relevant scripture reference and full verse text that connects to their specific needs or calling.');
   }
 
   if (context.metrics.length > 0) {
-    parts.push('\nCommunity needs identified:');
+    parts.push('\nCommunity needs identified in this area:');
     for (const m of context.metrics) {
-      parts.push(`- ${m.display_name} (metric: ${m.metric_key})`);
+      let needContext = `- ${m.display_name}`;
+      if (m.description) needContext += `: ${m.description}`;
+      parts.push(needContext);
     }
-    parts.push('For each community need, suggest a prayer prompt addressing this need with compassion. Include a relevant scripture reference and full verse text for each need.');
+    parts.push('For each community need, write a compassionate prayer that names the specific struggle and asks God to bring tangible help. Include a scripture that speaks directly to this kind of need — not generic comfort verses.');
   }
 
   if (context.customSteps.length > 0) {

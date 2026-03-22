@@ -35,18 +35,42 @@ export async function POST(req: Request, res: Response) {
       .eq('journey_id', id)
       .order('sort_order', { ascending: true });
 
-    // Get church details for church steps
+    // Get rich church details for church steps
     const churchIds = (steps || [])
       .filter(s => s.step_type === 'church' && s.church_id)
       .map(s => s.church_id!);
 
     let churches: any[] = [];
     if (churchIds.length > 0) {
-      const { data } = await adminClient
+      // Get core church data
+      const { data: churchData } = await adminClient
         .from('churches')
-        .select('id, name, city, state, denomination')
+        .select('id, name, city, state, denomination, description, collaboration_have, collaboration_need')
         .in('id', churchIds);
-      churches = data || [];
+
+      // Get prayers for each church (what others have prayed)
+      const { data: prayerData } = await adminClient
+        .from('prayers')
+        .select('church_id, title, body, is_church_request')
+        .in('church_id', churchIds)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Build rich church objects
+      churches = (churchData || []).map(church => {
+        const churchPrayers = (prayerData || []).filter(p => p.church_id === church.id);
+        const prayerRequests = churchPrayers.filter(p => p.is_church_request);
+        const prayersFromOthers = churchPrayers.filter(p => !p.is_church_request);
+
+        return {
+          ...church,
+          prayer_requests: prayerRequests.map(p => p.title || p.body).slice(0, 5),
+          recent_prayers: prayersFromOthers.map(p => p.body).filter(Boolean).slice(0, 3),
+          strengths: church.collaboration_have || [],
+          needs: church.collaboration_need || [],
+        };
+      });
     }
 
     // Get health metric data for community need steps
@@ -58,7 +82,7 @@ export async function POST(req: Request, res: Response) {
     if (metricKeys.length > 0) {
       const { data } = await adminClient
         .from('health_metrics')
-        .select('metric_key, display_name, category_id')
+        .select('metric_key, display_name, description, category_id')
         .in('metric_key', metricKeys);
       metrics = data || [];
     }

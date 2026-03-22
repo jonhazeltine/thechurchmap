@@ -1234,7 +1234,7 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
       const res = await fetch(`/api/journeys/${journeyId}/ai-suggest-single`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ step_type: step.step_type, title: step.title, church_name: step.title?.replace("Pray for ", "") }),
+        body: JSON.stringify({ step_type: step.step_type, title: step.title, church_name: step.title?.replace("Pray for ", ""), church_id: step.church_id }),
       });
       if (res.ok) {
         const suggestion = await res.json();
