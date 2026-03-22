@@ -131,7 +131,7 @@ export default function JourneyViewer() {
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/satellite-streets-v12',
       center: defaultCenter ? [defaultCenter.lng, defaultCenter.lat] : [-85.67, 42.96],
       zoom: defaultCenter?.zoom || 11,
       interactive: false,
@@ -205,20 +205,20 @@ export default function JourneyViewer() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
       {/* Background map */}
-      <div ref={mapContainerRef} className="absolute inset-0" style={{ filter: 'blur(1px) saturate(0.5)', opacity: 0.6 }} />
-      {/* Overlay to ensure readability */}
-      <div className="absolute inset-0 bg-background/50" />
+      <div ref={mapContainerRef} className="absolute inset-0" style={{ opacity: 0.85 }} />
+      {/* Subtle dark overlay for contrast */}
+      <div className="absolute inset-0 bg-black/20" />
 
       {/* Header */}
-      <div className="relative flex items-center justify-between px-4 py-3 border-b bg-card/90 backdrop-blur-sm">
+      <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={handleClose} className="text-white/70 hover:text-white">
             <X className="w-5 h-5" />
           </button>
-          <h1 className="text-sm font-medium truncate">{journey.title}</h1>
+          <h1 className="text-sm font-medium truncate text-white">{journey.title}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-white/60">
             {currentSlide + 1} / {activeSteps.length}
           </span>
           <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -231,8 +231,8 @@ export default function JourneyViewer() {
       </div>
 
       {/* Slide Content */}
-      <div className="relative flex-1 overflow-y-auto flex items-center justify-center p-6">
-        <div className="max-w-lg w-full">
+      <div className="relative flex-1 overflow-y-auto flex items-center justify-center p-4">
+        <div className="max-w-lg w-full bg-white/75 dark:bg-gray-900/75 backdrop-blur-lg rounded-2xl shadow-2xl p-6">
           {currentStep && (
             <SlideRenderer
               key={currentStep.id}
@@ -248,11 +248,12 @@ export default function JourneyViewer() {
       </div>
 
       {/* Navigation */}
-      <div className="relative flex items-center justify-between px-6 py-4 border-t bg-card/90 backdrop-blur-sm">
+      <div className="relative flex items-center justify-between px-6 py-4 border-t border-white/10 bg-black/40 backdrop-blur-md">
         <Button
           variant="ghost"
           onClick={handlePrev}
           disabled={isFirstSlide}
+          className="text-white hover:text-white hover:bg-white/10"
         >
           <ChevronLeft className="w-4 h-4 mr-1" /> Back
         </Button>
@@ -262,14 +263,14 @@ export default function JourneyViewer() {
             <button
               key={i}
               className={`w-2 h-2 rounded-full transition-colors ${
-                i === currentSlide ? "bg-primary" : i < currentSlide ? "bg-primary/40" : "bg-muted"
+                i === currentSlide ? "bg-white" : i < currentSlide ? "bg-white/50" : "bg-white/20"
               }`}
               onClick={() => setCurrentSlide(i)}
             />
           ))}
         </div>
 
-        <Button onClick={handleNext}>
+        <Button onClick={handleNext} className="bg-white/20 hover:bg-white/30 text-white border-white/20">
           {isLastSlide ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
         </Button>
       </div>
