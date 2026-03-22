@@ -1221,15 +1221,28 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
     const newIndex = stepIds.indexOf(over.id as string);
     if (oldIndex === -1 || newIndex === -1) return;
     const newOrder = arrayMove(stepIds, oldIndex, newIndex);
-    // Save reorder
+
+    // Optimistically update the cache so UI doesn't snap back
+    queryClient.setQueryData(["journey", journeyId], (old: any) => {
+      if (!old?.steps) return old;
+      const reordered = newOrder.map((id, i) => {
+        const step = old.steps.find((s: any) => s.id === id);
+        return step ? { ...step, sort_order: i } : null;
+      }).filter(Boolean);
+      return { ...old, steps: reordered };
+    });
+
+    // Save to server
     try {
       await fetch(`/api/journeys/${journeyId}/steps/reorder`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ step_ids: newOrder }),
       });
+    } catch {
+      // Revert on failure
       queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
-    } catch { /* silent */ }
+    }
   };
 
   const startEditing = (step: any) => {
