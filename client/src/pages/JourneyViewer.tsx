@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import {
   X, ChevronLeft, ChevronRight, Church, Heart, BookOpen,
   PenLine, Share2, HandHeart, Sparkles, Send, Check, MapPin
@@ -146,10 +148,73 @@ export default function JourneyViewer() {
     );
   }
 
+  // Get coordinates for current step — churches zoom in, community needs zoom out
+  const getStepCoords = (step: any): { lng: number; lat: number; zoom: number } | null => {
+    if (!step) return null;
+    const churchData = step.church_data;
+    if (step.step_type === 'church' && churchData) {
+      const lat = churchData.display_lat || churchData.latitude;
+      const lng = churchData.display_lng || churchData.longitude;
+      if (lat && lng) return { lng, lat, zoom: 14.5 };
+    }
+    if (step.step_type === 'community_need') {
+      // Zoom out to show the broader community area
+      return defaultCenter ? { ...defaultCenter, zoom: 11 } : null;
+    }
+    if (step.step_type === 'scripture' || step.step_type === 'thanksgiving' || step.step_type === 'prayer_request') {
+      // Wide view for reflective/closing slides
+      return defaultCenter ? { ...defaultCenter, zoom: 10 } : null;
+    }
+    return null;
+  };
+
+  // Background map ref
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+
+  // Get default center from first church step
+  const firstChurchStep = activeSteps.find(s => s.step_type === 'church' && (s as any).church_data);
+  const defaultCenter = firstChurchStep ? getStepCoords(firstChurchStep) : null;
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+    const token = (import.meta as any).env?.VITE_MAPBOX_TOKEN || '';
+    mapboxgl.accessToken = token;
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: defaultCenter ? [defaultCenter.lng, defaultCenter.lat] : [-85.67, 42.96],
+      zoom: defaultCenter?.zoom || 11,
+      interactive: false,
+      attributionControl: false,
+    });
+    mapRef.current = map;
+    return () => { map.remove(); mapRef.current = null; };
+  }, []);
+
+  // Fly to current step's location
+  useEffect(() => {
+    if (!mapRef.current || !currentStep) return;
+    const coords = getStepCoords(currentStep);
+    if (coords) {
+      mapRef.current.flyTo({
+        center: [coords.lng, coords.lat],
+        zoom: coords.zoom,
+        speed: 0.8,
+        curve: 1.2,
+      });
+    }
+  }, [currentSlide, currentStep]);
+
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col">
+      {/* Background map */}
+      <div ref={mapContainerRef} className="absolute inset-0" style={{ filter: 'blur(2px) brightness(0.85) saturate(0.4)', opacity: 0.3 }} />
+      {/* Overlay to ensure readability */}
+      <div className="absolute inset-0 bg-background/80" />
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
+      <div className="relative flex items-center justify-between px-4 py-3 border-b bg-card/90 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <button onClick={handleClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
@@ -160,7 +225,6 @@ export default function JourneyViewer() {
           <span className="text-xs text-muted-foreground">
             {currentSlide + 1} / {activeSteps.length}
           </span>
-          {/* Progress bar */}
           <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all"
@@ -171,7 +235,7 @@ export default function JourneyViewer() {
       </div>
 
       {/* Slide Content */}
-      <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
+      <div className="relative flex-1 overflow-y-auto flex items-center justify-center p-6">
         <div className="max-w-lg w-full">
           {currentStep && (
             <SlideRenderer
@@ -188,7 +252,7 @@ export default function JourneyViewer() {
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between px-6 py-4 border-t bg-card">
+      <div className="relative flex items-center justify-between px-6 py-4 border-t bg-card/90 backdrop-blur-sm">
         <Button
           variant="ghost"
           onClick={handlePrev}
@@ -197,7 +261,6 @@ export default function JourneyViewer() {
           <ChevronLeft className="w-4 h-4 mr-1" /> Back
         </Button>
 
-        {/* Dots */}
         <div className="flex gap-1.5 max-w-[200px] overflow-hidden">
           {activeSteps.map((_, i) => (
             <button
