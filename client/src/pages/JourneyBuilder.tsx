@@ -608,12 +608,20 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
     enabled: tractIds.length > 0,
   });
 
-  // Step 2: Query churches within the bounding box of selected boundaries
+  // Step 2: Query churches — use platform membership if available, otherwise viewport
+  const pid = journey?.city_platform_id || platformId;
   const { data: churches = [], isLoading } = useQuery<any[]>({
-    queryKey: ["journey-churches", boundaries.map((b: any) => b.id)],
+    queryKey: ["journey-churches", pid, boundaries.map((b: any) => b.id)],
     queryFn: async () => {
+      // If we have a platform context, fetch all platform churches
+      if (pid) {
+        const res = await fetch(`/api/churches/in-viewport?minLng=-180&minLat=-90&maxLng=180&maxLat=90&limit=2000&platformId=${encodeURIComponent(pid)}`);
+        if (!res.ok) return [];
+        return res.json();
+      }
+
+      // Fallback: use bounding box from boundary geometries
       if (boundaries.length === 0) return [];
-      // Compute the bounding box from all boundary geometries
       let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
       for (const b of boundaries) {
         const geom = b.geometry;
@@ -639,17 +647,12 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
         maxLat: String(maxLat),
         limit: "500",
       });
-      // Filter to platform churches if journey has a platform context
-      const pid = journey?.city_platform_id || platformId;
-      if (pid) {
-        params.set("platformId", pid);
-      }
 
       const res = await fetch(`/api/churches/in-viewport?${params}`);
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: boundaries.length > 0,
+    enabled: !!pid || boundaries.length > 0,
   });
 
   // Filter by name locally
