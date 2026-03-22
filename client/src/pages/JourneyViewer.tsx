@@ -205,9 +205,9 @@ export default function JourneyViewer() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
       {/* Background map */}
-      <div ref={mapContainerRef} className="absolute inset-0" style={{ filter: 'blur(2px) brightness(0.85) saturate(0.4)', opacity: 0.3 }} />
+      <div ref={mapContainerRef} className="absolute inset-0" style={{ filter: 'blur(1px) saturate(0.5)', opacity: 0.6 }} />
       {/* Overlay to ensure readability */}
-      <div className="absolute inset-0 bg-background/80" />
+      <div className="absolute inset-0 bg-background/50" />
 
       {/* Header */}
       <div className="relative flex items-center justify-between px-4 py-3 border-b bg-card/90 backdrop-blur-sm">
