@@ -9,18 +9,17 @@ import { computeEffectiveScore, computeRecoveredScore } from "./engagementScore"
 
 const dbUrl = process.env.DATABASE_URL;
 const isLocal = !!(dbUrl && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")));
-const pool = new pg.Pool(
-  isLocal
-    ? { connectionString: dbUrl, ssl: false }
-    : {
-        host: process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com',
-        port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
-        database: 'postgres',
-        user: process.env.SUPABASE_DB_USER || '',
-        password: process.env.SUPABASE_DB_PASSWORD || '',
-        ssl: { rejectUnauthorized: false },
-      },
-});
+const pgConfig: pg.PoolConfig = isLocal
+  ? { connectionString: dbUrl }
+  : {
+      host: process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com',
+      port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
+      database: 'postgres',
+      user: process.env.SUPABASE_DB_USER || '',
+      password: process.env.SUPABASE_DB_PASSWORD || '',
+      ssl: { rejectUnauthorized: false },
+    };
+const pool = new pg.Pool(pgConfig);
 
 export interface IStorage {
   getChurchPrayerBudget(churchId: string): Promise<ChurchPrayerBudget | null>;
