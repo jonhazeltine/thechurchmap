@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,18 +13,18 @@ import {
 import type { PrayerJourney, PrayerJourneyStep } from "@shared/schema";
 
 export default function JourneyViewer() {
-  // Match all possible route patterns
-  const [matchShare, paramsShare] = useRoute("/journey/:shareToken");
-  const [matchPlatform, paramsPlatform] = useRoute("/:platform/journey/:id");
-
-  // Determine if we have a UUID (journey ID) or a share token (shorter hex string)
+  // Extract journey ID or share token from the URL path directly
+  // This avoids useRoute race conditions where params are undefined on first render
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const rawParam = paramsPlatform?.id || paramsShare?.shareToken;
+
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  // Patterns: /journey/:token OR /:platform/journey/:id
+  const journeyIndex = pathParts.indexOf('journey');
+  const rawParam = journeyIndex >= 0 ? pathParts[journeyIndex + 1] : undefined;
   const isUUID = rawParam && UUID_REGEX.test(rawParam);
 
-  // If the share route matched but the param is a UUID, treat it as an ID (not share token)
-  const id = paramsPlatform?.id || (matchShare && isUUID ? paramsShare?.shareToken : undefined);
-  const shareToken = matchShare && !isUUID ? paramsShare?.shareToken : undefined;
+  const id = isUUID ? rawParam : undefined;
+  const shareToken = rawParam && !isUUID ? rawParam : undefined;
 
   const { session, user } = useAuth();
   const [, setLocation] = useLocation();
