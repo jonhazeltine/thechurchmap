@@ -12,7 +12,7 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { useToast } from "@/hooks/use-toast";
 import {
   MapPin, Church, Heart, PenLine, Sparkles, Eye, ArrowLeft, ArrowRight,
-  Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart, Map
+  Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart, Map, X
 } from "lucide-react";
 import { BoundaryMapPicker } from "@/components/BoundaryMapPicker";
 import type { PrayerJourney, PrayerJourneyStep } from "@shared/schema";
