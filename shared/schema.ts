@@ -603,19 +603,6 @@ export type UpdatePrayerJourney = z.infer<typeof updatePrayerJourneySchema>;
 export type InsertPrayerJourneyStep = z.infer<typeof insertPrayerJourneyStepSchema>;
 export type UpdatePrayerJourneyStep = z.infer<typeof updatePrayerJourneyStepSchema>;
 
-// Private label types
-export type PrivateLabelKey = 'bridge' | 'anchor' | 'catalyst';
-
-// Church private label (Sprint 2.0 - platform admin only)
-export interface ChurchPrivateLabel {
-  id: string;
-  church_id: string;
-  label_key: PrivateLabelKey;
-  label_value: string | null;
-  created_by_user_id: string;
-  created_at: string;
-  updated_at: string;
-}
 
 // =====================================================================
 // INTERNAL ADMIN TAGS (Platform Admin Only)
@@ -953,11 +940,6 @@ export const updateCollaborationTagSchema = z.object({
   sort_order: z.number().int().optional(),
 });
 
-// Private label validation
-export const upsertPrivateLabelSchema = z.object({
-  label_key: z.enum(['bridge', 'anchor', 'catalyst']),
-  label_value: z.string().optional(),
-});
 
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
@@ -969,7 +951,6 @@ export type ApproveChurchMember = z.infer<typeof approveChurchMemberSchema>;
 export type UpdatePrayerSettings = z.infer<typeof updatePrayerSettingsSchema>;
 export type InsertCollaborationTag = z.infer<typeof insertCollaborationTagSchema>;
 export type UpdateCollaborationTag = z.infer<typeof updateCollaborationTagSchema>;
-export type UpsertPrivateLabel = z.infer<typeof upsertPrivateLabelSchema>;
 
 // =====================================================================
 // SPRINT 4.0 - GLOBAL COMMUNITY FEED + CHURCH-LINKED POSTS

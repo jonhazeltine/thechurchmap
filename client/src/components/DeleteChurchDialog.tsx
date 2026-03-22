@@ -29,7 +29,6 @@ interface DeletionImpact {
   ministryAreas: number;
   callings: number;
   internalTags: number;
-  privateLabels: number;
 }
 
 interface DeleteChurchDialogProps {
@@ -93,8 +92,7 @@ export function DeleteChurchDialog({
       impact.teamMembers +
       impact.ministryAreas +
       impact.callings +
-      impact.internalTags +
-      impact.privateLabels
+      impact.internalTags
     : 0;
 
   const hasRelatedData = totalAffectedItems > 0;
@@ -176,21 +174,11 @@ export function DeleteChurchDialog({
                       </span>
                     </li>
                   )}
-                  {(impact.internalTags > 0 || impact.privateLabels > 0) && (
+                  {impact.internalTags > 0 && (
                     <li className="flex items-center gap-2">
                       <Tag className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        {impact.internalTags > 0 && (
-                          <>
-                            <strong>{impact.internalTags}</strong> internal tag{impact.internalTags !== 1 ? "s" : ""}
-                          </>
-                        )}
-                        {impact.internalTags > 0 && impact.privateLabels > 0 && " and "}
-                        {impact.privateLabels > 0 && (
-                          <>
-                            <strong>{impact.privateLabels}</strong> private label{impact.privateLabels !== 1 ? "s" : ""}
-                          </>
-                        )}
+                        <strong>{impact.internalTags}</strong> internal tag{impact.internalTags !== 1 ? "s" : ""}
                       </span>
                     </li>
                   )}

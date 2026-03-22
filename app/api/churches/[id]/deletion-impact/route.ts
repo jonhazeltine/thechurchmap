@@ -12,7 +12,6 @@ export interface DeletionImpact {
   ministryAreas: number;
   callings: number;
   internalTags: number;
-  privateLabels: number;
 }
 
 export async function GET(req: Request, res: Response) {
@@ -44,16 +43,14 @@ export async function GET(req: Request, res: Response) {
       teamResult,
       areasResult,
       callingsResult,
-      internalTagsResult,
-      labelsResult
+      internalTagsResult
     ] = await Promise.all([
       supabase.from('prayers').select('id', { count: 'exact', head: true }).eq('church_id', id),
       supabase.from('posts').select('id', { count: 'exact', head: true }).eq('church_id', id),
       supabase.from('church_user_roles').select('id', { count: 'exact', head: true }).eq('church_id', id),
       supabase.from('areas').select('id', { count: 'exact', head: true }).eq('church_id', id),
       supabase.from('church_calling').select('id', { count: 'exact', head: true }).eq('church_id', id),
-      supabase.from('internal_church_tags').select('id', { count: 'exact', head: true }).eq('church_id', id),
-      supabase.from('church_private_labels').select('id', { count: 'exact', head: true }).eq('church_id', id)
+      supabase.from('internal_church_tags').select('id', { count: 'exact', head: true }).eq('church_id', id)
     ]);
 
     let prayerInteractions = 0;
@@ -99,7 +96,6 @@ export async function GET(req: Request, res: Response) {
       ministryAreas: areasResult.count || 0,
       callings: callingsResult.count || 0,
       internalTags: internalTagsResult.count || 0,
-      privateLabels: labelsResult.count || 0,
     };
 
     res.json(impact);

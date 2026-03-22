@@ -27,10 +27,7 @@ export async function GET(req: Request, res: Response) {
     // Fetch all churches for search functionality
     const { data: churches, error: churchesError } = await adminClient
       .from('churches')
-      .select(`
-        *,
-        private_labels:church_private_labels(*)
-      `)
+      .select('*')
       .order('name');
 
     if (churchesError) {
