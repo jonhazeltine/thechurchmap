@@ -1226,7 +1226,7 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
       await fetch(`/api/journeys/${journeyId}/steps/reorder`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ stepIds: newOrder }),
+        body: JSON.stringify({ step_ids: newOrder }),
       });
       queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
     } catch { /* silent */ }

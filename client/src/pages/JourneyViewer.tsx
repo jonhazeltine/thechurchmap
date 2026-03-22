@@ -126,7 +126,7 @@ export default function JourneyViewer() {
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    const token = (import.meta as any).env?.VITE_MAPBOX_TOKEN || '';
+    const token = import.meta.env.VITE_MAPBOX_TOKEN || '';
     if (!token) return;
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
