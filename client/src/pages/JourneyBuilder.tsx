@@ -1184,18 +1184,24 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
   const [editScriptureRef, setEditScriptureRef] = useState("");
   const [editScriptureText, setEditScriptureText] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [regeneratingStep, setRegeneratingStep] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const activeSteps = steps.filter((s: any) => !s.is_excluded);
-  const stepTypeLabels: Record<string, string> = {
-    church: "Church",
-    community_need: "Community Need",
-    custom: "Custom",
-    scripture: "Scripture",
-    user_prayer: "Write Prayer",
-    thanksgiving: "Thanksgiving",
-    prayer_request: "Prayer Request",
+
+  // Group steps by type
+  const groups = [
+    { key: "church", label: "Churches", icon: <Church className="w-4 h-4" />, steps: steps.filter((s: any) => s.step_type === "church") },
+    { key: "community_need", label: "Community Needs", icon: <Heart className="w-4 h-4" />, steps: steps.filter((s: any) => s.step_type === "community_need") },
+    { key: "other", label: "Custom & Other", icon: <PenLine className="w-4 h-4" />, steps: steps.filter((s: any) => !["church", "community_need"].includes(s.step_type)) },
+  ].filter(g => g.steps.length > 0);
+
+  const toggleGroup = (key: string) => {
+    const next = new Set(collapsedGroups);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setCollapsedGroups(next);
   };
 
   const startEditing = (step: any) => {
@@ -1222,6 +1228,38 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
     toast({ title: "Step updated" });
   };
 
+  const regenerateForStep = async (step: any) => {
+    setRegeneratingStep(step.id);
+    try {
+      const res = await fetch(`/api/journeys/${journeyId}/ai-suggest-single`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ step_type: step.step_type, title: step.title, church_name: step.title?.replace("Pray for ", "") }),
+      });
+      if (res.ok) {
+        const suggestion = await res.json();
+        // Update the step in place with the AI suggestion
+        await fetch(`/api/journeys/${journeyId}/steps/${step.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({
+            body: suggestion.body || step.body,
+            scripture_ref: suggestion.scripture_ref || step.scripture_ref,
+            scripture_text: suggestion.scripture_text || step.scripture_text,
+          }),
+        });
+        queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+        toast({ title: "Prayer & scripture refreshed" });
+      } else {
+        // Fallback: generate a simple suggestion
+        toast({ title: "AI unavailable", description: "Edit manually or try again later." });
+      }
+    } catch {
+      toast({ title: "Could not regenerate", description: "Try editing manually." });
+    }
+    setRegeneratingStep(null);
+  };
+
   const handleAddSelected = () => {
     if (!aiMutation.data) return;
     const suggestions = aiMutation.data.filter((_: any, i: number) => selected.has(i));
@@ -1229,189 +1267,147 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
     setSelected(new Set());
   };
 
+  const renderStepCard = (step: any) => (
+    <div key={step.id} className={`border rounded-lg p-3 ${step.is_excluded ? "opacity-40" : ""}`}>
+      {editingStep === step.id ? (
+        <div className="space-y-3">
+          <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" className="text-sm" />
+          <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder="Prayer prompt" rows={3} className="text-sm" />
+          <div className="grid grid-cols-[1fr_2fr] gap-2">
+            <Input value={editScriptureRef} onChange={(e) => setEditScriptureRef(e.target.value)} placeholder="e.g. Jeremiah 29:7" className="text-sm" />
+            <Input value={editScriptureText} onChange={(e) => setEditScriptureText(e.target.value)} placeholder="Verse text" className="text-sm" />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => saveEdit(step.id)}><Save className="w-3 h-3 mr-1" /> Save</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditingStep(null)}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">{step.title || "Untitled"}</p>
+            {step.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{step.body}</p>}
+            {step.scripture_ref && (
+              <p className="text-xs text-primary mt-1 italic">
+                {step.scripture_ref}{step.scripture_text ? `: ${step.scripture_text}` : ""}
+              </p>
+            )}
+            {!step.scripture_ref && !step.is_excluded && (
+              <p className="text-xs text-muted-foreground/40 mt-1 italic">No scripture yet</p>
+            )}
+          </div>
+          <div className="flex gap-0.5 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => regenerateForStep(step)} disabled={regeneratingStep === step.id} title="Regenerate prayer & scripture">
+              {regeneratingStep === step.id ? <span className="w-4 h-4 animate-spin">...</span> : <Sparkles className="w-3.5 h-3.5 text-amber-500" />}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => startEditing(step)} title="Edit"><PenLine className="w-3.5 h-3.5" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => onToggle(step.id, !step.is_excluded)} title={step.is_excluded ? "Include" : "Exclude"}>
+              {step.is_excluded ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onDelete(step.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-2">Refine & Publish</h2>
-        <p className="text-muted-foreground">
-          Edit prompts, add scripture, generate AI suggestions, and finalize your journey.
+        <h2 className="text-xl font-semibold mb-1">Refine Your Journey</h2>
+        <p className="text-sm text-muted-foreground">
+          Review and edit each step. Use the sparkle button on any card to regenerate its prayer and scripture,
+          or generate suggestions for all steps at once below.
         </p>
       </div>
 
-      {/* AI Suggestions Section */}
+      {/* Grouped Steps */}
+      {groups.map(group => {
+        const isCollapsed = collapsedGroups.has(group.key);
+        const activeCount = group.steps.filter((s: any) => !s.is_excluded).length;
+        return (
+          <div key={group.key} className="border rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleGroup(group.key)}
+              className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {group.icon}
+                <span className="text-sm font-semibold">{group.label}</span>
+                <span className="text-xs text-muted-foreground">({activeCount} active)</span>
+              </div>
+              <ChevronRight className={`w-4 h-4 transition-transform ${isCollapsed ? "" : "rotate-90"}`} />
+            </button>
+            {!isCollapsed && (
+              <div className="p-2 space-y-2">
+                {group.steps.map(renderStepCard)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {steps.length === 0 && (
+        <p className="text-muted-foreground text-center py-8">
+          No steps added yet. Go back and add churches and community needs.
+        </p>
+      )}
+
+      {/* Bulk AI Generate */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            AI Suggestions
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button
-            onClick={() => aiMutation.mutate()}
-            disabled={aiMutation.isPending}
-            variant="outline"
-            size="sm"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            {aiMutation.isPending ? "Generating..." : "Generate Prayer & Scripture Suggestions"}
-          </Button>
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3">
+            <Sparkles className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Generate for All Steps</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Creates new prayer prompts and scripture suggestions for every step.
+                These appear as suggestions you can select and add — they won't replace your existing content.
+              </p>
+              <div className="flex items-center gap-2 mt-3">
+                <Button onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending} variant="outline" size="sm">
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  {aiMutation.isPending ? "Generating..." : "Generate Suggestions"}
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {aiMutation.data && (
-            <div className="space-y-2">
+            <div className="mt-4 space-y-2 border-t pt-3">
+              <p className="text-xs font-medium text-muted-foreground">Select suggestions to add as new steps:</p>
               {aiMutation.data.map((suggestion: any, i: number) => (
                 <div
                   key={i}
-                  className={`p-3 rounded-md border cursor-pointer transition-colors ${
-                    selected.has(i) ? "ring-2 ring-primary bg-primary/5" : "hover:bg-muted/50"
+                  className={`p-2.5 rounded border cursor-pointer transition-colors text-sm ${
+                    selected.has(i) ? "ring-2 ring-primary bg-primary/5" : "hover:bg-muted/30"
                   }`}
-                  onClick={() => {
-                    const next = new Set(selected);
-                    if (next.has(i)) next.delete(i); else next.add(i);
-                    setSelected(next);
-                  }}
+                  onClick={() => { const next = new Set(selected); if (next.has(i)) next.delete(i); else next.add(i); setSelected(next); }}
                 >
                   <div className="flex items-start gap-2">
                     <input type="checkbox" checked={selected.has(i)} readOnly className="mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{suggestion.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{suggestion.body}</p>
+                      <p className="font-medium text-sm">{suggestion.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{suggestion.body}</p>
                       {suggestion.scripture_ref && (
-                        <p className="text-xs text-primary mt-1 italic">
-                          {suggestion.scripture_ref}: {suggestion.scripture_text}
-                        </p>
+                        <p className="text-xs text-primary mt-1 italic">{suggestion.scripture_ref}: {suggestion.scripture_text}</p>
                       )}
                     </div>
                   </div>
                 </div>
               ))}
               {selected.size > 0 && (
-                <Button onClick={handleAddSelected} size="sm">
-                  Add {selected.size} Selected
-                </Button>
+                <Button onClick={handleAddSelected} size="sm">Add {selected.size} Selected</Button>
               )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Journey Steps — Editable */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          Journey Steps ({activeSteps.length} active)
-        </h3>
-
-        {steps.map((step: PrayerJourneyStep) => (
-          <Card key={step.id} className={step.is_excluded ? "opacity-50" : ""}>
-            <CardContent className="py-3">
-              {editingStep === step.id ? (
-                /* Editing Mode */
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-0.5 rounded bg-muted font-medium">
-                      {stepTypeLabels[step.step_type] || step.step_type}
-                    </span>
-                  </div>
-                  <Input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Title"
-                    className="text-sm"
-                  />
-                  <Textarea
-                    value={editBody}
-                    onChange={(e) => setEditBody(e.target.value)}
-                    placeholder="Prayer prompt / description"
-                    rows={3}
-                    className="text-sm"
-                  />
-                  <div className="grid grid-cols-[1fr_2fr] gap-2">
-                    <Input
-                      value={editScriptureRef}
-                      onChange={(e) => setEditScriptureRef(e.target.value)}
-                      placeholder="e.g. Jeremiah 29:7"
-                      className="text-sm"
-                    />
-                    <Input
-                      value={editScriptureText}
-                      onChange={(e) => setEditScriptureText(e.target.value)}
-                      placeholder="Verse text"
-                      className="text-sm"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => saveEdit(step.id)}>
-                      <Save className="w-3 h-3 mr-1" /> Save
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingStep(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                /* View Mode */
-                <div className="flex items-start gap-3">
-                  <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab mt-1" />
-                  <div
-                    className="flex-1 min-w-0 cursor-pointer"
-                    onClick={() => startEditing(step)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs px-2 py-0.5 rounded bg-muted font-medium">
-                        {stepTypeLabels[step.step_type] || step.step_type}
-                      </span>
-                      {step.ai_generated && <Sparkles className="w-3 h-3 text-amber-500" />}
-                    </div>
-                    <p className="text-sm font-medium mt-1">{step.title || "Untitled"}</p>
-                    {step.body && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{step.body}</p>
-                    )}
-                    {step.scripture_ref && (
-                      <p className="text-xs text-primary mt-1 italic">
-                        {step.scripture_ref}{step.scripture_text ? `: ${step.scripture_text}` : ""}
-                      </p>
-                    )}
-                    {!step.scripture_ref && (
-                      <p className="text-xs text-muted-foreground/50 mt-1 italic">Click to add scripture...</p>
-                    )}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => startEditing(step)} title="Edit">
-                      <PenLine className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onToggle(step.id, !step.is_excluded)}
-                      title={step.is_excluded ? "Include" : "Exclude"}
-                    >
-                      {step.is_excluded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDelete(step.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {steps.length === 0 && (
-        <p className="text-muted-foreground text-center py-8">
-          No steps added yet. Go back and add some content to your journey.
-        </p>
-      )}
-
+      {/* Publish */}
       <div className="flex items-center justify-between pt-4 border-t">
         <p className="text-sm text-muted-foreground">
-          {activeSteps.length} active step{activeSteps.length !== 1 ? "s" : ""}
+          {activeSteps.length} step{activeSteps.length !== 1 ? "s" : ""} in journey
         </p>
         <Button onClick={onPublish} disabled={isPublishing || activeSteps.length === 0} size="lg">
           {isPublishing ? "Publishing..." : "Publish Journey"}
