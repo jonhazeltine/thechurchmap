@@ -431,31 +431,21 @@ function ChurchSlide({ step, journeyId, session, toast, guestName }: { step: Pra
               )}
               <div className="text-white">
                 <h2 className="text-xl font-bold leading-tight">{step.title}</h2>
-                {(denomination || churchCity) && (
-                  <p className="text-xs text-white/70 mt-0.5">
-                    {denomination}{denomination && churchCity ? ' · ' : ''}{churchCity}{churchState ? `, ${churchState}` : ''}
-                  </p>
+                {denomination && (
+                  <p className="text-xs text-white/70 mt-0.5">{denomination}</p>
                 )}
               </div>
             </div>
           </div>
         ) : (
-          <div className="relative h-32 bg-gradient-to-br from-indigo-500/20 via-primary/10 to-blue-500/20 rounded-xl">
-            <div className="absolute inset-0 flex items-center justify-center">
-              {photoUrl ? (
-                <img src={photoUrl} alt="" className="w-16 h-16 rounded-full border-2 border-white/50 object-cover" />
-              ) : (
-                <Church className="w-10 h-10 text-primary/40" />
-              )}
-            </div>
-            <div className="absolute bottom-3 left-0 right-0 text-center">
-              <h2 className="text-xl font-bold">{step.title}</h2>
-              {(denomination || churchCity) && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {denomination}{denomination && churchCity ? ' · ' : ''}{churchCity}{churchState ? `, ${churchState}` : ''}
-                </p>
-              )}
-            </div>
+          <div className="relative rounded-xl bg-gradient-to-br from-indigo-500/20 via-primary/10 to-blue-500/20 p-6 text-center">
+            {photoUrl && (
+              <img src={photoUrl} alt="" className="w-14 h-14 rounded-full border-2 border-white/50 object-cover mx-auto mb-3" />
+            )}
+            <h2 className="text-xl font-bold">{step.title}</h2>
+            {denomination && (
+              <p className="text-xs text-muted-foreground mt-1">{denomination}</p>
+            )}
           </div>
         )}
       </div>
