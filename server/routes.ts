@@ -244,6 +244,7 @@ import * as journeyStepsRoute from "../app/api/journeys/[id]/steps/route";
 import * as journeyStepByIdRoute from "../app/api/journeys/[id]/steps/[stepId]/route";
 import * as journeyStepsReorderRoute from "../app/api/journeys/[id]/steps/reorder/route";
 import * as journeyAiSuggestionsRoute from "../app/api/journeys/[id]/ai-suggestions/route";
+import * as journeyAiSuggestSingleRoute from "../app/api/journeys/[id]/ai-suggest-single/route";
 import * as journeyShareRoute from "../app/api/journeys/share/[shareToken]/route";
 
 import * as fs from "fs";
@@ -722,6 +723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/journeys/:id/steps/:stepId", journeyStepByIdRoute.PATCH);
   app.delete("/api/journeys/:id/steps/:stepId", journeyStepByIdRoute.DELETE);
   app.post("/api/journeys/:id/ai-suggestions", journeyAiSuggestionsRoute.POST);
+  app.post("/api/journeys/:id/ai-suggest-single", journeyAiSuggestSingleRoute.POST);
 
   // Ministry Saturation (viewport-bounded)
   app.get("/api/ministry-saturation/city", async (req, res) => {

@@ -1260,56 +1260,113 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
     setRegeneratingStep(null);
   };
 
+  // Match AI suggestions to steps by church_id or metric_key
+  const getSuggestionForStep = (step: any): any | null => {
+    if (!aiMutation.data) return null;
+    return aiMutation.data.find((s: any) => {
+      if (step.step_type === 'church' && s.church_id === step.church_id) return true;
+      if (step.step_type === 'community_need' && s.metric_key === step.metric_key) return true;
+      return false;
+    });
+  };
+
+  // Suggestions that don't match any existing step (truly new)
+  const unmatchedSuggestions = (aiMutation.data || []).filter((s: any) => {
+    return !steps.some((step: any) => {
+      if (step.step_type === 'church' && s.church_id === step.church_id) return true;
+      if (step.step_type === 'community_need' && s.metric_key === step.metric_key) return true;
+      return false;
+    });
+  });
+
   const handleAddSelected = () => {
-    if (!aiMutation.data) return;
-    const suggestions = aiMutation.data.filter((_: any, i: number) => selected.has(i));
-    onAddSuggestions(suggestions);
+    if (unmatchedSuggestions.length === 0) return;
+    const toAdd = unmatchedSuggestions.filter((_: any, i: number) => selected.has(i));
+    onAddSuggestions(toAdd);
     setSelected(new Set());
   };
 
-  const renderStepCard = (step: any) => (
-    <div key={step.id} className={`border rounded-lg p-3 ${step.is_excluded ? "opacity-40" : ""}`}>
-      {editingStep === step.id ? (
-        <div className="space-y-3">
-          <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" className="text-sm" />
-          <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder="Prayer prompt" rows={3} className="text-sm" />
-          <div className="grid grid-cols-[1fr_2fr] gap-2">
-            <Input value={editScriptureRef} onChange={(e) => setEditScriptureRef(e.target.value)} placeholder="e.g. Jeremiah 29:7" className="text-sm" />
-            <Input value={editScriptureText} onChange={(e) => setEditScriptureText(e.target.value)} placeholder="Verse text" className="text-sm" />
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => saveEdit(step.id)}><Save className="w-3 h-3 mr-1" /> Save</Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditingStep(null)}>Cancel</Button>
-          </div>
+  const applyInlineSuggestion = async (step: any, suggestion: any) => {
+    await fetch(`/api/journeys/${journeyId}/steps/${step.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({
+        body: suggestion.body,
+        scripture_ref: suggestion.scripture_ref || null,
+        scripture_text: suggestion.scripture_text || null,
+      }),
+    });
+    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+    toast({ title: "Updated with AI suggestion" });
+  };
+
+  const renderStepCard = (step: any) => {
+    const suggestion = getSuggestionForStep(step);
+    return (
+      <div key={step.id} className={`border rounded-lg overflow-hidden ${step.is_excluded ? "opacity-40" : ""}`}>
+        <div className="p-3">
+          {editingStep === step.id ? (
+            <div className="space-y-3">
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" className="text-sm" />
+              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder="Prayer prompt" rows={3} className="text-sm" />
+              <div className="grid grid-cols-[1fr_2fr] gap-2">
+                <Input value={editScriptureRef} onChange={(e) => setEditScriptureRef(e.target.value)} placeholder="e.g. Jeremiah 29:7" className="text-sm" />
+                <Input value={editScriptureText} onChange={(e) => setEditScriptureText(e.target.value)} placeholder="Verse text" className="text-sm" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => saveEdit(step.id)}><Save className="w-3 h-3 mr-1" /> Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingStep(null)}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{step.title || "Untitled"}</p>
+                {step.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{step.body}</p>}
+                {step.scripture_ref && (
+                  <p className="text-xs text-primary mt-1 italic">
+                    {step.scripture_ref}{step.scripture_text ? `: ${step.scripture_text}` : ""}
+                  </p>
+                )}
+                {!step.scripture_ref && !step.is_excluded && (
+                  <p className="text-xs text-muted-foreground/40 mt-1 italic">No scripture yet</p>
+                )}
+              </div>
+              <div className="flex gap-0.5 shrink-0">
+                <Button variant="ghost" size="sm" onClick={() => regenerateForStep(step)} disabled={regeneratingStep === step.id} title="Regenerate prayer & scripture">
+                  {regeneratingStep === step.id ? <span className="w-4 h-4 animate-spin">...</span> : <Sparkles className="w-3.5 h-3.5 text-amber-500" />}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => startEditing(step)} title="Edit"><PenLine className="w-3.5 h-3.5" /></Button>
+                <Button variant="ghost" size="sm" onClick={() => onToggle(step.id, !step.is_excluded)} title={step.is_excluded ? "Include" : "Exclude"}>
+                  {step.is_excluded ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onDelete(step.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="flex items-start gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">{step.title || "Untitled"}</p>
-            {step.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{step.body}</p>}
-            {step.scripture_ref && (
-              <p className="text-xs text-primary mt-1 italic">
-                {step.scripture_ref}{step.scripture_text ? `: ${step.scripture_text}` : ""}
-              </p>
-            )}
-            {!step.scripture_ref && !step.is_excluded && (
-              <p className="text-xs text-muted-foreground/40 mt-1 italic">No scripture yet</p>
-            )}
+
+        {/* Inline AI suggestion for this step */}
+        {suggestion && editingStep !== step.id && (
+          <div className="border-t bg-amber-50/50 dark:bg-amber-950/20 p-3">
+            <div className="flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">AI Suggestion</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{suggestion.body}</p>
+                {suggestion.scripture_ref && (
+                  <p className="text-xs text-primary mt-1 italic">{suggestion.scripture_ref}: {suggestion.scripture_text}</p>
+                )}
+              </div>
+              <Button size="sm" variant="outline" className="shrink-0 text-xs h-7" onClick={() => applyInlineSuggestion(step, suggestion)}>
+                Use This
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-0.5 shrink-0">
-            <Button variant="ghost" size="sm" onClick={() => regenerateForStep(step)} disabled={regeneratingStep === step.id} title="Regenerate prayer & scripture">
-              {regeneratingStep === step.id ? <span className="w-4 h-4 animate-spin">...</span> : <Sparkles className="w-3.5 h-3.5 text-amber-500" />}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => startEditing(step)} title="Edit"><PenLine className="w-3.5 h-3.5" /></Button>
-            <Button variant="ghost" size="sm" onClick={() => onToggle(step.id, !step.is_excluded)} title={step.is_excluded ? "Include" : "Exclude"}>
-              {step.is_excluded ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onDelete(step.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -1353,30 +1410,29 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
         </p>
       )}
 
-      {/* Bulk AI Generate */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Generate for All Steps</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Creates new prayer prompts and scripture suggestions for every step.
-                These appear as suggestions you can select and add — they won't replace your existing content.
-              </p>
-              <div className="flex items-center gap-2 mt-3">
-                <Button onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending} variant="outline" size="sm">
-                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                  {aiMutation.isPending ? "Generating..." : "Generate Suggestions"}
-                </Button>
-              </div>
-            </div>
-          </div>
+      {/* AI Generate All */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <p className="text-sm text-muted-foreground">
+            {aiMutation.data
+              ? "Suggestions shown below each step. Click 'Use This' to apply."
+              : "Generate prayer and scripture suggestions for all steps at once."}
+          </p>
+        </div>
+        <Button onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending} variant="outline" size="sm">
+          <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+          {aiMutation.isPending ? "Generating..." : aiMutation.data ? "Regenerate All" : "Generate All"}
+        </Button>
+      </div>
 
-          {aiMutation.data && (
-            <div className="mt-4 space-y-2 border-t pt-3">
-              <p className="text-xs font-medium text-muted-foreground">Select suggestions to add as new steps:</p>
-              {aiMutation.data.map((suggestion: any, i: number) => (
+      {/* Unmatched suggestions — new steps that don't correspond to existing ones */}
+      {unmatchedSuggestions.length > 0 && (
+        <Card>
+          <CardContent className="py-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Additional suggestions (new steps):</p>
+            <div className="space-y-2">
+              {unmatchedSuggestions.map((suggestion: any, i: number) => (
                 <div
                   key={i}
                   className={`p-2.5 rounded border cursor-pointer transition-colors text-sm ${
@@ -1400,9 +1456,9 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
                 <Button onClick={handleAddSelected} size="sm">Add {selected.size} Selected</Button>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Publish */}
       <div className="flex items-center justify-between pt-4 border-t">
