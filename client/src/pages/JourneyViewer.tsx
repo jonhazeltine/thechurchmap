@@ -139,7 +139,7 @@ export default function JourneyViewer() {
     });
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
-  }, []);
+  }, [journey, defaultCenter?.lat]);
 
   useEffect(() => {
     if (!mapRef.current || !currentStep) return;
