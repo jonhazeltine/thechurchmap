@@ -55,6 +55,7 @@ export async function GET(req: Request, res: Response) {
     const type = req.query.type as string | undefined;
     const stateCode = (req.query.state as string)?.toUpperCase();
     const withGeometry = req.query.with_geometry === 'true';
+    const cityPlatformId = req.query.city_platform_id as string | undefined;
 
     if (!q || q.trim().length === 0) {
       return res.status(400).json({ error: 'Query parameter "q" is required' });
@@ -71,24 +72,58 @@ export async function GET(req: Request, res: Response) {
     // Convert state code to FIPS for filtering
     const stateFips = stateCode ? STATE_ABBREV_TO_FIPS[stateCode] : null;
 
-    // Use direct query instead of RPC to include state_fips
     const supabase = supabaseServer();
     const searchQuery = `%${q.trim()}%`;
-    
-    let query = supabase
-      .from('boundaries')
-      .select('id, name, type, external_id, state_fips')
-      .ilike('name', searchQuery)
-      .limit(300);
-    
-    if (mappedType) {
-      query = query.eq('type', mappedType);
+
+    let rawData: any[] | null = null;
+    let error: any = null;
+
+    // If platform ID is provided, only return boundaries within that platform
+    if (cityPlatformId) {
+      // Get platform boundary IDs
+      const { data: platformBoundaries } = await supabase
+        .from('city_platform_boundaries')
+        .select('boundary_id')
+        .eq('city_platform_id', cityPlatformId);
+
+      const platformBoundaryIds = (platformBoundaries || []).map((pb: any) => pb.boundary_id);
+
+      if (platformBoundaryIds.length > 0) {
+        let query = supabase
+          .from('boundaries')
+          .select('id, name, type, external_id, state_fips')
+          .ilike('name', searchQuery)
+          .in('id', platformBoundaryIds)
+          .limit(300);
+
+        if (mappedType) {
+          query = query.eq('type', mappedType);
+        }
+        query = query.order('name');
+
+        const result = await query;
+        rawData = result.data;
+        error = result.error;
+      } else {
+        rawData = [];
+      }
+    } else {
+      // No platform context — search all boundaries
+      let query = supabase
+        .from('boundaries')
+        .select('id, name, type, external_id, state_fips')
+        .ilike('name', searchQuery)
+        .limit(300);
+
+      if (mappedType) {
+        query = query.eq('type', mappedType);
+      }
+      query = query.order('name');
+
+      const result = await query;
+      rawData = result.data;
+      error = result.error;
     }
-    
-    // Order alphabetically
-    query = query.order('name');
-    
-    const { data: rawData, error } = await query;
     
     // Apply state filter in memory. Zip codes are always included because their state_fips
     // is unreliable in the DB (e.g. zip "49507" gets fips "49" = Utah, not Michigan).

@@ -85,13 +85,16 @@ export function FilterSidebar({
     retry: false, // Don't retry on 401/403
   });
 
-  // Fetch boundary search results - with optional state biasing from platform context
+  // Fetch boundary search results - filtered by platform boundaries when in a platform
+  const platformId = (platform as any)?.id || null;
   const { data: boundaryResults = [] } = useQuery<(Boundary & { state_code?: string })[]>({
-    queryKey: ["/api/boundaries/search", boundaryQuery, platformStateCode],
+    queryKey: ["/api/boundaries/search", boundaryQuery, platformStateCode, platformId],
     queryFn: () => {
       if (!boundaryQuery || boundaryQuery.length < 2) return Promise.resolve([]);
       let url = `/api/boundaries/search?q=${encodeURIComponent(boundaryQuery)}&with_geometry=true`;
-      if (platformStateCode) {
+      if (platformId) {
+        url += `&city_platform_id=${encodeURIComponent(platformId)}`;
+      } else if (platformStateCode) {
         url += `&state=${encodeURIComponent(platformStateCode)}`;
       }
       return fetch(url)
