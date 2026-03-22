@@ -78,19 +78,40 @@ export async function GET(req: Request, res: Response) {
     let rawData: any[] | null = null;
     let error: any = null;
 
-    // If platform ID is provided, use spatial intersection with platform geometry
+    // If platform ID is provided, search within the platform's geographic area
     if (cityPlatformId) {
-      const { data: spatialData, error: spatialError } = await supabase.rpc(
-        'fn_search_boundaries_in_platform',
-        {
-          search_query: q.trim(),
-          platform_id: cityPlatformId,
-          boundary_type: mappedType,
-          limit_count: 100,
+      // Get platform boundaries with state_fips
+      const { data: platformBounds } = await supabase
+        .from('city_platform_boundaries')
+        .select('boundary_id, boundaries(state_fips)')
+        .eq('city_platform_id', cityPlatformId);
+
+      if (platformBounds && platformBounds.length > 0) {
+        // Get state_fips from the first platform boundary
+        const platformStateFips = (platformBounds[0] as any)?.boundaries?.state_fips || null;
+
+        // Search by name within the platform's state
+        let query = supabase
+          .from('boundaries')
+          .select('id, name, type, external_id, state_fips')
+          .ilike('name', searchQuery)
+          .neq('type', 'census_tract')
+          .limit(300);
+
+        if (mappedType) {
+          query = query.eq('type', mappedType);
         }
-      );
-      rawData = spatialData;
-      error = spatialError;
+        if (platformStateFips) {
+          query = query.eq('state_fips', platformStateFips);
+        }
+        query = query.order('name');
+
+        const result = await query;
+        rawData = result.data;
+        error = result.error;
+      } else {
+        rawData = [];
+      }
     } else {
       // No platform context — search all boundaries
       let query = supabase

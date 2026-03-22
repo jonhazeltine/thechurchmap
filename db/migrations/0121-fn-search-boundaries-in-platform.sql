@@ -1,5 +1,5 @@
 -- Search boundaries by name within a platform's geographic area
--- Uses the platform's combined_geometry to spatially filter results
+-- Uses combined_geometry if available, otherwise unions the platform's boundary geometries
 
 CREATE OR REPLACE FUNCTION fn_search_boundaries_in_platform(
   search_query text,
@@ -20,13 +20,20 @@ AS $$
 DECLARE
   platform_geom geography;
 BEGIN
-  -- Get the platform's combined geometry
+  -- Try combined_geometry first
   SELECT cp.combined_geometry INTO platform_geom
   FROM city_platforms cp
   WHERE cp.id = platform_id;
 
+  -- Fallback: union the platform's boundary geometries
   IF platform_geom IS NULL THEN
-    -- Fallback: no geometry, return empty
+    SELECT ST_Union(b.geometry::geometry)::geography INTO platform_geom
+    FROM city_platform_boundaries cpb
+    JOIN boundaries b ON b.id = cpb.boundary_id
+    WHERE cpb.city_platform_id = platform_id;
+  END IF;
+
+  IF platform_geom IS NULL THEN
     RETURN;
   END IF;
 
@@ -48,6 +55,6 @@ END;
 $$;
 
 COMMENT ON FUNCTION fn_search_boundaries_in_platform IS
-'Searches boundaries by name within a platform''s combined geographic area.
-Excludes census tracts from user-facing search results.
-Used by the Filter by Place feature in the sidebar.';
+'Searches boundaries by name within a platform''s geographic area.
+Uses combined_geometry if set, otherwise unions the platform boundary geometries.
+Excludes census tracts from user-facing search results.';
