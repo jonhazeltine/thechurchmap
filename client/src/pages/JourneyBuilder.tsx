@@ -613,9 +613,31 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
   const { data: churches = [], isLoading } = useQuery<any[]>({
     queryKey: ["journey-churches", pid, boundaries.map((b: any) => b.id)],
     queryFn: async () => {
-      // If we have a platform context, fetch all platform churches
+      // If we have a platform context, fetch all platform churches using boundary bbox
       if (pid) {
-        const res = await fetch(`/api/churches/in-viewport?minLng=-180&minLat=-90&maxLng=180&maxLat=90&limit=2000&platformId=${encodeURIComponent(pid)}`);
+        // Compute bbox from boundaries if available, otherwise use wide US bbox
+        let bboxMinLng = -125, bboxMinLat = 24, bboxMaxLng = -66, bboxMaxLat = 50;
+        if (boundaries.length > 0) {
+          bboxMinLng = 180; bboxMinLat = 90; bboxMaxLng = -180; bboxMaxLat = -90;
+          for (const b of boundaries) {
+            const geom = b.geometry;
+            if (!geom) continue;
+            const extractCoords = (coords: any) => {
+              if (typeof coords[0] === "number") {
+                bboxMinLng = Math.min(bboxMinLng, coords[0]);
+                bboxMinLat = Math.min(bboxMinLat, coords[1]);
+                bboxMaxLng = Math.max(bboxMaxLng, coords[0]);
+                bboxMaxLat = Math.max(bboxMaxLat, coords[1]);
+              } else {
+                for (const c of coords) extractCoords(c);
+              }
+            };
+            extractCoords(geom.coordinates);
+          }
+          // Expand bbox slightly to catch edge churches
+          bboxMinLng -= 0.5; bboxMinLat -= 0.5; bboxMaxLng += 0.5; bboxMaxLat += 0.5;
+        }
+        const res = await fetch(`/api/churches/in-viewport?minLng=${bboxMinLng}&minLat=${bboxMinLat}&maxLng=${bboxMaxLng}&maxLat=${bboxMaxLat}&limit=2000&platformId=${encodeURIComponent(pid)}`);
         if (!res.ok) return [];
         return res.json();
       }
