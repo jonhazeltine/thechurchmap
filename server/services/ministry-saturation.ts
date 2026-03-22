@@ -1,17 +1,27 @@
 import pg from "pg";
+import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 
 const dbUrl = process.env.DATABASE_URL;
 const isLocal = !!(dbUrl && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")));
-function buildPgConfig(): pg.PoolConfig {
-  if (isLocal) return { connectionString: dbUrl };
+
+// pg@8.x has a known bug: dotted usernames like "postgres.projectref" get
+// truncated to "postgres". Use @neondatabase/serverless Pool in production
+// which is pg-compatible (pool.connect(), transactions, etc.) but handles
+// Supabase pooler usernames correctly.
+let pool: any;
+
+if (isLocal) {
+  pool = new pg.Pool({ connectionString: dbUrl });
+} else {
+  neonConfig.webSocketConstructor = ws;
   const user = process.env.SUPABASE_DB_USER || '';
   const pass = process.env.SUPABASE_DB_PASSWORD || '';
   const host = process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com';
   const port = process.env.SUPABASE_DB_PORT || '5432';
-  const connStr = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/postgres`;
-  return { connectionString: connStr, ssl: { rejectUnauthorized: false } };
+  const connStr = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/postgres?sslmode=require`;
+  pool = new NeonPool({ connectionString: connStr });
 }
-const pool = new pg.Pool(buildPgConfig());
 
 const MIN_OVERLAP_FRACTION = 0.02;
 
