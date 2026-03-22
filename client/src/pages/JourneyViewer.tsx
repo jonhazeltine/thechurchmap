@@ -13,11 +13,11 @@ import {
 import type { PrayerJourney, PrayerJourneyStep } from "@shared/schema";
 
 export default function JourneyViewer() {
-  // Extract journey ID or share token from the URL path directly
-  // This avoids useRoute race conditions where params are undefined on first render
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  // Use wouter's location for client-side routing (updates before window.location)
+  const [location] = useLocation();
+  const pathParts = location.split('/').filter(Boolean);
   // Patterns: /journey/:token OR /:platform/journey/:id
   const journeyIndex = pathParts.indexOf('journey');
   const rawParam = journeyIndex >= 0 ? pathParts[journeyIndex + 1] : undefined;
