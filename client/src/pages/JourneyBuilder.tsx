@@ -310,6 +310,7 @@ export default function JourneyBuilder() {
             journey={journey}
             steps={steps}
             onAddSteps={(s) => addStepsMutation.mutateAsync(s)}
+            onDeleteStep={(stepId: string) => deleteStepMutation.mutate(stepId)}
             onNext={() => setActiveStep("custom")}
             platformId={currentPlatform?.id}
           />
@@ -884,7 +885,7 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
   );
 }
 
-function NeedsStep({ journey, steps, onAddSteps, onNext, platformId }: any) {
+function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformId }: any) {
   const existingMetrics = new Set(steps.filter((s: any) => s.step_type === "community_need").map((s: any) => s.metric_key));
   const tractIds = journey?.tract_ids || [];
 
@@ -972,9 +973,14 @@ function NeedsStep({ journey, steps, onAddSteps, onNext, platformId }: any) {
           <CardContent>
             <div className="space-y-2">
               {addedNeedSteps.map((step: any) => (
-                <div key={step.id} className="flex items-center gap-2 text-sm">
-                  <Heart className="w-4 h-4 text-red-500" />
-                  <span>{step.title}</span>
+                <div key={step.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-red-500" />
+                    <span>{step.title}</span>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => onDeleteStep?.(step.id)}>
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
               ))}
             </div>
