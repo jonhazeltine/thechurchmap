@@ -414,11 +414,20 @@ function ChurchSlide({ step, journeyId, session, toast, guestName }: { step: Pra
   const bannerUrl = churchData?.banner_image_url;
   const photoUrl = churchData?.profile_photo_url;
   const denomination = churchData?.denomination;
-  const churchCity = churchData?.city;
-  const churchState = churchData?.state;
+  const [needsExpanded, setNeedsExpanded] = useState(false);
+
+  // Parse body: split on --- to separate main prayer from church prayer needs
+  const bodyParts = (step.body || '').split(/\n---\n/).map(s => s.trim()).filter(Boolean);
+  const mainPrayer = bodyParts[0] || '';
+  const prayerNeeds = bodyParts.slice(1).map(part => {
+    const titleMatch = part.match(/^Prayer Need:\s*(.+?)$/m);
+    const title = titleMatch ? titleMatch[1].trim() : '';
+    const body = titleMatch ? part.replace(titleMatch[0], '').trim() : part;
+    return { title, body };
+  }).filter(n => n.title || n.body);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Church header with banner */}
       <div className="relative rounded-xl overflow-hidden">
         {bannerUrl ? (
@@ -450,9 +459,9 @@ function ChurchSlide({ step, journeyId, session, toast, guestName }: { step: Pra
         )}
       </div>
 
-      {/* Prayer text */}
-      {step.body && (
-        <p className="text-base text-muted-foreground leading-relaxed">{step.body}</p>
+      {/* Main prayer text */}
+      {mainPrayer && (
+        <p className="text-base text-muted-foreground leading-relaxed">{mainPrayer}</p>
       )}
 
       {/* Scripture */}
@@ -461,6 +470,32 @@ function ChurchSlide({ step, journeyId, session, toast, guestName }: { step: Pra
           <p className="text-sm italic text-foreground/80">{step.scripture_text}</p>
           <cite className="text-xs not-italic font-medium text-primary mt-1 block">— {step.scripture_ref}</cite>
         </blockquote>
+      )}
+
+      {/* Prayer needs — collapsible */}
+      {prayerNeeds.length > 0 && (
+        <div className="border rounded-lg overflow-hidden">
+          <button
+            onClick={() => setNeedsExpanded(!needsExpanded)}
+            className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors text-sm"
+          >
+            <div className="flex items-center gap-2">
+              <Heart className="w-3.5 h-3.5 text-red-500" />
+              <span className="font-medium">Prayer Needs ({prayerNeeds.length})</span>
+            </div>
+            <ChevronRight className={`w-4 h-4 transition-transform ${needsExpanded ? "rotate-90" : ""}`} />
+          </button>
+          {needsExpanded && (
+            <div className="p-3 space-y-3">
+              {prayerNeeds.map((need, i) => (
+                <div key={i} className="border-l-2 border-red-300/50 pl-3">
+                  {need.title && <p className="text-sm font-medium">{need.title}</p>}
+                  {need.body && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{need.body}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <InlinePrayerInput
