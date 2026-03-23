@@ -161,6 +161,10 @@ function Router() {
       <Route path="/:platform/journey/:id/builder">{() => <LazyRoute component={JourneyBuilder} />}</Route>
       <Route path="/:platform/journey/:id">{() => <LazyRoute component={JourneyViewer} />}</Route>
       <Route path="/:platform/journeys">{() => <LazyRoute component={JourneyList} />}</Route>
+      <Route path="/:platform/admin/content-review">{() => <LazyRoute component={AdminContentReview} />}</Route>
+      <Route path="/:platform/admin/prayer">{() => <Redirect to="/:platform/admin/content-review" />}</Route>
+      <Route path="/:platform/admin/moderation">{() => <Redirect to="/:platform/admin/content-review" />}</Route>
+      <Route path="/:platform/churches">{() => <LazyRoute component={AdminChurches} />}</Route>
       <Route path="/:platform/church-claims">{() => <LazyRoute component={AdminChurchClaims} />}</Route>
       <Route path="/:platform/church/:id/answered-prayers" component={AnsweredPrayers} />
       <Route path="/:platform/church/:id/fund-the-mission" component={FundTheMission} />
