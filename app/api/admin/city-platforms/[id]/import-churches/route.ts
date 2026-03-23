@@ -26,6 +26,7 @@ interface ImportProcessingParams {
   savedChurches: ChurchFromGoogle[] | null;
   searchAlreadyComplete: boolean;
   platformBoundaryIds: string[];
+  bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number };
 }
 
 // Run import processing in the background (fire-and-forget)
@@ -40,7 +41,9 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
     savedChurches,
     searchAlreadyComplete,
     platformBoundaryIds,
+    bbox,
   } = params;
+  const { minLat, maxLat, minLng, maxLng } = bbox;
   
   // Check if this job is already being processed in memory
   if (activeBackgroundJobs.has(importJobId)) {
@@ -1079,6 +1082,7 @@ export async function POST(req: Request, res: Response) {
       savedChurches,
       searchAlreadyComplete,
       platformBoundaryIds,
+      bbox: { minLat, maxLat, minLng, maxLng },
     }).catch((err) => {
       console.error(`[Import] Background processing failed for job ${importJobId}:`, err);
     });
