@@ -247,31 +247,42 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
     stopOrbit();
 
     // Wait for map to be loaded
+    const flyId = slideIndex; // Track which fly-to this is
     const doFlyTo = () => {
-      // Randomize bearing slightly per step for visual variety
-      const bearing = -17 + (target.lng * 100 % 60) - 30;
+      clearHighlights();
 
+      // Randomize bearing per step for visual variety
+      const bearing = -17 + ((slideIndex * 47) % 60) - 30;
+
+      // Zoom out briefly first for dramatic effect, then fly in
       map.flyTo({
         center: [target.lng, target.lat],
         zoom: 17,
         pitch: 60,
         bearing,
-        speed: 0.8,
-        curve: 1.4,
+        speed: 0.6,
+        curve: 1.6,
         essential: true,
       });
 
-      // After fly-to completes, highlight building, start orbit, and notify parent
-      const onMoveEnd = () => {
+      // Use a timeout fallback in case moveend doesn't fire
+      let arrived = false;
+      const onArrive = () => {
+        if (arrived) return;
+        arrived = true;
         map.off("moveend", onMoveEnd);
-        // Small delay to let tiles render before querying features
         setTimeout(() => {
           highlightAtPoint(target);
           startOrbit();
           arrivedRef.current?.();
-        }, 400);
+        }, 300);
       };
+
+      const onMoveEnd = () => onArrive();
       map.on("moveend", onMoveEnd);
+
+      // Fallback: if moveend doesn't fire within 5s, force arrival
+      setTimeout(() => onArrive(), 5000);
     };
 
     if (map.loaded() && map.isStyleLoaded()) {
