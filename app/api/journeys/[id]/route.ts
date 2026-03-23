@@ -45,13 +45,17 @@ export async function GET(req: Request, res: Response) {
 
     let churchMap = new Map<string, any>();
     if (churchIds.length > 0) {
-      const { data: churches } = await adminClient
+      const { data: churches, error: churchError } = await adminClient
         .from('churches')
-        .select('id, name, banner_image_url, profile_photo_url, denomination, city, state, latitude, longitude, display_lat, display_lng')
+        .select('id, name, banner_image_url, profile_photo_url, denomination, city, state, display_lat, display_lng')
         .in('id', churchIds);
+      if (churchError) {
+        console.error('[Journey] Error fetching church data:', churchError.message);
+      }
       if (churches) {
         for (const c of churches) churchMap.set(c.id, c);
       }
+      console.log(`[Journey] Enriching ${churchIds.length} church steps, found ${churchMap.size} churches`);
     }
 
     const enrichedSteps = (steps || []).map(step => {
