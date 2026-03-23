@@ -492,7 +492,8 @@ export default function AdminChurches() {
       return response.json();
     },
     enabled: !!platformId,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 1000,
+    refetchInterval: importDialogOpen ? 3000 : false,
   });
 
   const importJobs = importHistoryData?.importJobs || [];
