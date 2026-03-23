@@ -270,7 +270,9 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     [clearHighlights]
   );
 
-  // Fly-to when target changes
+  // Fly-to when target changes — use a counter to cancel stale callbacks
+  const flyCounterRef = useRef(0);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !target) {
@@ -278,12 +280,17 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       clearHighlights();
       return;
     }
-    stopOrbit();
 
-    // Wait for map to be loaded
+    // Increment counter — any previous fly's callbacks will see a stale count and bail
+    const thisFlightId = ++flyCounterRef.current;
+    stopOrbit();
+    clearHighlights();
+
     const doFlyTo = () => {
-      clearHighlights();
-      fadeSatellite(false, 800); // Fade to streets for clear navigation
+      // Bail if a newer fly was triggered
+      if (flyCounterRef.current !== thisFlightId) return;
+
+      fadeSatellite(false, 800);
 
       // Face toward next destination, or north if no next target
       let bearing = 0;
@@ -293,9 +300,6 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
         bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
       }
 
-      // Zoom out briefly first for dramatic effect, then fly in
-      // Fly to a moderate zoom first (tiles load faster), then ease in closer
-      // Offset center to account for UI cards (more padding on mobile)
       const isMobile = window.innerWidth < 768;
       map.flyTo({
         center: [target.lng, target.lat],
@@ -310,46 +314,37 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
           : { top: 80, bottom: 60, left: 0, right: 200 },
       });
 
-      // After initial fly, ease to final zoom once tiles are more likely loaded
-      const easeIn = () => {
-        map.easeTo({
-          zoom: 17.5,
-          pitch: 60,
-          duration: 2000,
-        });
-      };
-
-      // Use a timeout fallback in case moveend doesn't fire
-      let arrived = false;
       const onArrive = () => {
-        if (arrived) return;
-        arrived = true;
-        map.off("moveend", onMoveEnd);
-        // Wait for tiles to settle, then fade to satellite and highlight
+        // Bail if a newer fly was triggered
+        if (flyCounterRef.current !== thisFlightId) return;
+
         setTimeout(() => {
-          fadeSatellite(true, 2000); // Fade to satellite view
-          easeIn();
+          if (flyCounterRef.current !== thisFlightId) return;
+          fadeSatellite(true, 2000);
+          map.easeTo({ zoom: 17.5, pitch: 60, duration: 2000 });
           highlightAtPoint(target);
-          // Start orbit after transitions complete
           setTimeout(() => {
+            if (flyCounterRef.current !== thisFlightId) return;
             startOrbit();
             arrivedRef.current?.();
           }, 2500);
         }, 500);
       };
 
-      const onMoveEnd = () => onArrive();
-      map.on("moveend", onMoveEnd);
-
-      // Fallback: if moveend doesn't fire within 5s, force arrival
-      setTimeout(() => onArrive(), 5000);
+      // Listen for moveend once, plus a fallback timer
+      map.once("moveend", onArrive);
+      setTimeout(onArrive, 5000);
     };
 
-    if (map.loaded()) {
-      doFlyTo();
-    } else {
-      map.once("load", doFlyTo);
-    }
+    // Small delay to let the orbit fully stop before starting new fly
+    setTimeout(() => {
+      if (flyCounterRef.current !== thisFlightId) return;
+      if (map.loaded()) {
+        doFlyTo();
+      } else {
+        map.once("load", doFlyTo);
+      }
+    }, 100);
   }, [target?.lng, target?.lat, slideIndex, clearHighlights, highlightAtPoint, stopOrbit, startOrbit, fadeSatellite]);
 
   return (

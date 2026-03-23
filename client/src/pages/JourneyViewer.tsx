@@ -256,8 +256,8 @@ export default function JourneyViewer() {
           </div>
         </div>
       </div>
-      {/* Mobile: just an X button floating on the map */}
-      <div className="md:hidden absolute top-3 left-3 z-50">
+      {/* Mobile: just an X button floating on the map (right side to avoid logos) */}
+      <div className="md:hidden absolute top-3 right-3 z-50">
         <button
           onClick={handleClose}
           className="bg-background/70 backdrop-blur-sm rounded-full p-2 shadow-lg border border-border/30"
