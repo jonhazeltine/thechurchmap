@@ -2273,9 +2273,15 @@ export default function AdminChurches() {
                     incompleteJob ? (
                       <>
                         <Button
-                          variant="default"
+                          variant={incompleteJob.status === 'running' ? 'outline' : 'default'}
                           size="sm"
-                          onClick={() => importMutation.mutate({ resume: true })}
+                          onClick={() => {
+                            if (incompleteJob.status === 'running') {
+                              setShowImportProgress(true);
+                            } else {
+                              importMutation.mutate({ resume: true });
+                            }
+                          }}
                           disabled={importMutation.isPending || clearImportsMutation.isPending}
                           data-testid="button-resume-import"
                         >
@@ -2283,6 +2289,11 @@ export default function AdminChurches() {
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                               Resuming...
+                            </>
+                          ) : incompleteJob.status === 'running' ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              View Progress
                             </>
                           ) : (
                             <>

@@ -185,17 +185,40 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
       .update({ current_phase: 'boundary_check' })
       .eq('id', importJobId);
 
-    const churchesInBoundaries: ChurchFromGoogle[] = [];
-    const churchesOutsideBoundaries: ChurchFromGoogle[] = [];
+    // Load any previously saved boundary check results for resume
+    let previousResults: { place_id: string; in_bounds: boolean }[] = [];
+    if (resume || searchAlreadyComplete) {
+      const { data: jobData } = await adminClient
+        .from('import_jobs')
+        .select('boundary_check_results')
+        .eq('id', importJobId)
+        .single();
+      previousResults = (jobData?.boundary_check_results as any[]) || [];
+    }
 
-    console.log(`[Import] Checking boundary containment for ${allChurches.length} churches against ${platformBoundaryIds.length} platform boundaries...`);
+    const checkedPlaceIds = new Set(previousResults.map((r: any) => r.place_id));
+    const churchesInBoundaries: ChurchFromGoogle[] = previousResults
+      .filter((r: any) => r.in_bounds)
+      .map((r: any) => allChurches.find((c: any) => c.place_id === r.place_id))
+      .filter(Boolean) as ChurchFromGoogle[];
+    const churchesOutsideBoundaries: ChurchFromGoogle[] = previousResults
+      .filter((r: any) => !r.in_bounds)
+      .map((r: any) => allChurches.find((c: any) => c.place_id === r.place_id))
+      .filter(Boolean) as ChurchFromGoogle[];
+
+    const startIndex = checkedPlaceIds.size;
+    const uncheckedChurches = allChurches.filter((c: any) => !checkedPlaceIds.has(c.place_id));
+
+    console.log(`[Import] Checking boundary containment for ${uncheckedChurches.length} churches (${startIndex} already checked, resuming) against ${platformBoundaryIds.length} platform boundaries...`);
 
     let boundaryCheckFailures = 0;
     const BOUNDARY_UPDATE_INTERVAL = 20;
     const BOUNDARY_LOG_INTERVAL = 50;
-    
-    for (let i = 0; i < allChurches.length; i++) {
-      const church = allChurches[i];
+    const BOUNDARY_SAVE_INTERVAL = 50;
+    const boundaryResults = [...previousResults];
+
+    for (let i = 0; i < uncheckedChurches.length; i++) {
+      const church = uncheckedChurches[i];
       try {
         const { data: containingBoundaries, error: rpcError } = await adminClient.rpc(
           'fn_get_boundaries_for_church',
@@ -206,11 +229,12 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
           console.warn(`[Import] Boundary check RPC error for "${church.name}": ${rpcError.message}`);
           boundaryCheckFailures++;
           churchesOutsideBoundaries.push(church);
+          boundaryResults.push({ place_id: church.place_id, in_bounds: false });
           continue;
         }
 
         const containingBoundaryIds = (containingBoundaries || []).map((b: any) => b.id);
-        const isInPlatformBoundary = platformBoundaryIds.some((pbId: string) => 
+        const isInPlatformBoundary = platformBoundaryIds.some((pbId: string) =>
           containingBoundaryIds.includes(pbId)
         );
 
@@ -219,24 +243,32 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
         } else {
           churchesOutsideBoundaries.push(church);
         }
-        
-        if ((i + 1) % BOUNDARY_LOG_INTERVAL === 0) {
-          console.log(`[Import] Boundary check progress: ${i + 1}/${allChurches.length} (${churchesInBoundaries.length} in bounds, ${churchesOutsideBoundaries.length} out)`);
+        boundaryResults.push({ place_id: church.place_id, in_bounds: isInPlatformBoundary });
+
+        const totalChecked = startIndex + i + 1;
+        if (totalChecked % BOUNDARY_LOG_INTERVAL === 0) {
+          console.log(`[Import] Boundary check progress: ${totalChecked}/${allChurches.length} (${churchesInBoundaries.length} in bounds, ${churchesOutsideBoundaries.length} out)`);
         }
-        
-        if ((i + 1) % BOUNDARY_UPDATE_INTERVAL === 0 || i === allChurches.length - 1) {
+
+        if ((i + 1) % BOUNDARY_UPDATE_INTERVAL === 0 || i === uncheckedChurches.length - 1) {
+          const updatePayload: any = {
+            churches_in_boundaries: churchesInBoundaries.length,
+            churches_outside_boundaries: churchesOutsideBoundaries.length,
+          };
+          // Save full boundary results periodically for resume capability
+          if ((i + 1) % BOUNDARY_SAVE_INTERVAL === 0 || i === uncheckedChurches.length - 1) {
+            updatePayload.boundary_check_results = boundaryResults;
+          }
           await adminClient
             .from('import_jobs')
-            .update({
-              churches_in_boundaries: churchesInBoundaries.length,
-              churches_outside_boundaries: churchesOutsideBoundaries.length,
-            })
+            .update(updatePayload)
             .eq('id', importJobId);
         }
       } catch (error: any) {
         console.warn(`[Import] Boundary check failed for "${church.name}": ${error.message}`);
         boundaryCheckFailures++;
         churchesOutsideBoundaries.push(church);
+        boundaryResults.push({ place_id: church.place_id, in_bounds: false });
       }
     }
 
