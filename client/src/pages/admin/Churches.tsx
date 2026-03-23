@@ -498,7 +498,7 @@ export default function AdminChurches() {
     },
     enabled: !!platformId,
     staleTime: importDialogOpen ? 0 : 5000,
-    refetchInterval: importDialogOpen ? 2000 : false,
+    refetchInterval: (importDialogOpen || importHistoryData?.incompleteJob?.status === 'running') ? 2000 : false,
     gcTime: importDialogOpen ? 0 : 5 * 60 * 1000,
   });
 
