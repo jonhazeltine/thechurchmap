@@ -199,15 +199,15 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
     const checkedPlaceIds = new Set(previousResults.map((r: any) => r.place_id));
     const churchesInBoundaries: ChurchFromGoogle[] = previousResults
       .filter((r: any) => r.in_bounds)
-      .map((r: any) => allChurches.find((c: any) => c.place_id === r.place_id))
+      .map((r: any) => allChurches.find((c: any) => c.google_place_id === r.place_id))
       .filter(Boolean) as ChurchFromGoogle[];
     const churchesOutsideBoundaries: ChurchFromGoogle[] = previousResults
       .filter((r: any) => !r.in_bounds)
-      .map((r: any) => allChurches.find((c: any) => c.place_id === r.place_id))
+      .map((r: any) => allChurches.find((c: any) => c.google_place_id === r.place_id))
       .filter(Boolean) as ChurchFromGoogle[];
 
     const startIndex = checkedPlaceIds.size;
-    const uncheckedChurches = allChurches.filter((c: any) => !checkedPlaceIds.has(c.place_id));
+    const uncheckedChurches = allChurches.filter((c: any) => !checkedPlaceIds.has(c.google_place_id));
 
     console.log(`[Import] Checking boundary containment for ${uncheckedChurches.length} churches (${startIndex} already checked, resuming) against ${platformBoundaryIds.length} platform boundaries...`);
 
@@ -229,7 +229,7 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
           console.warn(`[Import] Boundary check RPC error for "${church.name}": ${rpcError.message}`);
           boundaryCheckFailures++;
           churchesOutsideBoundaries.push(church);
-          boundaryResults.push({ place_id: church.place_id, in_bounds: false });
+          boundaryResults.push({ place_id: church.google_place_id, in_bounds: false });
           continue;
         }
 
@@ -243,7 +243,7 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
         } else {
           churchesOutsideBoundaries.push(church);
         }
-        boundaryResults.push({ place_id: church.place_id, in_bounds: isInPlatformBoundary });
+        boundaryResults.push({ place_id: church.google_place_id, in_bounds: isInPlatformBoundary });
 
         const totalChecked = startIndex + i + 1;
         if (totalChecked % BOUNDARY_LOG_INTERVAL === 0) {
@@ -268,7 +268,7 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
         console.warn(`[Import] Boundary check failed for "${church.name}": ${error.message}`);
         boundaryCheckFailures++;
         churchesOutsideBoundaries.push(church);
-        boundaryResults.push({ place_id: church.place_id, in_bounds: false });
+        boundaryResults.push({ place_id: church.google_place_id, in_bounds: false });
       }
     }
 
@@ -290,36 +290,31 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
 
     const filteredChurches = churchesInBoundaries;
 
+    // Only fetch churches near the import area for dedup (not all 240k nationally)
     const { data: existingChurches, error: existingError } = await adminClient
       .from('churches')
-      .select('id, name, location, google_place_id, address');
+      .select('id, name, display_lat, display_lng, google_place_id, address')
+      .gte('display_lat', minLat - 0.5)
+      .lte('display_lat', maxLat + 0.5)
+      .gte('display_lng', minLng - 0.5)
+      .lte('display_lng', maxLng + 0.5);
 
     if (existingError) {
       console.error('Error fetching existing churches:', existingError);
     }
 
-    const existingForDedup: ExistingChurchForDedup[] = (existingChurches || []).map((c: any) => {
-      let lat = 0, lng = 0;
-      if (c.location) {
-        const match = c.location.toString().match(/POINT\(([^ ]+) ([^)]+)\)/);
-        if (match) {
-          lng = parseFloat(match[1]);
-          lat = parseFloat(match[2]);
-        }
-      }
-      return { 
-        name: c.name, 
-        latitude: lat, 
-        longitude: lng,
-        google_place_id: c.google_place_id || null,
-        address: c.address || null,
-      };
-    });
+    const existingForDedup: ExistingChurchForDedup[] = (existingChurches || []).map((c: any) => ({
+      name: c.name,
+      latitude: c.display_lat || 0,
+      longitude: c.display_lng || 0,
+      google_place_id: c.google_place_id || null,
+      address: c.address || null,
+    }));
 
     const withLocation = existingForDedup.filter((c: any) => c.latitude !== 0 && c.longitude !== 0);
     const withPlaceId = existingForDedup.filter((c: any) => c.google_place_id);
-    
-    console.log(`[Import] Existing churches for dedup: ${existingForDedup.length} total, ${withLocation.length} with location, ${withPlaceId.length} with google_place_id`);
+
+    console.log(`[Import] Existing churches for dedup: ${existingForDedup.length} in area, ${withLocation.length} with location, ${withPlaceId.length} with google_place_id`);
 
     const { unique, duplicates } = deduplicateChurches(filteredChurches, existingForDedup);
     console.log(`[Import] Deduplication: ${unique.length} new, ${duplicates.length} duplicates`);
