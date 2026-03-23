@@ -285,8 +285,6 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     const thisFlightId = ++flyCounterRef.current;
     stopOrbit();
     clearHighlights();
-    // Stop any in-progress map animation so flyTo isn't swallowed
-    map.stop();
 
     const doFlyTo = () => {
       // Bail if a newer fly was triggered
@@ -338,11 +336,15 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       setTimeout(onArrive, 5000);
     };
 
-    if (map.loaded()) {
-      doFlyTo();
-    } else {
-      map.once("load", doFlyTo);
-    }
+    // Use rAF to ensure orbit's last setBearing frame has completed
+    requestAnimationFrame(() => {
+      if (flyCounterRef.current !== thisFlightId) return;
+      if (map.loaded()) {
+        doFlyTo();
+      } else {
+        map.once("load", doFlyTo);
+      }
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIndex]);
 
