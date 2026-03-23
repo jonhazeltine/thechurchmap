@@ -692,7 +692,7 @@ export async function GET(req: Request, res: Response) {
     // First look for a running job
     const { data: runningJob, error: runningError } = await adminClient
       .from('import_jobs')
-      .select('id, status, current_phase, grid_points_completed, grid_points_total, churches_found_raw, started_at, error_message')
+      .select('id, status, current_phase, grid_points_completed, grid_points_total, churches_found_raw, churches_in_boundaries, churches_outside_boundaries, duplicates_skipped, churches_inserted, churches_linked, started_at, error_message')
       .eq('city_platform_id', platformId)
       .eq('status', 'running')
       .order('started_at', { ascending: false })
@@ -705,7 +705,7 @@ export async function GET(req: Request, res: Response) {
       // No running job, look for interrupted job that can be resumed
       const { data: interruptedJob, error: interruptedError } = await adminClient
         .from('import_jobs')
-        .select('id, status, current_phase, grid_points_completed, grid_points_total, churches_found_raw, started_at, error_message')
+        .select('id, status, current_phase, grid_points_completed, grid_points_total, churches_found_raw, churches_in_boundaries, churches_outside_boundaries, duplicates_skipped, churches_inserted, churches_linked, started_at, error_message')
         .eq('city_platform_id', platformId)
         .eq('status', 'interrupted')
         .order('started_at', { ascending: false })
