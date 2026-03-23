@@ -746,3 +746,73 @@
 .dark .church-preview-popup .mapboxgl-popup-content {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
+
+/* ── Journey Glow Marker (glory fire effect) ──────────────── */
+.journey-glow-marker {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  pointer-events: none;
+}
+
+.glow-ring {
+  position: absolute;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.glow-ring-outer {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.3) 0%, rgba(251, 146, 60, 0.1) 50%, transparent 70%);
+  animation: glow-pulse-outer 3s ease-in-out infinite;
+}
+
+.glow-ring-middle {
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, rgba(245, 158, 11, 0.15) 60%, transparent 70%);
+  animation: glow-pulse-middle 2.5s ease-in-out infinite 0.3s;
+}
+
+.glow-ring-inner {
+  width: 50px;
+  height: 50px;
+  background: radial-gradient(circle, rgba(253, 224, 71, 0.5) 0%, rgba(251, 191, 36, 0.2) 60%, transparent 70%);
+  animation: glow-pulse-inner 2s ease-in-out infinite 0.6s;
+}
+
+.glow-core {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fef3c7 0%, #fbbf24 50%, #f59e0b 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 20px 8px rgba(251, 191, 36, 0.6), 0 0 40px 16px rgba(251, 146, 60, 0.3);
+  animation: glow-core-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes glow-pulse-outer {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+}
+
+@keyframes glow-pulse-middle {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+}
+
+@keyframes glow-pulse-inner {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+  50% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
+}
+
+@keyframes glow-core-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 20px 8px rgba(251, 191, 36, 0.6), 0 0 40px 16px rgba(251, 146, 60, 0.3); }
+  50% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 30px 12px rgba(251, 191, 36, 0.8), 0 0 60px 24px rgba(251, 146, 60, 0.4); }
+}

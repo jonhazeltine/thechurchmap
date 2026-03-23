@@ -26,6 +26,7 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const orbitRef = useRef<number | null>(null);
+  const glowMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const arrivedRef = useRef(onArrived);
   arrivedRef.current = onArrived;
 
@@ -43,7 +44,7 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
     if (!map) return;
     stopOrbit();
 
-    const ORBIT_SPEED = 3; // degrees per second
+    const ORBIT_SPEED = -3; // degrees per second (negative = clockwise/rightward)
     let lastTime = performance.now();
 
     const animate = (now: number) => {
@@ -194,75 +195,43 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
 
     return () => {
       stopOrbit();
+      clearHighlights();
       map.remove();
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Clear highlights helper
+  // Clear highlights — remove HTML glow marker
   const clearHighlights = useCallback(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const emptyFC = { type: "FeatureCollection" as const, features: [] };
-    try {
-      const bldgSrc = map.getSource(BUILDING_HIGHLIGHT_SOURCE) as mapboxgl.GeoJSONSource;
-      if (bldgSrc) bldgSrc.setData(emptyFC);
-      const pulseSrc = map.getSource(PULSE_MARKER_SOURCE) as mapboxgl.GeoJSONSource;
-      if (pulseSrc) pulseSrc.setData(emptyFC);
-    } catch {
-      // sources may not exist yet
+    if (glowMarkerRef.current) {
+      glowMarkerRef.current.remove();
+      glowMarkerRef.current = null;
     }
   }, []);
 
-  // Highlight building at a point, or place a pulse marker as fallback
+  // Place an animated glory-glow HTML marker at the target
   const highlightAtPoint = useCallback(
     (lngLat: { lng: number; lat: number }) => {
       const map = mapRef.current;
       if (!map) return;
       clearHighlights();
 
-      // Try to query the building footprint at the target coordinates
-      const point = map.project([lngLat.lng, lngLat.lat]);
-      // Query a small box around the point for better hit detection
-      const bbox: [mapboxgl.PointLike, mapboxgl.PointLike] = [
-        [point.x - 15, point.y - 15],
-        [point.x + 15, point.y + 15],
-      ];
+      // Create the glow element — CSS-animated, no Mapbox layer flickering
+      const el = document.createElement("div");
+      el.className = "journey-glow-marker";
+      el.innerHTML = `
+        <div class="glow-ring glow-ring-outer"></div>
+        <div class="glow-ring glow-ring-middle"></div>
+        <div class="glow-ring glow-ring-inner"></div>
+        <div class="glow-core"></div>
+      `;
 
-      const buildingFeatures = map.queryRenderedFeatures(bbox, {
-        layers: ["3d-buildings"],
-      });
+      const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        .setLngLat([lngLat.lng, lngLat.lat])
+        .addTo(map);
 
-      if (buildingFeatures.length > 0) {
-        // Use the first building found
-        const feature = buildingFeatures[0];
-        const bldgSrc = map.getSource(BUILDING_HIGHLIGHT_SOURCE) as mapboxgl.GeoJSONSource;
-        if (bldgSrc) {
-          bldgSrc.setData({
-            type: "FeatureCollection",
-            features: [feature as any],
-          });
-        }
-      } else {
-        // Fallback: pulsing circle marker
-        const pulseSrc = map.getSource(PULSE_MARKER_SOURCE) as mapboxgl.GeoJSONSource;
-        if (pulseSrc) {
-          pulseSrc.setData({
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [lngLat.lng, lngLat.lat],
-                },
-                properties: {},
-              },
-            ],
-          });
-        }
-      }
+      glowMarkerRef.current = marker;
     },
     [clearHighlights]
   );
@@ -317,34 +286,6 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
       map.on("style.load", onReady);
     }
   }, [target?.lng, target?.lat, slideIndex, clearHighlights, highlightAtPoint, stopOrbit, startOrbit]);
-
-  // Pulse animation for the glow circle
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    let frame: number;
-    let start = performance.now();
-
-    const animate = (now: number) => {
-      const elapsed = now - start;
-      const t = (Math.sin(elapsed / 600) + 1) / 2; // 0..1 oscillation
-      try {
-        if (map.getLayer(PULSE_MARKER_GLOW_LAYER)) {
-          map.setPaintProperty(PULSE_MARKER_GLOW_LAYER, "circle-radius", 20 + t * 20);
-          map.setPaintProperty(PULSE_MARKER_GLOW_LAYER, "circle-opacity", 0.15 + t * 0.15);
-        }
-        if (map.getLayer(BUILDING_HIGHLIGHT_GLOW)) {
-          map.setPaintProperty(BUILDING_HIGHLIGHT_GLOW, "fill-extrusion-opacity", 0.2 + t * 0.2);
-        }
-      } catch {
-        // layer may not exist yet
-      }
-      frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, []);
 
   return (
     <div
