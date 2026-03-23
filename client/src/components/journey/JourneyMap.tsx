@@ -77,7 +77,7 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: "mapbox://styles/mapbox/satellite-streets-v12",
       center: target ? [target.lng, target.lat] : [-85.67, 42.96],
       zoom: 15,
       pitch: 60,
