@@ -261,15 +261,15 @@ export default function JourneyViewer() {
 
         {/* Floating card header on map */}
         <div className="absolute top-3 left-3 right-3 z-20 pointer-events-none">
-          <div className="pointer-events-auto bg-background/85 backdrop-blur-md rounded-xl shadow-lg border border-border/50 overflow-hidden">
+          <div className="pointer-events-auto bg-background/60 backdrop-blur-md rounded-xl shadow-lg border border-border/30 overflow-hidden">
             {/* Banner strip */}
             {stepBanner && (
-              <div className="relative h-16 overflow-hidden">
-                <img src={stepBanner.url} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/40 to-transparent" />
+              <div className="relative h-12 overflow-hidden">
+                <img src={stepBanner.url} alt="" className="w-full h-full object-cover opacity-80" />
+                <div className="absolute inset-0 bg-gradient-to-r from-background/50 via-transparent to-transparent" />
               </div>
             )}
-            <div className="flex items-center gap-3 px-4 py-2.5">
+            <div className="flex items-center gap-3 px-3 py-2">
               {/* Church avatar */}
               {stepBanner?.avatar && (
                 <img

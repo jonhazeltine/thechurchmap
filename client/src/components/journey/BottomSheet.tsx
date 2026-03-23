@@ -137,7 +137,7 @@ export default function BottomSheet({
   return (
     <div
       ref={sheetRef}
-      className="absolute bottom-0 left-0 right-0 bg-background rounded-t-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden z-20"
+      className="absolute bottom-0 left-0 right-0 bg-background/75 backdrop-blur-lg rounded-t-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden z-20"
       style={{
         height: `${currentHeight}vh`,
         transition: isDragging ? "none" : "height 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
