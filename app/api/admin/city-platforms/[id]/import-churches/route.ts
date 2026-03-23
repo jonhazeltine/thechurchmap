@@ -290,6 +290,15 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
 
     const filteredChurches = churchesInBoundaries;
 
+    // Save in-bounds churches so dedup/insert can be re-run without re-doing boundary check
+    await adminClient
+      .from('import_jobs')
+      .update({
+        churches_in_bounds_data: filteredChurches,
+      })
+      .eq('id', importJobId);
+    console.log(`[Import] Saved ${filteredChurches.length} in-bounds churches for resume safety`);
+
     // Only fetch churches near the import area for dedup (not all 240k nationally)
     const { data: existingChurches, error: existingError } = await adminClient
       .from('churches')
