@@ -287,39 +287,36 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       }
 
       const isMobile = window.innerWidth < 768;
+
+      // Start fading satellite in halfway through the flight
+      setTimeout(() => {
+        if (flyCounterRef.current !== thisFlightId) return;
+        fadeSatellite(true, 3000);
+      }, 2000);
+
+      // One seamless flyTo all the way to final zoom
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: isMobile ? 15.5 : 16,
-        pitch: isMobile ? 50 : 55,
+        zoom: isMobile ? 17 : 17.5,
+        pitch: 60,
         bearing,
-        speed: 0.5,
-        curve: 1.8,
+        speed: 0.4,
+        curve: 1.5,
         essential: true,
         padding: isMobile
-          ? { top: 100, bottom: 80, left: 0, right: 0 }
-          : { top: 80, bottom: 60, left: 0, right: 200 },
+          ? { top: 80, bottom: 60, left: 0, right: 0 }
+          : { top: 60, bottom: 40, left: 0, right: 180 },
       });
 
       const onArrive = () => {
-        // Bail if a newer fly was triggered
         if (flyCounterRef.current !== thisFlightId) return;
-
-        setTimeout(() => {
-          if (flyCounterRef.current !== thisFlightId) return;
-          fadeSatellite(true, 2000);
-          map.easeTo({ zoom: 17.5, pitch: 60, duration: 2000 });
-          highlightAtPoint(target);
-          setTimeout(() => {
-            if (flyCounterRef.current !== thisFlightId) return;
-            startOrbit();
-            arrivedRef.current?.();
-          }, 2500);
-        }, 500);
+        highlightAtPoint(target);
+        startOrbit();
+        arrivedRef.current?.();
       };
 
-      // Listen for moveend once, plus a fallback timer
       map.once("moveend", onArrive);
-      setTimeout(onArrive, 5000);
+      setTimeout(onArrive, 8000);
     };
 
     // Use rAF to ensure orbit's last setBearing frame has completed
