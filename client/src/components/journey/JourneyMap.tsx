@@ -255,15 +255,25 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
       const bearing = -17 + ((slideIndex * 47) % 60) - 30;
 
       // Zoom out briefly first for dramatic effect, then fly in
+      // Fly to a moderate zoom first (tiles load faster), then ease in closer
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: 17,
-        pitch: 60,
+        zoom: 16,
+        pitch: 55,
         bearing,
-        speed: 0.6,
-        curve: 1.6,
+        speed: 0.5,
+        curve: 1.8,
         essential: true,
       });
+
+      // After initial fly, ease to final zoom once tiles are more likely loaded
+      const easeIn = () => {
+        map.easeTo({
+          zoom: 17.5,
+          pitch: 60,
+          duration: 2000,
+        });
+      };
 
       // Use a timeout fallback in case moveend doesn't fire
       let arrived = false;
@@ -271,11 +281,16 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
         if (arrived) return;
         arrived = true;
         map.off("moveend", onMoveEnd);
+        // Wait for tiles to settle, then ease in closer and highlight
         setTimeout(() => {
+          easeIn();
           highlightAtPoint(target);
-          startOrbit();
-          arrivedRef.current?.();
-        }, 300);
+          // Start orbit after the ease-in completes
+          setTimeout(() => {
+            startOrbit();
+            arrivedRef.current?.();
+          }, 2000);
+        }, 500);
       };
 
       const onMoveEnd = () => onArrive();
