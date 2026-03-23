@@ -23,8 +23,47 @@ const PULSE_MARKER_GLOW_LAYER = "journey-pulse-marker-glow";
 export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const orbitRef = useRef<number | null>(null);
   const arrivedRef = useRef(onArrived);
   arrivedRef.current = onArrived;
+
+  // Stop any active orbit animation
+  const stopOrbit = useCallback(() => {
+    if (orbitRef.current !== null) {
+      cancelAnimationFrame(orbitRef.current);
+      orbitRef.current = null;
+    }
+  }, []);
+
+  // Start slow orbit around the current center
+  const startOrbit = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    stopOrbit();
+
+    const ORBIT_SPEED = 3; // degrees per second
+    let lastTime = performance.now();
+
+    const animate = (now: number) => {
+      const delta = (now - lastTime) / 1000;
+      lastTime = now;
+      const currentBearing = map.getBearing();
+      map.setBearing(currentBearing + ORBIT_SPEED * delta);
+      orbitRef.current = requestAnimationFrame(animate);
+    };
+    orbitRef.current = requestAnimationFrame(animate);
+
+    // Stop orbit on user interaction
+    const stopOnInteraction = () => {
+      stopOrbit();
+      map.off("mousedown", stopOnInteraction);
+      map.off("touchstart", stopOnInteraction);
+      map.off("wheel", stopOnInteraction);
+    };
+    map.on("mousedown", stopOnInteraction);
+    map.on("touchstart", stopOnInteraction);
+    map.on("wheel", stopOnInteraction);
+  }, [stopOrbit]);
 
   // Initialize map once
   useEffect(() => {
@@ -152,6 +191,7 @@ export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
     mapRef.current = map;
 
     return () => {
+      stopOrbit();
       map.remove();
       mapRef.current = null;
     };
@@ -229,9 +269,11 @@ export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !target) {
+      stopOrbit();
       clearHighlights();
       return;
     }
+    stopOrbit();
 
     // Wait for map to be loaded
     const doFlyTo = () => {
@@ -248,12 +290,13 @@ export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
         essential: true,
       });
 
-      // After fly-to completes, highlight building and notify parent
+      // After fly-to completes, highlight building, start orbit, and notify parent
       const onMoveEnd = () => {
         map.off("moveend", onMoveEnd);
         // Small delay to let tiles render before querying features
         setTimeout(() => {
           highlightAtPoint(target);
+          startOrbit();
           arrivedRef.current?.();
         }, 400);
       };
@@ -271,8 +314,7 @@ export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
       map.on("load", onReady);
       map.on("style.load", onReady);
     }
-    // Include currentSlide index to force re-trigger even if coords are same
-  }, [target?.lng, target?.lat, clearHighlights, highlightAtPoint]);
+  }, [target?.lng, target?.lat, clearHighlights, highlightAtPoint, stopOrbit, startOrbit]);
 
   // Pulse animation for the glow circle
   useEffect(() => {
