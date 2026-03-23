@@ -90,9 +90,9 @@ function buildPrayerTooltipHtml(features: mapboxgl.MapboxGeoJSONFeature[]): stri
   const coveragePct = props?.effective_coverage_pct ?? props?.coverage_pct ?? 0;
   const population = props?.population ?? 0;
   let html = '<div style="font-weight:600;margin-bottom:4px">Prayer Coverage</div>';
-  html += `<div style="color:#555">${churchCount} ${churchCount === 1 ? 'church' : 'churches'} praying</div>`;
-  if (population > 0) html += `<div style="color:#555">Population: ${population.toLocaleString()}</div>`;
-  html += `<div style="color:#555">Coverage: ${Math.round(coveragePct)}%</div>`;
+  html += `<div style="opacity:0.7">${churchCount} ${churchCount === 1 ? 'church' : 'churches'} praying</div>`;
+  if (population > 0) html += `<div style="opacity:0.7">Population: ${population.toLocaleString()}</div>`;
+  html += `<div style="opacity:0.7">Coverage: ${Math.round(coveragePct)}%</div>`;
   return html;
 }
 
@@ -136,12 +136,12 @@ function buildSaturationTooltipHtml(features: mapboxgl.MapboxGeoJSONFeature[]): 
   let html = '<div style="font-weight:600;margin-bottom:4px">Ministry Coverage</div>';
 
   if (totalChurchCount === 0) {
-    html += `<div style="color:#888">0 churches serving this area</div>`;
-    html += `<div style="color:#555;margin-top:4px">Population: ${totalPopulation.toLocaleString()}</div>`;
+    html += `<div style="opacity:0.5">0 churches serving this area</div>`;
+    html += `<div style="opacity:0.7;margin-top:4px">Population: ${totalPopulation.toLocaleString()}</div>`;
     html += `<div style="margin-top:4px;font-weight:500;color:#dc2626">Coverage: No Coverage</div>`;
   } else {
     const satLabel = getSaturationLabel(maxRawSaturation);
-    html += `<div style="color:#555">${churchCount} ${churchCount === 1 ? 'church' : 'churches'} serving</div>`;
+    html += `<div style="opacity:0.7">${churchCount} ${churchCount === 1 ? 'church' : 'churches'} serving</div>`;
     if (churchCount > 0 && churchCount <= 5) {
       const churchPolyPops = new Map<string, number>();
       areaMap.forEach(info => {
@@ -152,13 +152,13 @@ function buildSaturationTooltipHtml(features: mapboxgl.MapboxGeoJSONFeature[]): 
       uniqueChurchNames.forEach(name => {
         const polyPop = churchPolyPops.get(name) || 0;
         const popStr = polyPop > 0 ? ` (${polyPop.toLocaleString()} people)` : '';
-        html += `<div style="color:#666;font-size:12px;padding-left:8px">&bull; ${name}${popStr}</div>`;
+        html += `<div style="opacity:0.6;font-size:12px;padding-left:8px">&bull; ${name}${popStr}</div>`;
       });
     }
-    html += `<div style="color:#555;margin-top:4px">Density: ${densityFormatted} people/mi&sup2;</div>`;
-    html += `<div style="margin-top:4px;font-weight:500;color:#1d4ed8">Coverage: ${satLabel}</div>`;
+    html += `<div style="opacity:0.7;margin-top:4px">Density: ${densityFormatted} people/mi&sup2;</div>`;
+    html += `<div style="margin-top:4px;font-weight:500;color:#3b82f6">Coverage: ${satLabel}</div>`;
     if (!anyHasCapacity) {
-      html += `<div style="color:#999;font-size:11px;margin-top:2px">Based on baseline capacity (no manual data yet)</div>`;
+      html += `<div style="opacity:0.45;font-size:11px;margin-top:2px">Based on baseline capacity (no manual data yet)</div>`;
     }
   }
 
@@ -995,7 +995,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
               tapHtml = '<div style="font-family:system-ui,sans-serif;font-size:13px;line-height:1.5;min-width:160px">';
             } else {
               tapHtml = tapHtml.replace(/<\/div>$/, '');
-              tapHtml += '<div style="border-top:1px solid #e5e7eb;margin:6px 0"></div>';
+              tapHtml += '<div style="border-top:1px solid currentColor;opacity:0.15;margin:6px 0"></div>';
             }
             tapHtml += prayerHtml;
             tapHtml += '</div>';
@@ -1031,26 +1031,26 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
             const uniqueChurches = Array.from(churchMap.values());
 
             if (uniqueChurches.length > 1) {
-              tapHtml += '<div style="font-weight:600;margin-bottom:4px;color:#059669">Collaboration Opportunity!</div>';
-              tapHtml += `<div style="color:#555">${uniqueChurches.length} churches serving this area</div>`;
+              tapHtml += '<div style="font-weight:600;margin-bottom:4px;color:#10b981">Collaboration Opportunity!</div>';
+              tapHtml += `<div style="opacity:0.7">${uniqueChurches.length} churches serving this area</div>`;
               uniqueChurches.forEach(c => {
-                tapHtml += `<div style="color:#666;font-size:12px;padding-left:8px">&bull; ${c.church_name}</div>`;
+                tapHtml += `<div style="opacity:0.6;font-size:12px;padding-left:8px">&bull; ${c.church_name}</div>`;
                 if (c.population > 0) {
-                  tapHtml += `<div style="color:#999;font-size:11px;padding-left:16px">${c.population.toLocaleString()} people</div>`;
+                  tapHtml += `<div style="opacity:0.45;font-size:11px;padding-left:16px">${c.population.toLocaleString()} people</div>`;
                 }
               });
             } else if (uniqueChurches.length === 1) {
               const c = uniqueChurches[0];
               tapHtml += `<div style="font-weight:600;margin-bottom:4px">${c.church_name}</div>`;
-              tapHtml += `<div style="color:#666;font-size:12px">${c.area_name}</div>`;
+              tapHtml += `<div style="opacity:0.6;font-size:12px">${c.area_name}</div>`;
               if (c.population > 0) {
-                tapHtml += `<div style="color:#555;font-size:12px;margin-top:2px">${c.population.toLocaleString()} people</div>`;
+                tapHtml += `<div style="opacity:0.7;font-size:12px;margin-top:2px">${c.population.toLocaleString()} people</div>`;
               }
             }
           }
 
           if (prayerFeatures.length > 0) {
-            if (areaFeatures.length > 0) tapHtml += '<div style="border-top:1px solid #e5e7eb;margin:6px 0"></div>';
+            if (areaFeatures.length > 0) tapHtml += '<div style="border-top:1px solid currentColor;opacity:0.15;margin:6px 0"></div>';
             tapHtml += buildPrayerTooltipHtml(prayerFeatures);
           }
           tapHtml += '</div>';
@@ -4216,7 +4216,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
         if (m.getLayer('prayer-coverage-fill')) satPrayerLayers2.push('prayer-coverage-fill');
         const satPrayerFeatures2 = satPrayerLayers2.length > 0 ? m.queryRenderedFeatures(e.point, { layers: satPrayerLayers2 }) : [];
         if (satPrayerFeatures2.length > 0) {
-          html += '<div style="border-top:1px solid #e5e7eb;margin:6px 0"></div>';
+          html += '<div style="border-top:1px solid currentColor;opacity:0.15;margin:6px 0"></div>';
           html += buildPrayerTooltipHtml(satPrayerFeatures2);
         }
 
@@ -4291,26 +4291,26 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
         const uniqueChurches = Array.from(churchMap.values());
 
         if (uniqueChurches.length > 1) {
-          html += '<div style="font-weight:600;margin-bottom:4px;color:#059669">Collaboration Opportunity!</div>';
-          html += `<div style="color:#555">${uniqueChurches.length} churches serving this area</div>`;
+          html += '<div style="font-weight:600;margin-bottom:4px;color:#10b981">Collaboration Opportunity!</div>';
+          html += `<div style="opacity:0.7">${uniqueChurches.length} churches serving this area</div>`;
           uniqueChurches.forEach(c => {
-            html += `<div style="color:#666;font-size:12px;padding-left:8px">&bull; ${c.church_name}</div>`;
+            html += `<div style="opacity:0.6;font-size:12px;padding-left:8px">&bull; ${c.church_name}</div>`;
             if (c.population > 0) {
-              html += `<div style="color:#999;font-size:11px;padding-left:16px">${c.population.toLocaleString()} people</div>`;
+              html += `<div style="opacity:0.45;font-size:11px;padding-left:16px">${c.population.toLocaleString()} people</div>`;
             }
           });
         } else if (uniqueChurches.length === 1) {
           const c = uniqueChurches[0];
           html += `<div style="font-weight:600;margin-bottom:4px">${c.church_name}</div>`;
-          html += `<div style="color:#666;font-size:12px">${c.area_name}</div>`;
+          html += `<div style="opacity:0.6;font-size:12px">${c.area_name}</div>`;
           if (c.population > 0) {
-            html += `<div style="color:#555;font-size:12px;margin-top:2px">${c.population.toLocaleString()} people</div>`;
+            html += `<div style="opacity:0.7;font-size:12px;margin-top:2px">${c.population.toLocaleString()} people</div>`;
           }
         }
       }
 
       if (prayerFeatures.length > 0) {
-        if (areaFeatures.length > 0) html += '<div style="border-top:1px solid #e5e7eb;margin:6px 0"></div>';
+        if (areaFeatures.length > 0) html += '<div style="border-top:1px solid currentColor;opacity:0.15;margin:6px 0"></div>';
         html += buildPrayerTooltipHtml(prayerFeatures);
       }
 

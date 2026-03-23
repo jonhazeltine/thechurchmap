@@ -1001,8 +1001,9 @@ function showSlashMenu(editor: Editor, view: any, handleImageUpload: () => void,
     slashMenuElement = document.createElement('div');
     slashMenuElement.setAttribute('data-testid', 'slash-command-menu');
     slashMenuElement.style.cssText = `
-      background: white;
-      border: 1px solid #e5e7eb;
+      background: hsl(var(--popover));
+      color: hsl(var(--popover-foreground));
+      border: 1px solid hsl(var(--border));
       border-radius: 8px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
       overflow: hidden;
@@ -1014,7 +1015,7 @@ function showSlashMenu(editor: Editor, view: any, handleImageUpload: () => void,
     const updateSelection = () => {
       if (!slashMenuElement) return;
       slashMenuElement.querySelectorAll('.slash-menu-item').forEach((item, index) => {
-        (item as HTMLElement).style.background = index === selectedIndex ? '#f3f4f6' : 'white';
+        (item as HTMLElement).style.background = index === selectedIndex ? 'hsl(var(--accent))' : 'transparent';
       });
     };
 
@@ -1032,7 +1033,7 @@ function showSlashMenu(editor: Editor, view: any, handleImageUpload: () => void,
           padding: 10px 12px;
           text-align: left;
           border: none;
-          background: ${index === selectedIndex ? '#f3f4f6' : 'white'};
+          background: ${index === selectedIndex ? 'hsl(var(--accent))' : 'transparent'};
           cursor: pointer;
         "
       >
@@ -1040,17 +1041,17 @@ function showSlashMenu(editor: Editor, view: any, handleImageUpload: () => void,
           width: 32px;
           height: 32px;
           border-radius: 6px;
-          background: #f3f4f6;
+          background: hsl(var(--muted));
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 14px;
           font-weight: 600;
-          color: #6b7280;
+          color: hsl(var(--muted-foreground));
         ">${cmd.icon}</div>
         <div>
-          <div style="font-size: 14px; font-weight: 500; color: #111827;">${cmd.label}</div>
-          <div style="font-size: 12px; color: #6b7280;">${cmd.description}</div>
+          <div style="font-size: 14px; font-weight: 500; color: hsl(var(--foreground));">${cmd.label}</div>
+          <div style="font-size: 12px; color: hsl(var(--muted-foreground));">${cmd.description}</div>
         </div>
       </button>
     `).join('');
