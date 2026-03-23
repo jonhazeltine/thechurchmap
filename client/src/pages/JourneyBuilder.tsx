@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,8 +12,12 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { useToast } from "@/hooks/use-toast";
 import {
   MapPin, Church, Heart, PenLine, Sparkles, Eye, ArrowLeft, ArrowRight,
-  Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart, Map, X, ChevronRight
+  Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart, Map, X, ChevronRight,
+  ImagePlus, Loader2, Navigation
 } from "lucide-react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import { uploadMedia } from "@/lib/upload";
 import { BoundaryMapPicker } from "@/components/BoundaryMapPicker";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -1110,22 +1114,284 @@ function RegionalPrayerRequests({ steps, onAddSteps }: any) {
   );
 }
 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  address: string;
+  place_name: string;
+}
+
+function LocationPicker({ value, onChange }: { value: LocationData | null; onChange: (loc: LocationData | null) => void }) {
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const debounceTimer = useRef<NodeJS.Timeout>();
+
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (!q || q.length < 3 || !MAPBOX_TOKEN) {
+      setSuggestions([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const encoded = encodeURIComponent(q);
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${MAPBOX_TOKEN}&types=place,address,poi,neighborhood&limit=5`
+      );
+      if (!res.ok) throw new Error("Geocoding failed");
+      const data = await res.json();
+      setSuggestions(data.features || []);
+      setOpen((data.features || []).length > 0);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => fetchSuggestions(query), 300);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  }, [query, fetchSuggestions]);
+
+  // Initialize / update map preview when location is selected
+  useEffect(() => {
+    if (!value || !mapContainerRef.current || !MAPBOX_TOKEN) return;
+
+    if (!mapRef.current) {
+      mapboxgl.accessToken = MAPBOX_TOKEN;
+      mapRef.current = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: "mapbox://styles/mapbox/light-v11",
+        center: [value.longitude, value.latitude],
+        zoom: 14,
+        interactive: false,
+      });
+      markerRef.current = new mapboxgl.Marker({ color: "#3b82f6" })
+        .setLngLat([value.longitude, value.latitude])
+        .addTo(mapRef.current);
+    } else {
+      mapRef.current.setCenter([value.longitude, value.latitude]);
+      markerRef.current?.setLngLat([value.longitude, value.latitude]);
+    }
+
+    return () => {};
+  }, [value]);
+
+  // Clean up map on unmount
+  useEffect(() => {
+    return () => {
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  const handleSelect = (feature: any) => {
+    const [lng, lat] = feature.center;
+    onChange({
+      latitude: lat,
+      longitude: lng,
+      address: feature.text || feature.place_name,
+      place_name: feature.place_name,
+    });
+    setQuery(feature.place_name);
+    setOpen(false);
+    setSuggestions([]);
+  };
+
+  const handleClear = () => {
+    onChange(null);
+    setQuery("");
+    setSuggestions([]);
+    mapRef.current?.remove();
+    mapRef.current = null;
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium flex items-center gap-1.5">
+        <Navigation className="w-3.5 h-3.5" /> Location (optional)
+      </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="relative">
+            <Input
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); if (value) onChange(null); }}
+              placeholder="Search for a place or address..."
+              onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+            />
+            {loading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {value && !loading && (
+              <button
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={(e) => { e.preventDefault(); handleClear(); }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Command>
+            <CommandList>
+              <CommandEmpty>No places found.</CommandEmpty>
+              <CommandGroup>
+                {suggestions.map((s, i) => (
+                  <CommandItem
+                    key={i}
+                    value={s.place_name}
+                    onSelect={() => handleSelect(s)}
+                    className="cursor-pointer"
+                  >
+                    <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{s.place_name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {value && (
+        <div
+          ref={mapContainerRef}
+          className="h-40 rounded-md overflow-hidden border"
+          style={{ minHeight: 160 }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ImageUploadField({ value, onChange }: { value: string | null; onChange: (url: string | null) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setProgress(0);
+    try {
+      const result = await uploadMedia(file, (p) => setProgress(p.progress));
+      if (result?.url) {
+        onChange(result.url);
+      }
+    } catch (err) {
+      console.error("Image upload failed:", err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium flex items-center gap-1.5">
+        <ImagePlus className="w-3.5 h-3.5" /> Image (optional)
+      </label>
+      {value ? (
+        <div className="relative inline-block">
+          <img
+            src={value}
+            alt="Step image"
+            className="h-32 rounded-md border object-cover"
+          />
+          <button
+            className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 shadow-sm hover:bg-destructive hover:text-destructive-foreground transition-colors"
+            onClick={() => onChange(null)}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                Uploading {progress}%
+              </>
+            ) : (
+              <>
+                <ImagePlus className="w-4 h-4 mr-1" />
+                Upload Image
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CustomStep({ steps, onAddSteps, onNext }: any) {
   const [customTitle, setCustomTitle] = useState("");
   const [customBody, setCustomBody] = useState("");
+  const [location, setLocation] = useState<LocationData | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const handleAdd = async () => {
     if (!customTitle.trim()) return;
     const currentMax = Math.max(0, ...steps.map((s: any) => s.sort_order));
+
+    const metadata: Record<string, any> = {};
+    if (location) {
+      metadata.latitude = location.latitude;
+      metadata.longitude = location.longitude;
+      metadata.address = location.address;
+      metadata.place_name = location.place_name;
+    }
+    if (imageUrl) {
+      metadata.image_url = imageUrl;
+    }
+
     await onAddSteps([{
       step_type: "custom",
       title: customTitle,
       body: customBody || null,
       sort_order: currentMax + 1,
+      metadata: Object.keys(metadata).length > 0 ? metadata : null,
     }]);
     setCustomTitle("");
     setCustomBody("");
+    setLocation(null);
+    setImageUrl(null);
   };
+
+  const customSteps = steps.filter((s: any) => s.step_type === "custom");
 
   return (
     <div className="space-y-6">
@@ -1136,15 +1402,29 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
         </p>
       </div>
 
-      {steps.filter((s: any) => s.step_type === "custom").length > 0 && (
+      {customSteps.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-sm">Your Custom Steps</CardTitle></CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {steps.filter((s: any) => s.step_type === "custom").map((step: any) => (
-                <div key={step.id} className="flex items-center gap-2 text-sm">
-                  <PenLine className="w-4 h-4 text-blue-500" />
-                  <span>{step.title}</span>
+            <div className="space-y-3">
+              {customSteps.map((step: any) => (
+                <div key={step.id} className="flex items-start gap-2 text-sm">
+                  <PenLine className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="font-medium">{step.title}</span>
+                    {step.metadata?.place_name && (
+                      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" /> {step.metadata.place_name}
+                      </div>
+                    )}
+                    {step.metadata?.image_url && (
+                      <img
+                        src={step.metadata.image_url}
+                        alt=""
+                        className="h-16 rounded mt-1 object-cover"
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1165,6 +1445,10 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
             placeholder="Prayer prompt (optional)"
             rows={3}
           />
+
+          <LocationPicker value={location} onChange={setLocation} />
+          <ImageUploadField value={imageUrl} onChange={setImageUrl} />
+
           <Button onClick={handleAdd} disabled={!customTitle.trim()}>
             Add Custom Focus
           </Button>

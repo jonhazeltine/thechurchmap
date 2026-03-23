@@ -555,6 +555,7 @@ export interface PrayerJourneyStep {
   metric_key: string | null;
   ai_generated: boolean;
   is_excluded: boolean;
+  metadata: Record<string, any> | null;
   created_at: string;
 }
 
@@ -586,6 +587,7 @@ export const insertPrayerJourneyStepSchema = z.object({
   metric_key: z.string().optional().nullable(),
   ai_generated: z.boolean().default(false),
   is_excluded: z.boolean().default(false),
+  metadata: z.record(z.any()).optional().nullable(),
 });
 
 export const updatePrayerJourneyStepSchema = z.object({
@@ -596,6 +598,7 @@ export const updatePrayerJourneyStepSchema = z.object({
   sort_order: z.number().int().min(0).optional(),
   is_excluded: z.boolean().optional(),
   ai_generated: z.boolean().optional(),
+  metadata: z.record(z.any()).optional().nullable(),
 });
 
 export type InsertPrayerJourney = z.infer<typeof insertPrayerJourneySchema>;
