@@ -166,6 +166,8 @@ export default function JourneyViewer() {
 
   // Map target coordinates
   const mapTarget = useMemo(() => getStepCoords(currentStep), [currentStep]);
+  const nextStep = activeSteps[currentSlide + 1] || null;
+  const nextMapTarget = useMemo(() => getStepCoords(nextStep), [nextStep]);
 
   // When the map finishes flying, pop the sheet up
   const handleMapArrived = () => {
@@ -269,6 +271,7 @@ export default function JourneyViewer() {
         {/* Map fills the space */}
         <JourneyMap
           target={mapTarget}
+          nextTarget={nextMapTarget}
           slideIndex={currentSlide}
           onArrived={handleMapArrived}
         />
@@ -300,29 +303,18 @@ export default function JourneyViewer() {
           </div>
         </div>
 
-        {/* Floating prayer content card — collapsible on mobile */}
-        <div className="absolute bottom-16 left-3 right-3 md:left-auto md:right-3 md:w-96 z-20">
-          <div className="bg-background/70 backdrop-blur-lg rounded-xl shadow-lg border border-border/30 overflow-hidden">
-            {/* Collapsed state: tap to expand */}
-            {!contentExpanded ? (
-              <button
-                onClick={() => setContentExpanded(true)}
-                className="w-full text-left px-4 py-3 flex items-center justify-between"
-              >
-                <p className="text-sm line-clamp-2 text-foreground/90 flex-1 mr-2">
-                  {currentStep?.body?.substring(0, 100) || "Tap to read prayer..."}
-                </p>
-                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rotate-90" />
-              </button>
-            ) : (
-              <div className="max-h-[40vh] md:max-h-[50vh] overflow-y-auto overscroll-contain px-4 py-3">
-                {/* Collapse button */}
-                <button
-                  onClick={() => setContentExpanded(false)}
-                  className="text-xs text-muted-foreground mb-2 flex items-center gap-1"
-                >
-                  <ChevronRight className="w-3 h-3 -rotate-90" /> Minimize
-                </button>
+        {/* Prayer content — centered large card for non-map steps, floating card for map steps */}
+        {isNonMapStep ? (
+          /* Centered dialog for scripture/thanksgiving/prayer request */
+          <div className="absolute inset-0 z-20 flex items-center justify-center p-6 pointer-events-none">
+            <div className="pointer-events-auto bg-background/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/30 w-full max-w-lg max-h-[70vh] overflow-hidden">
+              <div className="overflow-y-auto overscroll-contain px-6 py-5 max-h-[70vh]">
+                <div className="mb-3">
+                  <StepBadge stepType={currentStep?.step_type || "custom"} />
+                  <h2 className="text-lg font-bold leading-tight mt-2">
+                    {currentStep?.title || "Prayer Step"}
+                  </h2>
+                </div>
                 {currentStep && (
                   <SlideContent
                     step={currentStep}
@@ -334,9 +326,45 @@ export default function JourneyViewer() {
                   />
                 )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Floating collapsible card for map steps */
+          <div className="absolute bottom-16 left-3 right-3 md:left-auto md:right-3 md:w-96 z-20">
+            <div className="bg-background/70 backdrop-blur-lg rounded-xl shadow-lg border border-border/30 overflow-hidden">
+              {!contentExpanded ? (
+                <button
+                  onClick={() => setContentExpanded(true)}
+                  className="w-full text-left px-4 py-3 flex items-center justify-between"
+                >
+                  <p className="text-sm line-clamp-2 text-foreground/90 flex-1 mr-2">
+                    {currentStep?.body?.substring(0, 100) || "Tap to read prayer..."}
+                  </p>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rotate-90" />
+                </button>
+              ) : (
+                <div className="max-h-[40vh] md:max-h-[50vh] overflow-y-auto overscroll-contain px-4 py-3">
+                  <button
+                    onClick={() => setContentExpanded(false)}
+                    className="text-xs text-muted-foreground mb-2 flex items-center gap-1"
+                  >
+                    <ChevronRight className="w-3 h-3 -rotate-90" /> Minimize
+                  </button>
+                  {currentStep && (
+                    <SlideContent
+                      step={currentStep}
+                      journeyId={journey.id}
+                      session={session}
+                      toast={toast}
+                      allSteps={activeSteps}
+                      guestName={guestName}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Navigation bar — fixed at bottom */}
         <div className="absolute bottom-3 left-3 right-3 z-40 flex items-center justify-between">

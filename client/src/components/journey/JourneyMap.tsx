@@ -5,6 +5,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
 interface JourneyMapProps {
   /** Coordinates to fly to. null = no fly-to */
   target: { lng: number; lat: number } | null;
+  /** Next step's coordinates — used to face toward next destination */
+  nextTarget?: { lng: number; lat: number } | null;
   /** Current slide index — forces fly-to even if coords are same */
   slideIndex?: number;
   /** Called when fly-to animation ends */
@@ -22,7 +24,7 @@ const PULSE_MARKER_GLOW_LAYER = "journey-pulse-marker-glow";
  * Full-screen interactive Mapbox map for the prayer journey.
  * Handles fly-to animations, 3D buildings, and building highlighting.
  */
-export default function JourneyMap({ target, slideIndex = 0, onArrived }: JourneyMapProps) {
+export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArrived }: JourneyMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const orbitRef = useRef<number | null>(null);
@@ -283,19 +285,29 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
       clearHighlights();
       fadeSatellite(false, 800); // Fade to streets for clear navigation
 
-      // Randomize bearing per step for visual variety
-      const bearing = -17 + ((slideIndex * 47) % 60) - 30;
+      // Face toward next destination, or north if no next target
+      let bearing = 0;
+      if (nextTarget) {
+        const dLng = nextTarget.lng - target.lng;
+        const dLat = nextTarget.lat - target.lat;
+        bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
+      }
 
       // Zoom out briefly first for dramatic effect, then fly in
       // Fly to a moderate zoom first (tiles load faster), then ease in closer
+      // Offset center to account for UI cards (more padding on mobile)
+      const isMobile = window.innerWidth < 768;
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: 16,
-        pitch: 55,
+        zoom: isMobile ? 15.5 : 16,
+        pitch: isMobile ? 50 : 55,
         bearing,
         speed: 0.5,
         curve: 1.8,
         essential: true,
+        padding: isMobile
+          ? { top: 100, bottom: 80, left: 0, right: 0 }
+          : { top: 80, bottom: 60, left: 0, right: 200 },
       });
 
       // After initial fly, ease to final zoom once tiles are more likely loaded
