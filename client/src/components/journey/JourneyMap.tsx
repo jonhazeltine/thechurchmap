@@ -285,6 +285,8 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     const thisFlightId = ++flyCounterRef.current;
     stopOrbit();
     clearHighlights();
+    // Stop any in-progress map animation so flyTo isn't swallowed
+    map.stop();
 
     const doFlyTo = () => {
       // Bail if a newer fly was triggered
