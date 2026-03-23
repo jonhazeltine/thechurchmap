@@ -132,6 +132,11 @@ interface ImportHistoryResponse {
     grid_points_completed: number;
     grid_points_total: number;
     churches_found_raw?: number;
+    churches_in_boundaries?: number;
+    churches_outside_boundaries?: number;
+    duplicates_skipped?: number;
+    churches_inserted?: number;
+    churches_linked?: number;
     started_at: string;
   } | null;
 }
