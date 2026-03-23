@@ -552,22 +552,35 @@ async function markOldRunningJobsAsInterrupted(
   adminClient: ReturnType<typeof supabaseServer>,
   platformId: string
 ): Promise<number> {
-  const cutoffTime = new Date(Date.now() - INTERRUPTED_JOB_THRESHOLD_MINUTES * 60 * 1000).toISOString();
-  
-  const { data, error } = await adminClient
+  // Only mark jobs as interrupted if they haven't been updated recently
+  // This prevents the GET endpoint from killing actively running jobs
+  const { data: runningJobs } = await adminClient
     .from('import_jobs')
-    .update({ status: 'interrupted' })
+    .select('id, started_at, churches_in_boundaries, churches_outside_boundaries')
     .eq('city_platform_id', platformId)
-    .eq('status', 'running')
-    .lt('started_at', cutoffTime)
-    .select('id');
-  
-  if (error) {
-    console.warn('[Import] Error marking old jobs as interrupted:', error.message);
-    return 0;
+    .eq('status', 'running');
+
+  if (!runningJobs || runningJobs.length === 0) return 0;
+
+  const cutoffMs = INTERRUPTED_JOB_THRESHOLD_MINUTES * 60 * 1000;
+  const now = Date.now();
+  let count = 0;
+
+  for (const job of runningJobs) {
+    const startedAt = new Date(job.started_at).getTime();
+    const age = now - startedAt;
+    // If job started recently (within threshold), it's probably still active
+    if (age < cutoffMs) continue;
+    // If job has boundary progress, check if it seems stale
+    // (we don't have an updated_at column, so we can't check recency precisely)
+    // Only interrupt if it's been running for a very long time (2x threshold)
+    if (age < cutoffMs * 2) continue;
+
+    await adminClient.from('import_jobs').update({ status: 'interrupted' }).eq('id', job.id);
+    console.log(`[Import] Marked stale job ${job.id} as interrupted (age: ${Math.round(age/60000)}min)`);
+    count++;
   }
-  
-  return data?.length || 0;
+  return count;
 }
 
 export async function GET(req: Request, res: Response) {
