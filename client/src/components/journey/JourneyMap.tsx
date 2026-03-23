@@ -341,7 +341,8 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     } else {
       map.once("load", doFlyTo);
     }
-  }, [target?.lng, target?.lat, slideIndex, clearHighlights, highlightAtPoint, stopOrbit, startOrbit, fadeSatellite]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slideIndex]);
 
   return (
     <div
