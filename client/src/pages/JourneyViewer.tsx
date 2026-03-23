@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import type { PrayerJourney, PrayerJourneyStep } from "@shared/schema";
 import JourneyMap from "@/components/journey/JourneyMap";
-import BottomSheet from "@/components/journey/BottomSheet";
 
 // ─── Step type badges ────────────────────────────────────────────────
 const STEP_BADGES: Record<string, { label: string; icon: any; color: string }> = {
@@ -115,7 +114,7 @@ export default function JourneyViewer() {
   const [guestName, setGuestName] = useState<{ first: string; last: string; display: string } | null>(null);
 
   // Bottom sheet snap state: auto-pop to half (1) when arriving at new destination
-  const [sheetSnap, setSheetSnap] = useState(1);
+  const [sheetSnap, setSheetSnap] = useState(1); // kept for nav logic compatibility
 
   // Find the prayer_request slide index — we insert name capture right before it
   const prayerRequestIndex = activeSteps.findIndex(s => s.step_type === "prayer_request");
@@ -259,23 +258,16 @@ export default function JourneyViewer() {
           <div className="absolute inset-0 bg-gradient-to-b from-muted/80 to-muted/50 z-10" />
         )}
 
-        {/* Floating card header on map */}
-        <div className="absolute top-3 left-3 right-3 z-20 pointer-events-none">
-          <div className="pointer-events-auto bg-background/60 backdrop-blur-md rounded-xl shadow-lg border border-border/30 overflow-hidden">
-            {/* Banner strip */}
-            {stepBanner && (
-              <div className="relative h-12 overflow-hidden">
-                <img src={stepBanner.url} alt="" className="w-full h-full object-cover opacity-80" />
-                <div className="absolute inset-0 bg-gradient-to-r from-background/50 via-transparent to-transparent" />
-              </div>
-            )}
-            <div className="flex items-center gap-3 px-3 py-2">
-              {/* Church avatar */}
-              {stepBanner?.avatar && (
+        {/* Floating header card */}
+        <div className="absolute top-3 left-3 right-3 md:left-auto md:right-3 md:w-96 z-20">
+          <div className="bg-background/70 backdrop-blur-lg rounded-xl shadow-lg border border-border/30 px-4 py-3">
+            <div className="flex items-center gap-3">
+              {/* Church image — small square thumbnail */}
+              {(stepBanner?.avatar || stepBanner?.url) && (
                 <img
-                  src={stepBanner.avatar}
+                  src={stepBanner.avatar || stepBanner.url}
                   alt=""
-                  className={`w-10 h-10 rounded-full border-2 border-background object-cover shadow shrink-0 ${stepBanner ? '-mt-6' : ''}`}
+                  className="w-11 h-11 rounded-lg object-cover shadow shrink-0 border border-border/30"
                 />
               )}
               <div className="min-w-0 flex-1">
@@ -288,14 +280,32 @@ export default function JourneyViewer() {
           </div>
         </div>
 
-        {/* Navigation buttons — above the bottom sheet, always visible */}
-        <div className="absolute left-3 right-3 z-40 flex items-center justify-between" style={{ bottom: `calc(${sheetSnap === 0 ? 6 : sheetSnap === 1 ? 35 : 75}vh + 8px)`, transition: 'bottom 0.35s cubic-bezier(0.32, 0.72, 0, 1)' }}>
+        {/* Floating prayer content card */}
+        <div className="absolute bottom-16 left-3 right-3 md:left-auto md:right-3 md:w-96 z-20 max-h-[50vh] overflow-hidden">
+          <div className="bg-background/70 backdrop-blur-lg rounded-xl shadow-lg border border-border/30 overflow-hidden">
+            <div className="max-h-[45vh] overflow-y-auto overscroll-contain px-4 py-3">
+              {currentStep && (
+                <SlideContent
+                  step={currentStep}
+                  journeyId={journey.id}
+                  session={session}
+                  toast={toast}
+                  allSteps={activeSteps}
+                  guestName={guestName}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation bar — fixed at bottom */}
+        <div className="absolute bottom-3 left-3 right-3 z-40 flex items-center justify-between">
           <Button
             variant="secondary"
             size="sm"
             onClick={handlePrev}
             disabled={isFirstSlide}
-            className="shadow-lg"
+            className="shadow-lg bg-background/70 backdrop-blur-sm"
           >
             <ChevronLeft className="w-4 h-4 mr-1" /> Back
           </Button>
@@ -307,10 +317,7 @@ export default function JourneyViewer() {
                 className={`w-2 h-2 rounded-full transition-colors ${
                   i === currentSlide ? "bg-primary" : i < currentSlide ? "bg-primary/40" : "bg-muted-foreground/20"
                 }`}
-                onClick={() => {
-                  setCurrentSlide(i);
-                  setSheetSnap(0);
-                }}
+                onClick={() => setCurrentSlide(i)}
               />
             ))}
             {activeSteps.length > 20 && (
@@ -322,27 +329,6 @@ export default function JourneyViewer() {
             {isLastSlide ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
-
-        {/* Bottom sheet — prayer content */}
-        <BottomSheet
-          snapIndex={sheetSnap}
-          onSnapChange={setSheetSnap}
-          snapPoints={[6, 35, 75]}
-        >
-          {/* Prayer content area — scrollable */}
-          <div className="flex-1 overflow-y-auto overscroll-contain">
-            {currentStep && (
-              <SlideContent
-                step={currentStep}
-                journeyId={journey.id}
-                session={session}
-                toast={toast}
-                allSteps={activeSteps}
-                guestName={guestName}
-              />
-            )}
-          </div>
-        </BottomSheet>
       </div>
     </div>
   );
