@@ -115,7 +115,16 @@ export default function JourneyViewer() {
 
   // Bottom sheet snap state: auto-pop to half (1) when arriving at new destination
   const [sheetSnap, setSheetSnap] = useState(1); // kept for nav logic compatibility
+  // Non-map steps (scripture, prayer_request, thanksgiving) start expanded
+  const isNonMapStep = currentStep && !getStepCoords(currentStep);
   const [contentExpanded, setContentExpanded] = useState(false);
+
+  // Auto-expand for non-map steps
+  useEffect(() => {
+    if (isNonMapStep) {
+      setContentExpanded(true);
+    }
+  }, [isNonMapStep, currentSlide]);
 
   // Find the prayer_request slide index — we insert name capture right before it
   const prayerRequestIndex = activeSteps.findIndex(s => s.step_type === "prayer_request");
