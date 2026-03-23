@@ -115,6 +115,7 @@ export default function JourneyViewer() {
 
   // Bottom sheet snap state: auto-pop to half (1) when arriving at new destination
   const [sheetSnap, setSheetSnap] = useState(1); // kept for nav logic compatibility
+  const [contentExpanded, setContentExpanded] = useState(false);
 
   // Find the prayer_request slide index — we insert name capture right before it
   const prayerRequestIndex = activeSteps.findIndex(s => s.step_type === "prayer_request");
@@ -128,7 +129,7 @@ export default function JourneyViewer() {
         setShowNameCapture(true);
       } else {
         setCurrentSlide(nextIndex);
-        // Collapse sheet briefly while flying, it will auto-pop on arrival
+        setContentExpanded(false); // Start collapsed on new step
         setSheetSnap(0);
       }
     }
@@ -141,6 +142,7 @@ export default function JourneyViewer() {
       setShowNameCapture(false);
     } else {
       setCurrentSlide((prev) => Math.max(prev - 1, 0));
+      setContentExpanded(false);
       setSheetSnap(0);
     }
   };
@@ -280,21 +282,41 @@ export default function JourneyViewer() {
           </div>
         </div>
 
-        {/* Floating prayer content card */}
-        <div className="absolute bottom-16 left-3 right-3 md:left-auto md:right-3 md:w-96 z-20 max-h-[50vh] overflow-hidden">
+        {/* Floating prayer content card — collapsible on mobile */}
+        <div className="absolute bottom-16 left-3 right-3 md:left-auto md:right-3 md:w-96 z-20">
           <div className="bg-background/70 backdrop-blur-lg rounded-xl shadow-lg border border-border/30 overflow-hidden">
-            <div className="max-h-[45vh] overflow-y-auto overscroll-contain px-4 py-3">
-              {currentStep && (
-                <SlideContent
-                  step={currentStep}
-                  journeyId={journey.id}
-                  session={session}
-                  toast={toast}
-                  allSteps={activeSteps}
-                  guestName={guestName}
-                />
-              )}
-            </div>
+            {/* Collapsed state: tap to expand */}
+            {!contentExpanded ? (
+              <button
+                onClick={() => setContentExpanded(true)}
+                className="w-full text-left px-4 py-3 flex items-center justify-between"
+              >
+                <p className="text-sm line-clamp-2 text-foreground/90 flex-1 mr-2">
+                  {currentStep?.body?.substring(0, 100) || "Tap to read prayer..."}
+                </p>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rotate-90" />
+              </button>
+            ) : (
+              <div className="max-h-[40vh] md:max-h-[50vh] overflow-y-auto overscroll-contain px-4 py-3">
+                {/* Collapse button */}
+                <button
+                  onClick={() => setContentExpanded(false)}
+                  className="text-xs text-muted-foreground mb-2 flex items-center gap-1"
+                >
+                  <ChevronRight className="w-3 h-3 -rotate-90" /> Minimize
+                </button>
+                {currentStep && (
+                  <SlideContent
+                    step={currentStep}
+                    journeyId={journey.id}
+                    session={session}
+                    toast={toast}
+                    allSteps={activeSteps}
+                    guestName={guestName}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
 
