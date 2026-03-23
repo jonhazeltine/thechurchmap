@@ -336,15 +336,11 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       setTimeout(onArrive, 5000);
     };
 
-    // Small delay to let the orbit fully stop before starting new fly
-    setTimeout(() => {
-      if (flyCounterRef.current !== thisFlightId) return;
-      if (map.loaded()) {
-        doFlyTo();
-      } else {
-        map.once("load", doFlyTo);
-      }
-    }, 100);
+    if (map.loaded()) {
+      doFlyTo();
+    } else {
+      map.once("load", doFlyTo);
+    }
   }, [target?.lng, target?.lat, slideIndex, clearHighlights, highlightAtPoint, stopOrbit, startOrbit, fadeSatellite]);
 
   return (
