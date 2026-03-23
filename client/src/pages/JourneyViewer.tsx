@@ -225,8 +225,8 @@ export default function JourneyViewer() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="relative flex items-center justify-between px-4 py-2.5 border-b bg-background z-30 shrink-0" style={{ height: 56 }}>
+      {/* ── Header — full on desktop, minimal on mobile ──────── */}
+      <div className="hidden md:flex relative items-center justify-between px-4 py-2.5 border-b bg-background z-30 shrink-0" style={{ height: 56 }}>
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={handleClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-5 h-5" />
@@ -244,6 +244,15 @@ export default function JourneyViewer() {
             />
           </div>
         </div>
+      </div>
+      {/* Mobile: just an X button floating on the map */}
+      <div className="md:hidden absolute top-3 left-3 z-50">
+        <button
+          onClick={handleClose}
+          className="bg-background/70 backdrop-blur-sm rounded-full p-2 shadow-lg border border-border/30"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* ── Map + Bottom Sheet area ────────────────────────────── */}
