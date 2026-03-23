@@ -280,20 +280,20 @@ export default function JourneyViewer() {
           </div>
         </div>
 
-        {/* Navigation buttons — fixed at bottom of map, always visible */}
-        <div className="absolute bottom-2 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
+        {/* Navigation buttons — above the bottom sheet, always visible */}
+        <div className="absolute left-3 right-3 z-40 flex items-center justify-between" style={{ bottom: `calc(${sheetSnap === 0 ? 6 : sheetSnap === 1 ? 35 : 75}vh + 8px)`, transition: 'bottom 0.35s cubic-bezier(0.32, 0.72, 0, 1)' }}>
           <Button
             variant="secondary"
             size="sm"
             onClick={handlePrev}
             disabled={isFirstSlide}
-            className="pointer-events-auto shadow-lg"
+            className="shadow-lg"
           >
             <ChevronLeft className="w-4 h-4 mr-1" /> Back
           </Button>
 
-          <div className="flex gap-1.5 pointer-events-auto bg-background/70 backdrop-blur-sm rounded-full px-3 py-1.5">
-            {activeSteps.map((_, i) => (
+          <div className="flex gap-1.5 bg-background/70 backdrop-blur-sm rounded-full px-3 py-1.5 shadow">
+            {activeSteps.slice(0, 20).map((_, i) => (
               <button
                 key={i}
                 className={`w-2 h-2 rounded-full transition-colors ${
@@ -305,9 +305,12 @@ export default function JourneyViewer() {
                 }}
               />
             ))}
+            {activeSteps.length > 20 && (
+              <span className="text-[10px] text-muted-foreground">+{activeSteps.length - 20}</span>
+            )}
           </div>
 
-          <Button size="sm" onClick={handleNext} className="pointer-events-auto shadow-lg">
+          <Button size="sm" onClick={handleNext} className="shadow-lg">
             {isLastSlide ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
@@ -316,7 +319,7 @@ export default function JourneyViewer() {
         <BottomSheet
           snapIndex={sheetSnap}
           onSnapChange={setSheetSnap}
-          snapPoints={[8, 45, 82]}
+          snapPoints={[6, 35, 75]}
         >
           {/* Banner image (church banner or custom image) */}
           {stepBanner && (
