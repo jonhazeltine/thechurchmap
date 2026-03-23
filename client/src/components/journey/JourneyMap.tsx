@@ -49,42 +49,28 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     requestAnimationFrame(animate);
   }, []);
 
-  // Stop any active orbit animation
+  // Stop any active orbit — just stop the map's native animation
   const stopOrbit = useCallback(() => {
+    const map = mapRef.current;
     if (orbitRef.current !== null) {
-      cancelAnimationFrame(orbitRef.current);
       orbitRef.current = null;
+      if (map) map.stop();
     }
   }, []);
 
-  // Start slow orbit around the current center
+  // Start slow orbit using Mapbox's native rotateTo (won't conflict with flyTo)
   const startOrbit = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
     stopOrbit();
 
-    const ORBIT_SPEED = -3; // degrees per second (negative = clockwise/rightward)
-    let lastTime = performance.now();
-
-    const animate = (now: number) => {
-      const delta = (now - lastTime) / 1000;
-      lastTime = now;
-      const currentBearing = map.getBearing();
-      map.setBearing(currentBearing + ORBIT_SPEED * delta);
-      orbitRef.current = requestAnimationFrame(animate);
-    };
-    orbitRef.current = requestAnimationFrame(animate);
-
-    // Stop orbit on user interaction
-    const stopOnInteraction = () => {
-      stopOrbit();
-      map.off("mousedown", stopOnInteraction);
-      map.off("touchstart", stopOnInteraction);
-      map.off("wheel", stopOnInteraction);
-    };
-    map.on("mousedown", stopOnInteraction);
-    map.on("touchstart", stopOnInteraction);
-    map.on("wheel", stopOnInteraction);
+    // Rotate 360 degrees over ~120 seconds (slow cinematic orbit)
+    const currentBearing = map.getBearing();
+    orbitRef.current = 1; // flag that orbit is active
+    map.rotateTo(currentBearing - 360, {
+      duration: 120000,
+      easing: (t: number) => t, // linear
+    });
   }, [stopOrbit]);
 
   // Initialize map once
