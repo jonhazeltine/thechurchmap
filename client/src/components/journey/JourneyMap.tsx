@@ -30,6 +30,23 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
   const arrivedRef = useRef(onArrived);
   arrivedRef.current = onArrived;
 
+  // Fade satellite overlay in/out
+  const fadeSatellite = useCallback((show: boolean, durationMs = 2000) => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("satellite-overlay-layer")) return;
+    const start = performance.now();
+    const startOpacity = show ? 0 : 0.85;
+    const endOpacity = show ? 0.85 : 0;
+    const animate = (now: number) => {
+      const t = Math.min((now - start) / durationMs, 1);
+      const eased = t * t * (3 - 2 * t); // smoothstep
+      const opacity = startOpacity + (endOpacity - startOpacity) * eased;
+      try { map.setPaintProperty("satellite-overlay-layer", "raster-opacity", opacity); } catch {}
+      if (t < 1) requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+  }, []);
+
   // Stop any active orbit animation
   const stopOrbit = useCallback(() => {
     if (orbitRef.current !== null) {
@@ -77,7 +94,7 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style: "mapbox://styles/mapbox/streets-v12",
       center: target ? [target.lng, target.lat] : [-85.67, 42.96],
       zoom: 15,
       pitch: 60,
@@ -87,6 +104,21 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
     });
 
     map.on("style.load", () => {
+      // Add satellite raster as an overlay (starts hidden, fades in on arrival)
+      if (!map.getSource("satellite-overlay")) {
+        map.addSource("satellite-overlay", {
+          type: "raster",
+          url: "mapbox://mapbox.satellite",
+          tileSize: 256,
+        });
+        map.addLayer({
+          id: "satellite-overlay-layer",
+          type: "raster",
+          source: "satellite-overlay",
+          paint: { "raster-opacity": 0 },
+        }, map.getStyle().layers?.find(l => l.type === "symbol")?.id);
+      }
+
       // Add 3D buildings layer if not already present
       const layers = map.getStyle().layers || [];
       const labelLayerId = layers.find(
@@ -247,9 +279,9 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
     stopOrbit();
 
     // Wait for map to be loaded
-    const flyId = slideIndex; // Track which fly-to this is
     const doFlyTo = () => {
       clearHighlights();
+      fadeSatellite(false, 800); // Fade to streets for clear navigation
 
       // Randomize bearing per step for visual variety
       const bearing = -17 + ((slideIndex * 47) % 60) - 30;
@@ -281,15 +313,16 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
         if (arrived) return;
         arrived = true;
         map.off("moveend", onMoveEnd);
-        // Wait for tiles to settle, then ease in closer and highlight
+        // Wait for tiles to settle, then fade to satellite and highlight
         setTimeout(() => {
+          fadeSatellite(true, 2000); // Fade to satellite view
           easeIn();
           highlightAtPoint(target);
-          // Start orbit after the ease-in completes
+          // Start orbit after transitions complete
           setTimeout(() => {
             startOrbit();
             arrivedRef.current?.();
-          }, 2000);
+          }, 2500);
         }, 500);
       };
 
@@ -300,18 +333,12 @@ export default function JourneyMap({ target, slideIndex = 0, onArrived }: Journe
       setTimeout(() => onArrive(), 5000);
     };
 
-    if (map.loaded() && map.isStyleLoaded()) {
+    if (map.loaded()) {
       doFlyTo();
     } else {
-      const onReady = () => {
-        map.off("load", onReady);
-        map.off("style.load", onReady);
-        doFlyTo();
-      };
-      map.on("load", onReady);
-      map.on("style.load", onReady);
+      map.once("load", doFlyTo);
     }
-  }, [target?.lng, target?.lat, slideIndex, clearHighlights, highlightAtPoint, stopOrbit, startOrbit]);
+  }, [target?.lng, target?.lat, slideIndex, clearHighlights, highlightAtPoint, stopOrbit, startOrbit, fadeSatellite]);
 
   return (
     <div
