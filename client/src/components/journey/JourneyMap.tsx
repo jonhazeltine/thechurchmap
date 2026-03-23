@@ -260,11 +260,18 @@ export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
       map.on("moveend", onMoveEnd);
     };
 
-    if (map.loaded()) {
+    if (map.loaded() && map.isStyleLoaded()) {
       doFlyTo();
     } else {
-      map.on("load", doFlyTo);
+      const onReady = () => {
+        map.off("load", onReady);
+        map.off("style.load", onReady);
+        doFlyTo();
+      };
+      map.on("load", onReady);
+      map.on("style.load", onReady);
     }
+    // Include currentSlide index to force re-trigger even if coords are same
   }, [target?.lng, target?.lat, clearHighlights, highlightAtPoint]);
 
   // Pulse animation for the glow circle

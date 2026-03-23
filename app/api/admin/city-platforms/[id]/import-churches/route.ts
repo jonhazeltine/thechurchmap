@@ -187,7 +187,7 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
 
     // Load any previously saved boundary check results for resume
     let previousResults: { place_id: string; in_bounds: boolean }[] = [];
-    if (resume || searchAlreadyComplete) {
+    if (searchAlreadyComplete || startFromIndex > 0) {
       const { data: jobData } = await adminClient
         .from('import_jobs')
         .select('boundary_check_results')

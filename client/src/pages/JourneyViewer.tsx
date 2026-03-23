@@ -258,44 +258,80 @@ export default function JourneyViewer() {
           <div className="absolute inset-0 bg-gradient-to-b from-muted/80 to-muted/50 z-10" />
         )}
 
-        {/* Bottom sheet */}
+        {/* Floating card header on map */}
+        <div className="absolute top-3 left-3 right-3 z-20 pointer-events-none">
+          <div className="pointer-events-auto bg-background/85 backdrop-blur-md rounded-xl px-4 py-3 shadow-lg border border-border/50">
+            <div className="flex items-center gap-3">
+              {/* Church avatar */}
+              {stepBanner?.avatar && (
+                <img
+                  src={stepBanner.avatar}
+                  alt=""
+                  className="w-10 h-10 rounded-full border-2 border-background object-cover shadow shrink-0"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <StepBadge stepType={currentStep?.step_type || "custom"} />
+                <h2 className="text-base font-bold leading-tight mt-1 truncate">
+                  {currentStep?.title || "Prayer Step"}
+                </h2>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation buttons — fixed at bottom of map, always visible */}
+        <div className="absolute bottom-2 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handlePrev}
+            disabled={isFirstSlide}
+            className="pointer-events-auto shadow-lg"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          </Button>
+
+          <div className="flex gap-1.5 pointer-events-auto bg-background/70 backdrop-blur-sm rounded-full px-3 py-1.5">
+            {activeSteps.map((_, i) => (
+              <button
+                key={i}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  i === currentSlide ? "bg-primary" : i < currentSlide ? "bg-primary/40" : "bg-muted-foreground/20"
+                }`}
+                onClick={() => {
+                  setCurrentSlide(i);
+                  setSheetSnap(0);
+                }}
+              />
+            ))}
+          </div>
+
+          <Button size="sm" onClick={handleNext} className="pointer-events-auto shadow-lg">
+            {isLastSlide ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+
+        {/* Bottom sheet — prayer content */}
         <BottomSheet
           snapIndex={sheetSnap}
           onSnapChange={setSheetSnap}
-          snapPoints={[12, 48, 88]}
+          snapPoints={[8, 45, 82]}
         >
           {/* Banner image (church banner or custom image) */}
           {stepBanner && (
-            <div className="relative -mx-4 -mt-1 mb-3 h-[150px] overflow-hidden">
+            <div className="relative -mx-4 -mt-1 mb-3 h-[120px] overflow-hidden rounded-t-xl">
               <img
                 src={stepBanner.url}
                 alt=""
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-              {/* Church avatar overlay */}
-              {stepBanner.avatar && (
-                <img
-                  src={stepBanner.avatar}
-                  alt=""
-                  className="absolute bottom-3 left-4 w-12 h-12 rounded-full border-2 border-background object-cover shadow-lg"
-                />
-              )}
             </div>
           )}
 
-          {/* Step type badge */}
-          <div className="mb-2">
-            <StepBadge stepType={currentStep?.step_type || "custom"} />
-          </div>
-
-          {/* Title — always at same Y position */}
-          <h2 className="text-xl font-bold leading-tight mb-3">
-            {currentStep?.title || "Prayer Step"}
-          </h2>
-
-          {/* Prayer content area — fixed max height with scroll */}
-          <div className="max-h-[35vh] overflow-y-auto overscroll-contain mb-3">
+          {/* Prayer content area — scrollable */}
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             {currentStep && (
               <SlideContent
                 step={currentStep}
@@ -306,37 +342,6 @@ export default function JourneyViewer() {
                 guestName={guestName}
               />
             )}
-          </div>
-
-          {/* Navigation buttons — always at bottom */}
-          <div className="flex items-center justify-between pt-3 border-t mt-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePrev}
-              disabled={isFirstSlide}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" /> Back
-            </Button>
-
-            <div className="flex gap-1 max-w-[120px] overflow-hidden">
-              {activeSteps.map((_, i) => (
-                <button
-                  key={i}
-                  className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                    i === currentSlide ? "bg-primary" : i < currentSlide ? "bg-primary/40" : "bg-muted-foreground/20"
-                  }`}
-                  onClick={() => {
-                    setCurrentSlide(i);
-                    setSheetSnap(0);
-                  }}
-                />
-              ))}
-            </div>
-
-            <Button size="sm" onClick={handleNext}>
-              {isLastSlide ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
           </div>
         </BottomSheet>
       </div>
