@@ -2502,12 +2502,22 @@ export default function AdminChurches() {
                             <div className="flex items-center gap-2">
                               <Button
                                 size="sm"
-                                onClick={() => importMutation.mutate({ resume: true })}
+                                variant={incompleteJob.status === 'running' ? 'outline' : 'default'}
+                                onClick={() => {
+                                  if (incompleteJob.status === 'running') {
+                                    setImportDialogOpen(true);
+                                  } else {
+                                    importMutation.mutate({ resume: true });
+                                  }
+                                }}
                                 disabled={importMutation.isPending}
                                 data-testid="button-resume-incomplete"
                               >
-                                <Play className="h-3 w-3 mr-1" />
-                                Resume
+                                {incompleteJob.status === 'running' ? (
+                                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> View Progress</>
+                                ) : (
+                                  <><Play className="h-3 w-3 mr-1" /> Resume</>
+                                )}
                               </Button>
                               {incompleteJob.status === 'interrupted' && (
                                 <Button
@@ -2527,21 +2537,45 @@ export default function AdminChurches() {
                               )}
                             </div>
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span>Progress</span>
-                              <span>{incompleteJob.grid_points_completed}/{incompleteJob.grid_points_total} grid points</span>
+                          <div className="space-y-2">
+                            {/* Search progress */}
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Search</span>
+                                <span>{incompleteJob.grid_points_completed}/{incompleteJob.grid_points_total} areas</span>
+                              </div>
+                              <Progress
+                                value={(incompleteJob.grid_points_completed / Math.max(incompleteJob.grid_points_total, 1)) * 100}
+                                className="h-1.5"
+                              />
                             </div>
-                            <Progress 
-                              value={(incompleteJob.grid_points_completed / incompleteJob.grid_points_total) * 100} 
-                              className="h-2"
-                              data-testid="progress-incomplete-job"
-                            />
+                            {/* Boundary check progress */}
+                            {incompleteJob.churches_found_raw > 0 && (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                  <span>Boundaries</span>
+                                  <span>{(incompleteJob.churches_in_boundaries || 0) + (incompleteJob.churches_outside_boundaries || 0)}/{incompleteJob.churches_found_raw} churches</span>
+                                </div>
+                                <Progress
+                                  value={((incompleteJob.churches_in_boundaries || 0) + (incompleteJob.churches_outside_boundaries || 0)) / incompleteJob.churches_found_raw * 100}
+                                  className="h-1.5"
+                                />
+                              </div>
+                            )}
+                            {/* Current phase label */}
+                            {incompleteJob.status === 'running' && incompleteJob.current_phase && (
+                              <p className="text-xs text-muted-foreground italic">
+                                {incompleteJob.current_phase === 'searching' && 'Searching for churches...'}
+                                {incompleteJob.current_phase === 'boundary_check' && `Checking boundaries (${incompleteJob.churches_in_boundaries || 0} in bounds)...`}
+                                {incompleteJob.current_phase === 'deduplication' && 'Checking for duplicates...'}
+                                {incompleteJob.current_phase === 'inserting' && 'Adding new churches...'}
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
                       
-                      {importJobs.slice(0, 5).map((job) => (
+                      {importJobs.filter(j => !incompleteJob || j.id !== incompleteJob.id).slice(0, 5).map((job) => (
                         <div key={job.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30" data-testid={`import-job-${job.id}`}>
                           <div className="flex items-center gap-3">
                             <Badge 
