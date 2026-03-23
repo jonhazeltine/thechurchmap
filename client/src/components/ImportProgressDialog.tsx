@@ -174,20 +174,12 @@ export function ImportProgressDialog({
   const isRunning = jobIsRunning || (isLoading && !jobIsRunning);
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (isRunning) {
-      return;
-    }
     onOpenChange(newOpen);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent 
-        className="sm:max-w-md"
-        onPointerDownOutside={(e) => isRunning && e.preventDefault()}
-        onEscapeKeyDown={(e) => isRunning && e.preventDefault()}
-        onInteractOutside={(e) => isRunning && e.preventDefault()}
-      >
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
             {getStatusIcon()}
@@ -331,9 +323,21 @@ export function ImportProgressDialog({
           )}
           
           {isRunning && (
-            <p className="text-sm text-muted-foreground py-2">
-              Please keep this page open...
-            </p>
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                }}
+                data-testid="button-dialog-pause"
+              >
+                Pause Import
+              </Button>
+              <p className="text-xs text-muted-foreground py-1">
+                You can close this dialog — import continues in the background
+              </p>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

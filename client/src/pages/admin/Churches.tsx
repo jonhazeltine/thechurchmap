@@ -2287,7 +2287,7 @@ export default function AdminChurches() {
                           ) : (
                             <>
                               <Play className="h-4 w-4 mr-2" />
-                              Resume Google Import
+                              Resume Import
                             </>
                           )}
                         </Button>
@@ -2352,7 +2352,7 @@ export default function AdminChurches() {
                               </ol>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              The import may take 4-5 minutes. Please keep this page open.
+                              The import may take 4-5 minutes. Import runs in the background — you can navigate away.
                             </p>
                           </div>
                         </AlertDialogDescription>
@@ -2436,7 +2436,7 @@ export default function AdminChurches() {
                 <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30" data-testid="alert-import-warning">
                   <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   <AlertDescription className="text-blue-700 dark:text-blue-300">
-                    Google Places import may take 4-5 minutes. Please keep this page open until the import completes.
+                    Google Places import may take 4-5 minutes. Import runs in the background — you can navigate away until the import completes.
                   </AlertDescription>
                 </Alert>
 
