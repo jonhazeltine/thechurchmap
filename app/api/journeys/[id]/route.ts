@@ -47,7 +47,7 @@ export async function GET(req: Request, res: Response) {
     if (churchIds.length > 0) {
       const { data: churches } = await adminClient
         .from('churches')
-        .select('id, name, banner_image_url, profile_photo_url, denomination, city, state, display_lat, display_lng')
+        .select('id, name, banner_image_url, profile_photo_url, denomination, city, state, latitude, longitude, display_lat, display_lng')
         .in('id', churchIds);
       if (churches) {
         for (const c of churches) churchMap.set(c.id, c);
