@@ -5,6 +5,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
 interface JourneyMapProps {
   /** Coordinates to fly to. null = no fly-to */
   target: { lng: number; lat: number } | null;
+  /** Current slide index — forces fly-to even if coords are same */
+  slideIndex?: number;
   /** Called when fly-to animation ends */
   onArrived?: () => void;
 }
@@ -20,7 +22,7 @@ const PULSE_MARKER_GLOW_LAYER = "journey-pulse-marker-glow";
  * Full-screen interactive Mapbox map for the prayer journey.
  * Handles fly-to animations, 3D buildings, and building highlighting.
  */
-export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
+export default function JourneyMap({ target, slideIndex = 0, onArrived }: JourneyMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const orbitRef = useRef<number | null>(null);
@@ -314,7 +316,7 @@ export default function JourneyMap({ target, onArrived }: JourneyMapProps) {
       map.on("load", onReady);
       map.on("style.load", onReady);
     }
-  }, [target?.lng, target?.lat, clearHighlights, highlightAtPoint, stopOrbit, startOrbit]);
+  }, [target?.lng, target?.lat, slideIndex, clearHighlights, highlightAtPoint, stopOrbit, startOrbit]);
 
   // Pulse animation for the glow circle
   useEffect(() => {

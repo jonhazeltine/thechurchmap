@@ -250,6 +250,7 @@ export default function JourneyViewer() {
         {/* Map fills the space */}
         <JourneyMap
           target={mapTarget}
+          slideIndex={currentSlide}
           onArrived={handleMapArrived}
         />
 
@@ -260,19 +261,26 @@ export default function JourneyViewer() {
 
         {/* Floating card header on map */}
         <div className="absolute top-3 left-3 right-3 z-20 pointer-events-none">
-          <div className="pointer-events-auto bg-background/85 backdrop-blur-md rounded-xl px-4 py-3 shadow-lg border border-border/50">
-            <div className="flex items-center gap-3">
+          <div className="pointer-events-auto bg-background/85 backdrop-blur-md rounded-xl shadow-lg border border-border/50 overflow-hidden">
+            {/* Banner strip */}
+            {stepBanner && (
+              <div className="relative h-16 overflow-hidden">
+                <img src={stepBanner.url} alt="" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/40 to-transparent" />
+              </div>
+            )}
+            <div className="flex items-center gap-3 px-4 py-2.5">
               {/* Church avatar */}
               {stepBanner?.avatar && (
                 <img
                   src={stepBanner.avatar}
                   alt=""
-                  className="w-10 h-10 rounded-full border-2 border-background object-cover shadow shrink-0"
+                  className={`w-10 h-10 rounded-full border-2 border-background object-cover shadow shrink-0 ${stepBanner ? '-mt-6' : ''}`}
                 />
               )}
               <div className="min-w-0 flex-1">
                 <StepBadge stepType={currentStep?.step_type || "custom"} />
-                <h2 className="text-base font-bold leading-tight mt-1 truncate">
+                <h2 className="text-sm font-bold leading-tight mt-0.5 truncate">
                   {currentStep?.title || "Prayer Step"}
                 </h2>
               </div>
@@ -321,18 +329,6 @@ export default function JourneyViewer() {
           onSnapChange={setSheetSnap}
           snapPoints={[6, 35, 75]}
         >
-          {/* Banner image (church banner or custom image) */}
-          {stepBanner && (
-            <div className="relative -mx-4 -mt-1 mb-3 h-[120px] overflow-hidden rounded-t-xl">
-              <img
-                src={stepBanner.url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-            </div>
-          )}
-
           {/* Prayer content area — scrollable */}
           <div className="flex-1 overflow-y-auto overscroll-contain">
             {currentStep && (
