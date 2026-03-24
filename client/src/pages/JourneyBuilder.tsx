@@ -697,6 +697,7 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
     const q = nameFilter.toLowerCase();
     return (
       (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.address && c.address.toLowerCase().includes(q)) ||
       (c.city && c.city.toLowerCase().includes(q)) ||
       (c.denomination && c.denomination.toLowerCase().includes(q))
     );
@@ -861,14 +862,17 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
           {filteredChurches.slice(0, showCount).map((church: any) => (
             <Card key={church.id} className="cursor-pointer hover:shadow-sm" onClick={() => handleAddChurch(church)}>
               <CardContent className="py-3 flex items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-medium">{church.name}</p>
+                  {church.address && (
+                    <p className="text-sm text-muted-foreground truncate">{church.address}</p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     {[church.city, church.state].filter(Boolean).join(", ")}
                     {church.denomination && ` · ${church.denomination}`}
                   </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleAddChurch(church); }}>Add</Button>
+                <Button size="sm" variant="outline" className="ml-2 shrink-0" onClick={(e) => { e.stopPropagation(); handleAddChurch(church); }}>Add</Button>
               </CardContent>
             </Card>
           ))}
@@ -1362,9 +1366,17 @@ function ImageUploadField({ value, onChange }: { value: string | null; onChange:
   );
 }
 
+const CUSTOM_STEP_TYPES = [
+  { value: "custom", label: "Custom" },
+  { value: "thanksgiving", label: "Thanksgiving" },
+  { value: "prayer_request", label: "Prayer Request" },
+  { value: "scripture", label: "Scripture" },
+] as const;
+
 function CustomStep({ steps, onAddSteps, onNext }: any) {
   const [customTitle, setCustomTitle] = useState("");
   const [customBody, setCustomBody] = useState("");
+  const [stepType, setStepType] = useState<string>("custom");
   const [location, setLocation] = useState<LocationData | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
@@ -1384,7 +1396,7 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
     }
 
     await onAddSteps([{
-      step_type: "custom",
+      step_type: stepType,
       title: customTitle,
       body: customBody || null,
       sort_order: currentMax + 1,
@@ -1392,18 +1404,20 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
     }]);
     setCustomTitle("");
     setCustomBody("");
+    setStepType("custom");
     setLocation(null);
     setImageUrl(null);
   };
 
-  const customSteps = steps.filter((s: any) => s.step_type === "custom");
+  const customStepTypes = new Set(["custom", "thanksgiving", "prayer_request", "scripture"]);
+  const customSteps = steps.filter((s: any) => customStepTypes.has(s.step_type));
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-2">Custom Prayer Focuses</h2>
+        <h2 className="text-xl font-semibold mb-2">Prayer Steps</h2>
         <p className="text-muted-foreground">
-          Add your own prayer prompts and focuses to the journey.
+          Add thanksgiving, prayer requests, scripture, and custom prayer focuses to the journey.
         </p>
       </div>
 
@@ -1439,10 +1453,22 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
 
       <Card>
         <CardContent className="pt-6 space-y-4">
+          <div className="flex gap-2">
+            {CUSTOM_STEP_TYPES.map((t) => (
+              <Button
+                key={t.value}
+                size="sm"
+                variant={stepType === t.value ? "default" : "outline"}
+                onClick={() => setStepType(t.value)}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
           <Input
             value={customTitle}
             onChange={(e) => setCustomTitle(e.target.value)}
-            placeholder="Prayer focus title"
+            placeholder={stepType === "scripture" ? "Scripture reference" : stepType === "thanksgiving" ? "Thanksgiving title" : stepType === "prayer_request" ? "Prayer request title" : "Prayer focus title"}
           />
           <Textarea
             value={customBody}
@@ -1455,7 +1481,7 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
           <ImageUploadField value={imageUrl} onChange={setImageUrl} />
 
           <Button onClick={handleAdd} disabled={!customTitle.trim()}>
-            Add Custom Focus
+            Add {CUSTOM_STEP_TYPES.find(t => t.value === stepType)?.label || "Custom"} Step
           </Button>
         </CardContent>
       </Card>
