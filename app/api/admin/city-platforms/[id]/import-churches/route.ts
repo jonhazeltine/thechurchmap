@@ -363,6 +363,8 @@ async function runImportInBackground(params: ImportProcessingParams): Promise<vo
             state: church.state,
             zip: church.zip,
             location: locationEWKT,
+            display_lat: church.latitude,
+            display_lng: church.longitude,
             website: church.website || null,
             phone: church.phone || null,
             source: 'google_places',
