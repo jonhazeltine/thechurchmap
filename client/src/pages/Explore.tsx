@@ -625,7 +625,7 @@ export default function Explore() {
           });
           
           // Dynamically detect the source-layer name from tileset metadata
-          const TILESET_SOURCE_LAYER = 'All Churches Tileset - 2025-12-11'; // Will be 'churches' after next upload
+          const TILESET_SOURCE_LAYER = 'churches';
           
           // Log any errors loading the source
           mapInstance.on('error', (e) => {
