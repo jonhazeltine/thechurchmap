@@ -614,58 +614,8 @@ export default function Explore() {
         if (map.current) {
           const mapInstance = map.current;
           
-          // Load full GeoJSON for all zoom levels (ALL 240k churches)
-          // Add cache-busting to ensure fresh data
-          setChurchesLoading(true);
-          fetch(`/all-churches-sampled.geojson?v=${Date.now()}`)
-            .then(res => {
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              return res.json();
-            })
-            .then(geojsonData => {
-              setChurchesLoading(false);
-              if (!mapInstance.getSource('all-churches-lowzoom')) {
-                mapInstance.addSource('all-churches-lowzoom', {
-                  type: 'geojson',
-                  data: geojsonData
-                });
-                
-                mapInstance.addLayer({
-                  id: 'all-churches-lowzoom-layer',
-                  type: 'circle',
-                  source: 'all-churches-lowzoom',
-                  minzoom: 0,
-                  maxzoom: 22, // Show at ALL zoom levels for overwhelming effect
-                  paint: {
-                    'circle-radius': [
-                      'interpolate', ['linear'], ['zoom'],
-                      0, 1.5,
-                      3, 2.5,
-                      6, 4,
-                      10, 6,
-                      14, 10
-                    ],
-                    'circle-color': '#dc2626',
-                    'circle-opacity': 0.85,
-                    'circle-stroke-width': [
-                      'interpolate', ['linear'], ['zoom'],
-                      0, 0.5,
-                      4, 1,
-                      8, 1.5
-                    ],
-                    'circle-stroke-color': '#ffffff'
-                  },
-                  layout: {
-                    'visibility': 'none'  // Start hidden - only show when toggle is ON
-                  }
-                });
-                console.log('All churches layer added (240K churches)');
-              }
-            })
-            .catch(err => {
-              setChurchesLoading(false);
-              console.error('Failed to load churches:', err);
-            });
+          // Churches are loaded via the Mapbox vector tileset (no GeoJSON file needed)
+          setChurchesLoading(false);
           
           // Add the vector tileset source for high zoom levels (v8: US-only with name, city, state)
           // Note: source-layer name is set by Mapbox based on upload name
@@ -684,20 +634,20 @@ export default function Explore() {
             }
           });
           
-          // Function to add the high-zoom layer (zoom 3+)
+          // Function to add the church pin layer from vector tileset
           const addChurchesLayer = () => {
             if (mapInstance.getLayer('all-churches-layer')) {
               console.log('All-churches layer already exists');
               return true;
             }
-            
+
             try {
               mapInstance.addLayer({
                 id: 'all-churches-layer',
                 type: 'circle',
                 source: 'all-churches',
                 'source-layer': TILESET_SOURCE_LAYER,
-                minzoom: 3,
+                minzoom: 0,
                 maxzoom: 22,
                 paint: {
                   'circle-radius': [
@@ -748,8 +698,8 @@ export default function Explore() {
             const zoom = mapInstance.getZoom();
             let count = 0;
             // Use GeoJSON layer (has ALL 240k churches at every zoom)
-            if (mapInstance.getLayer('all-churches-lowzoom-layer')) {
-              const features = mapInstance.queryRenderedFeatures({ layers: ['all-churches-lowzoom-layer'] });
+            if (mapInstance.getLayer('all-churches-layer')) {
+              const features = mapInstance.queryRenderedFeatures({ layers: ['all-churches-layer'] });
               count = features.length;
             }
             console.log(`🔴 ZOOM ${zoom.toFixed(1)}: ${count} churches visible`);
@@ -759,8 +709,8 @@ export default function Explore() {
           setTimeout(() => {
             let count = 0;
             // Use GeoJSON layer (has ALL 240k churches at every zoom)
-            if (mapInstance.getLayer('all-churches-lowzoom-layer')) {
-              const features = mapInstance.queryRenderedFeatures({ layers: ['all-churches-lowzoom-layer'] });
+            if (mapInstance.getLayer('all-churches-layer')) {
+              const features = mapInstance.queryRenderedFeatures({ layers: ['all-churches-layer'] });
               count = features.length;
             }
             const zoom = mapInstance.getZoom();
@@ -785,16 +735,16 @@ export default function Explore() {
           });
           
           // Add hover effect for lowzoom GeoJSON layer
-          mapInstance.on('mouseenter', 'all-churches-lowzoom-layer', () => {
+          mapInstance.on('mouseenter', 'all-churches-layer', () => {
             mapInstance.getCanvas().style.cursor = 'pointer';
           });
           
-          mapInstance.on('mouseleave', 'all-churches-lowzoom-layer', () => {
+          mapInstance.on('mouseleave', 'all-churches-layer', () => {
             mapInstance.getCanvas().style.cursor = '';
           });
           
           // Add click handler for lowzoom GeoJSON layer (uses name/city/state from properties)
-          mapInstance.on('click', 'all-churches-lowzoom-layer', (e) => {
+          mapInstance.on('click', 'all-churches-layer', (e) => {
             if (!e.features || e.features.length === 0) return;
             
             const feature = e.features[0];
@@ -924,9 +874,9 @@ export default function Explore() {
       }
       
       // Update low-zoom GeoJSON layer
-      if (map.current?.getLayer('all-churches-lowzoom-layer')) {
+      if (map.current?.getLayer('all-churches-layer')) {
         console.log('Setting low-zoom churches visibility:', visibility, '(toggle:', showAllChurches, 'loading:', churchesLoading, ')');
-        map.current.setLayoutProperty('all-churches-lowzoom-layer', 'visibility', visibility);
+        map.current.setLayoutProperty('all-churches-layer', 'visibility', visibility);
       }
     };
     
