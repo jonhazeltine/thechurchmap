@@ -203,9 +203,9 @@ export function Header({ onAddChurch, showPrayerOverlay, onTogglePrayerOverlay, 
               )}
 
               <Link href={getCommunityUrl()}>
-                <Button variant="ghost" size="sm" className="px-2 sm:px-4 gap-1 sm:gap-2" data-testid="button-community-nav">
+                <Button variant="ghost" size="icon" className="sm:w-auto sm:px-4 sm:gap-2" data-testid="button-community-nav">
                   <Users className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Community</span>
+                  <span className="hidden sm:inline text-sm">Community</span>
                 </Button>
               </Link>
             </>
@@ -214,7 +214,9 @@ export function Header({ onAddChurch, showPrayerOverlay, onTogglePrayerOverlay, 
           {/* Hide avatar/login during Prayer Mode */}
           {!prayerModeActive && (
             <>
-              <PlatformSwitcher />
+              <div className="hidden sm:block">
+                <PlatformSwitcher />
+              </div>
               
               {user ? (
                 <DropdownMenu>
