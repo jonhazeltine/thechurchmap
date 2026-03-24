@@ -296,6 +296,7 @@ export default function JourneyBuilder() {
             journeyId={id!}
             onNext={() => setActiveStep("churches")}
             onSave={() => saveMutation.mutate()}
+            platform={currentPlatform}
           />
         )}
 
@@ -351,7 +352,7 @@ export default function JourneyBuilder() {
 
 // --- Sub-components for each builder step ---
 
-function LocationStep({ journey, authHeaders, journeyId, onNext, onSave }: any) {
+function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platform }: any) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlaces, setSelectedPlaces] = useState<Array<{ id: string; name: string; type: string; state_code?: string }>>([]);
@@ -495,6 +496,10 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave }: any) 
         onClose={() => setMapPickerOpen(false)}
         onSave={handleMapPickerSave}
         initialSelectedIds={selectedPlaces.map((p) => p.id)}
+        initialCenter={platform?.default_center_lat && platform?.default_center_lng
+          ? [platform.default_center_lng, platform.default_center_lat]
+          : undefined}
+        initialZoom={platform?.default_zoom || undefined}
         title="Select Prayer Journey Areas"
         description="Click on regions to select areas for this prayer journey. Zoom in to see smaller boundaries."
         pickerId="journey-location"
@@ -623,10 +628,10 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
     queryFn: async () => {
       // If we have a platform context, fetch all platform churches using boundary bbox
       if (pid) {
-        // Compute bbox from boundaries if available, otherwise use wide US bbox
-        let bboxMinLng = -125, bboxMinLat = 24, bboxMaxLng = -66, bboxMaxLat = 50;
-        if (boundaries.length > 0) {
-          bboxMinLng = 180; bboxMinLat = 90; bboxMaxLng = -180; bboxMaxLat = -90;
+        // Compute bbox from selected boundaries — only query when boundaries are loaded
+        if (boundaries.length === 0) return [];
+        let bboxMinLng = 180, bboxMinLat = 90, bboxMaxLng = -180, bboxMaxLat = -90;
+        {
           for (const b of boundaries) {
             const geom = b.geometry;
             if (!geom) continue;
@@ -642,8 +647,8 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
             };
             extractCoords(geom.coordinates);
           }
-          // Expand bbox slightly to catch edge churches
-          bboxMinLng -= 0.5; bboxMinLat -= 0.5; bboxMaxLng += 0.5; bboxMaxLat += 0.5;
+          // Expand bbox slightly to catch edge churches (~1 mile buffer)
+          bboxMinLng -= 0.02; bboxMinLat -= 0.02; bboxMaxLng += 0.02; bboxMaxLat += 0.02;
         }
         const res = await fetch(`/api/churches/in-viewport?minLng=${bboxMinLng}&minLat=${bboxMinLat}&maxLng=${bboxMaxLng}&maxLat=${bboxMaxLat}&limit=2000&platformId=${encodeURIComponent(pid)}`);
         if (!res.ok) return [];
@@ -682,7 +687,7 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!pid || boundaries.length > 0,
+    enabled: (!!pid && (tractIds.length === 0 || boundaries.length > 0)) || boundaries.length > 0,
   });
 
   // Filter by name locally
