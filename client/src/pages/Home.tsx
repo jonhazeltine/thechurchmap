@@ -2031,12 +2031,49 @@ export default function Home() {
     boundaryIds: filters.boundaryIds,
   }), [filters.polygon, filters.denomination, filters.collabHave, filters.collabNeed, filters.boundaryIds]);
   
+  // Quick load: cached platform pins (instant first paint from static GeoJSON)
+  const { data: cachedPinData } = useQuery<{ type: string; features: Array<{ properties: { id: string; name: string; denomination: string | null; profile_photo_url: string | null }; geometry: { coordinates: [number, number] } }> }>({
+    queryKey: ["/api/churches/pins", platform?.id],
+    queryFn: () => fetch(`/api/churches/pins/${platform!.id}`).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }),
+    enabled: !!platform?.id,
+    staleTime: 60 * 60 * 1000, // 1 hour — matches server cache
+    gcTime: 2 * 60 * 60 * 1000,
+  });
+
+  // Convert cached GeoJSON features to ChurchWithCallings shape for placeholder rendering
+  const cachedPinsAsChurches = useMemo(() => {
+    if (!cachedPinData?.features?.length) return undefined;
+    return cachedPinData.features.map(f => ({
+      id: f.properties.id,
+      name: f.properties.name,
+      denomination: f.properties.denomination,
+      profile_photo_url: f.properties.profile_photo_url,
+      location: {
+        type: "Point" as const,
+        coordinates: f.geometry.coordinates,
+      },
+      // Minimal defaults for remaining Church fields
+      address: null, city: null, state: null, zip: null,
+      website: null, email: null, phone: null,
+      display_lat: null, display_lng: null,
+      primary_ministry_area: null,
+      place_calling_id: null,
+      collaboration_have: [] as string[], collaboration_need: [] as string[],
+      banner_image_url: null, description: null,
+      approved: true, claimed_by: null, boundary_ids: [] as string[],
+      prayer_auto_approve: false, prayer_name_display_mode: 'first_name_last_initial',
+    } as ChurchWithCallings));
+  }, [cachedPinData]);
+
   const { data: churches = [], isLoading: churchesLoading, isFetching: churchesFetching } = useQuery<ChurchWithCallings[]>({
     queryKey: ["/api/churches", baseFilters, platform?.id, activeRegionId],
     enabled: platformId !== null && !!platform?.id, // Wait for platform to be fully loaded
     staleTime: 2 * 60 * 1000, // Keep data fresh for 2 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    placeholderData: keepPreviousData, // Show previous data immediately while refetching
+    placeholderData: (prev) => prev ?? cachedPinsAsChurches ?? undefined, // Use cached pins for instant first paint, then keep previous data
     queryFn: async () => {
       if (baseFilters.polygon) {
         return apiRequest("POST", "/api/churches/by-polygon", { polygon: baseFilters.polygon });
