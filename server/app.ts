@@ -50,6 +50,14 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// Prevent process crash on uncaught errors (e.g. missing static files)
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err.message);
+});
+process.on('unhandledRejection', (err: any) => {
+  console.error('[unhandledRejection]', err?.message || err);
+});
+
 export const app = express();
 
 declare module 'http' {

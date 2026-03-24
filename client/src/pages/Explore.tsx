@@ -618,7 +618,10 @@ export default function Explore() {
           // Add cache-busting to ensure fresh data
           setChurchesLoading(true);
           fetch(`/all-churches-sampled.geojson?v=${Date.now()}`)
-            .then(res => res.json())
+            .then(res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
             .then(geojsonData => {
               setChurchesLoading(false);
               if (!mapInstance.getSource('all-churches-lowzoom')) {

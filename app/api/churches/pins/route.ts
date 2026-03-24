@@ -46,10 +46,11 @@ export async function GET(req: Request, res: Response) {
 
     // Check for static cache file first (fastest path)
     const cachePath = getPlatformPinCachePath(resolvedPlatformId);
-    if (cachePath) {
+    if (cachePath && fs.existsSync(cachePath)) {
       res.set("Content-Type", "application/json");
       res.set("X-Pin-Source", "static-cache");
       const stream = fs.createReadStream(cachePath);
+      stream.on('error', () => res.status(404).json({ error: 'Cache file read error' }));
       return stream.pipe(res);
     }
 

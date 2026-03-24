@@ -16,7 +16,8 @@ export async function serveStatic(app: Express, _server: Server) {
   }
 
   // Serve static assets but NOT index.html (we handle that separately for OG injection)
-  app.use(express.static(distPath, { index: false }));
+  // Use fallthrough: true to return 404 instead of crashing on missing files
+  app.use(express.static(distPath, { index: false, fallthrough: true }));
 
   // Serve index.html with OG meta tag injection for all routes
   app.use("*", async (req: Request, res: Response, _next: NextFunction) => {
