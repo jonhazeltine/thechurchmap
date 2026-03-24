@@ -247,6 +247,10 @@ import * as journeyAiSuggestionsRoute from "../app/api/journeys/[id]/ai-suggesti
 import * as journeyAiSuggestSingleRoute from "../app/api/journeys/[id]/ai-suggest-single/route";
 import * as journeyShareRoute from "../app/api/journeys/share/[shareToken]/route";
 
+// Platform pin cache (performance optimization)
+import * as adminPlatformPinsGenerateRoute from "../app/api/admin/platform-pins/generate/route";
+import * as churchPinsRoute from "../app/api/churches/pins/route";
+
 import * as fs from "fs";
 import * as path from "path";
 
@@ -293,6 +297,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Churches in viewport - for map overlay display
   app.get("/api/churches/in-viewport", churchesInViewportRoute.GET);
+
+  // Platform pin cache - all pins for a platform as GeoJSON (fast)
+  app.get("/api/churches/pins/:platformId", churchPinsRoute.GET);
   
   app.get("/api/churches/:id", churchByIdRoute.GET);
   app.patch("/api/churches/:id", churchByIdRoute.PATCH);
@@ -639,6 +646,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Super Admin - tileset management
   app.post("/api/admin/tileset", adminTilesetRoute.POST);
   app.get("/api/admin/tileset", adminTilesetRoute.GET);
+
+  // Admin - platform pin cache generation
+  app.post("/api/admin/platform-pins/generate", adminPlatformPinsGenerateRoute.POST);
 
   // Admin migrations
   app.post("/api/admin/migrations/prayer-scope", adminMigrationPrayerScopeRoute.POST);

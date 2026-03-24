@@ -83,11 +83,13 @@ export async function GET(req: Request, res: Response) {
         }
       }
       
+      // Cache for 5 minutes at browser and CDN edge
+      res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
       return res.json(result.slice(0, limitCount));
     }
 
     let result = data || [];
-    
+
     // If platformId resolved, filter to only platform-linked churches
     if (resolvedPlatformId) {
       const { data: platformLinks, error: platformError } = await supabase
@@ -95,7 +97,7 @@ export async function GET(req: Request, res: Response) {
         .select('church_id')
         .eq('city_platform_id', resolvedPlatformId)
         .in('status', ['visible', 'featured']);
-      
+
       if (platformError) {
         console.error('Error fetching platform church links:', platformError);
       } else if (platformLinks) {
@@ -104,6 +106,8 @@ export async function GET(req: Request, res: Response) {
       }
     }
 
+    // Cache for 5 minutes at browser and CDN edge
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
     return res.json(result.slice(0, limitCount));
   } catch (err: any) {
     console.error('Error in GET /api/churches/in-viewport:', err);

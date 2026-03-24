@@ -9,6 +9,7 @@ vite.config.ts.*
 *.mbtiles-journal
 scripts/*.geojson
 public/all-churches-sampled.geojson
+public/platform-pins/
 all-churches-*.geojson
 all-churches-*.mbtiles
 
@@ -19,3 +20,4 @@ node_modules/
 .git.backup.*
 .env
 .claude/
+.gstack/

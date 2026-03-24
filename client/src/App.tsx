@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PlatformProvider } from "@/contexts/PlatformContext";
+import { usePrefetchPlatformPins } from "@/hooks/usePrefetchPlatformPins";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Home from "@/pages/Home";
@@ -187,6 +188,12 @@ function Router() {
   );
 }
 
+/** Invisible component that prefetches platform pins on login */
+function PinPrefetcher() {
+  usePrefetchPlatformPins();
+  return null;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -194,6 +201,7 @@ function App() {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <PlatformProvider>
+              <PinPrefetcher />
               <TooltipProvider>
                 <Toaster />
                 <Router />
