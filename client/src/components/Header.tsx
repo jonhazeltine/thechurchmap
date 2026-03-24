@@ -146,20 +146,37 @@ export function Header({ onAddChurch, showPrayerOverlay, onTogglePrayerOverlay, 
           {/* Hide nav buttons during Prayer Mode to avoid overlap with overlay controls */}
           {!prayerModeActive && (
             <>
-              {/* Prayer Mode only available within a platform, not in National View */}
-              {onTogglePrayerOverlay && platform && (
-                <Button
-                  variant={showPrayerOverlay ? "default" : "outline"}
-                  size="icon"
-                  onClick={onTogglePrayerOverlay}
-                  className="sm:w-auto sm:px-4 gap-2"
-                  data-testid="button-toggle-prayers"
-                >
-                  <Heart className="w-4 h-4" />
-                  <span className="hidden sm:inline">Prayer Mode</span>
-                </Button>
+              {/* Prayer dropdown — combines Prayer Mode + Prayer Journeys */}
+              {hasPlatformContext && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={showPrayerOverlay ? "default" : "outline"}
+                      size="icon"
+                      className="sm:w-auto sm:px-4 gap-2"
+                      data-testid="button-prayer-menu"
+                    >
+                      <Heart className="w-4 h-4" />
+                      <span className="hidden sm:inline">Prayer</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onTogglePrayerOverlay && platform && (
+                      <DropdownMenuItem onClick={onTogglePrayerOverlay} data-testid="button-toggle-prayers">
+                        <Heart className="w-4 h-4 mr-2" />
+                        {showPrayerOverlay ? "Exit Prayer Mode" : "Prayer Mode"}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem asChild>
+                      <Link href={buildPlatformUrl('/journeys')} data-testid="button-journeys-nav">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Prayer Journeys
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-              
+
               {/* Show "Add Church" for guests, "Add/Claim Church" for logged-in users when viewing a platform, "Add City Network" in National View */}
               {isNationalView ? (
                 <Button
@@ -183,15 +200,6 @@ export function Header({ onAddChurch, showPrayerOverlay, onTogglePrayerOverlay, 
                     <span className="hidden sm:inline">{user ? "Add/Claim Church" : "Add Church"}</span>
                   </Button>
                 )
-              )}
-
-              {hasPlatformContext && (
-                <Link href={buildPlatformUrl('/journeys')}>
-                  <Button variant="ghost" size="sm" className="px-2 sm:px-4 gap-1 sm:gap-2" data-testid="button-journeys-nav">
-                    <BookOpen className="w-4 h-4" />
-                    <span className="text-xs sm:text-sm hidden md:inline">Prayer Journeys</span>
-                  </Button>
-                </Link>
               )}
 
               <Link href={getCommunityUrl()}>
