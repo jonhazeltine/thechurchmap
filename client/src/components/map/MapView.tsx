@@ -7,7 +7,6 @@ import {
   type Area,
   type MinistryAreaWithCalling,
   type Boundary,
-  getColorForCallingType,
   MAP_AREA_COLORS,
 } from "@shared/schema";
 import { usePlatformContext } from "@/contexts/PlatformContext";
@@ -29,28 +28,12 @@ import type { MapViewProps, MapViewRef, CollaborationLine } from "./types";
 export type { InternalTagStyle, CollaborationLine, MapViewRef } from "./types";
 import {
   EMPTY_SET,
-  getMapStyleUrl, getSaturationLabel, USER_MAP_STYLE_KEY,
+  getMapStyleUrl, USER_MAP_STYLE_KEY,
 } from "./constants";
 import { buildPrayerTooltipHtml, buildSaturationTooltipHtml } from "./tooltipHelpers";
 
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
-
-// Inline SVG icons for map pins (matches Settings page)
-// Using bold, simple silhouettes that are visible at any size
-
-// Stable empty Set to prevent unnecessary re-renders from reference inequality
-
-// Helper to get inline SVG for pin icon
-
-
-
-
-// Internal tag style info for map pin customization
-
-
-// Collaboration line data for map visualization
-
 
 export const MapView = forwardRef<MapViewRef, MapViewProps>(({ 
   churches, 
@@ -169,8 +152,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   // Flag to track when marker was just interacted with (prevents map click from deselecting)
   const markerInteractionRef = useRef(false);
   
-  // Internal tag styles passed to ChurchPinLayer component
-  
   // Pin adjustment mode refs
   const pinAdjustModeRef = useRef(pinAdjustMode);
   const pinAdjustChurchIdRef = useRef(pinAdjustChurchId);
@@ -192,14 +173,9 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   // Performance mode ref for clustering
   const performanceModeRef = useRef(performanceMode);
   
-  // Health data loading callback passed to HealthChoropleth component
-  
-  // Get platform context for limiting health data queries to platform boundaries
+  // Get platform context for health data queries
   const { platform } = usePlatformContext();
-  // platformIdRef moved to HealthChoropleth component
-  
-  // onChurchClick passed to ChurchPinLayer component
-  
+
   // Ref for onPolygonDrawn to avoid stale closure in map event handlers
   const onPolygonDrawnRef = useRef(onPolygonDrawn);
   
@@ -1044,16 +1020,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
     };
   }, [onMapBoundsChange]);
 
-  // Church pin markers — extracted to <ChurchPinLayer> component (rendered in JSX below)
-
-
-  // Render ministry areas - extracted to <AreaLayer> component (rendered in JSX below)
-
-
-  // EFFECT 1: Render place boundaries - extracted to <BoundaryLayer> component (rendered in JSX below)
-
-
-  // EFFECT 2: Render primary ministry area (INDEPENDENT of boundaries)
+  // Render primary ministry area (INDEPENDENT of boundaries)
   // Skip if church areas already contain an is_primary area (handled by areas layer)
   const hasPrimaryInAreas = (churchAreas || []).some(a => 'is_primary' in a && a.is_primary);
   useEffect(() => {
@@ -1185,10 +1152,6 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
 
     return () => {};
   }, [primaryMinistryArea, isPrimaryAreaVisible, hasPrimaryInAreas]);
-
-  // Collaboration lines layer - extracted to <CollaborationLinesLayer> component (rendered in JSX below)
-
-  // Health data choropleth overlay - extracted to <HealthChoropleth> component (rendered in JSX below)
 
   // Allocation mode: show all tract outlines in viewport
   const allocationFetchAbortRef = useRef<AbortController | null>(null);
@@ -1413,24 +1376,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
     };
   }, [allocationModeActive, prayerCoverageData]);
 
-  // Prayer coverage overlay - extracted to <PrayerCoverageLayer> component (rendered in JSX below)
-
-  // Ministry saturation choropleth - extracted to <SaturationLayer> component (rendered in JSX below)
-
+  // Apply area highlight when hovered/highlighted area changes
   useEffect(() => {
     if (!map.current) return;
     applyAreaHighlight(map.current);
   }, [hoveredAreaId, highlightedAreaId, mapOverlayMode, applyAreaHighlight]);
 
-  // Ember particle overlay system - extracted to <EmberParticles> component (rendered in JSX below)
-
   const tapPopupRef = useRef<mapboxgl.Popup | null>(null);
-
-  // Ministry saturation hover tooltips - extracted to <SaturationLayer> component (rendered in JSX below)
-
-
-  // Allocation mode: long-press detection - extracted to <AllocationMode> component (rendered in JSX below)
-
 
   return (
     <div className={`relative ${className}`}>
