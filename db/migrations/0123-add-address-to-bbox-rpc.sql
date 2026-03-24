@@ -1,7 +1,10 @@
 -- Add address, state, and denomination fields to the bbox church lookup RPC
 -- so the journey builder church picker can display full church details
+-- NOTE: Must DROP first because RETURNS TABLE signature is changing
 
-CREATE OR REPLACE FUNCTION fn_get_churches_with_coords_in_bbox(
+DROP FUNCTION IF EXISTS fn_get_churches_with_coords_in_bbox(float8, float8, float8, float8);
+
+CREATE FUNCTION fn_get_churches_with_coords_in_bbox(
   west float8,
   south float8,
   east float8,
