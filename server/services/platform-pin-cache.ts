@@ -105,14 +105,14 @@ export async function generatePlatformPinCache(platformId: string): Promise<{
   const churchIds = platformLinks.map((l) => l.church_id);
 
   // Fetch church data in batches (Supabase has a limit on IN clause)
-  const batchSize = 500;
+  const batchSize = 200; // Keep batches small to avoid Supabase timeouts
   const allChurches: any[] = [];
 
   for (let i = 0; i < churchIds.length; i += batchSize) {
     const batch = churchIds.slice(i, i + batchSize);
     const { data: churches, error: churchError } = await supabase
       .from("churches")
-      .select("id, name, denomination, profile_photo_url, location, display_lat, display_lng")
+      .select("id, name, denomination, profile_photo_url, display_lat, display_lng")
       .in("id", batch)
       .eq("approved", true);
 
@@ -125,21 +125,18 @@ export async function generatePlatformPinCache(platformId: string): Promise<{
     }
   }
 
-  // Build GeoJSON features
+  // Build GeoJSON features using display coordinates
   const features: PinFeature[] = [];
   for (const church of allChurches) {
-    if (!church.location?.coordinates) continue;
-
-    const [lng, lat] = church.location.coordinates;
-    // Use display coordinates if available (visual offset for map pins)
-    const displayLng = church.display_lng ?? lng;
-    const displayLat = church.display_lat ?? lat;
+    const lat = church.display_lat;
+    const lng = church.display_lng;
+    if (!lat || !lng) continue;
 
     features.push({
       type: "Feature",
       geometry: {
         type: "Point",
-        coordinates: [displayLng, displayLat],
+        coordinates: [lng, lat],
       },
       properties: {
         id: church.id,
