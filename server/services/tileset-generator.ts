@@ -576,22 +576,32 @@ export async function generateAndUploadTileset(): Promise<TilesetGenerationResul
     fs.writeFileSync(publicGeojsonPath, geojsonString);
     console.log(`[Tileset] Also saved GeoJSON to ${publicGeojsonPath} for Explore page sync`);
     
-    // Step 2: Run tippecanoe to create optimized .mbtiles
-    // This handles tile size limits automatically
-    runTippecanoe(geojsonPath, mbtilesPath);
-    
-    const mbtilesSize = fs.statSync(mbtilesPath).size;
-    console.log(`[Tileset] MBTiles created: ${(mbtilesSize / 1024 / 1024).toFixed(2)} MB`);
-    
-    // Step 3: Get Mapbox upload credentials
-    const credentials = await getMapboxUploadCredentials();
-    console.log("[Tileset] Got Mapbox upload credentials");
-    
-    // Step 4: Upload .mbtiles to Mapbox S3 staging
-    await uploadToS3(credentials, mbtilesPath, "application/x-sqlite3");
-    
-    // Step 5: Create Mapbox upload job
-    const uploadId = await createMapboxUpload(credentials.url);
+    // Step 2: Try tippecanoe, fall back to direct GeoJSON upload
+    let uploadId: string;
+    let usedTippecanoe = false;
+
+    try {
+      execSync("which tippecanoe", { stdio: "ignore" });
+      console.log("[Tileset] tippecanoe available, using optimized pipeline");
+      runTippecanoe(geojsonPath, mbtilesPath);
+      const mbtilesSize = fs.statSync(mbtilesPath).size;
+      console.log(`[Tileset] MBTiles created: ${(mbtilesSize / 1024 / 1024).toFixed(2)} MB`);
+
+      const credentials = await getMapboxUploadCredentials();
+      await uploadToS3(credentials, mbtilesPath, "application/x-sqlite3");
+      uploadId = await createMapboxUpload(credentials.url);
+      usedTippecanoe = true;
+    } catch (tippErr: any) {
+      console.log("[Tileset] tippecanoe not available, uploading GeoJSON directly to Mapbox");
+      console.log("[Tileset] Mapbox will process tiles server-side (slower but works everywhere)");
+
+      // Upload GeoJSON directly — Mapbox Uploads API accepts GeoJSON
+      const credentials = await getMapboxUploadCredentials();
+      await uploadToS3(credentials, geojsonPath, "application/geo+json");
+      uploadId = await createMapboxUpload(credentials.url);
+    }
+
+    console.log(`[Tileset] Upload initiated (${usedTippecanoe ? 'tippecanoe' : 'direct GeoJSON'})`);
     
     const duration = Date.now() - startTime;
     console.log(`[Tileset] Upload initiated in ${duration}ms`);
