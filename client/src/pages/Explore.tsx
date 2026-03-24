@@ -614,8 +614,57 @@ export default function Explore() {
         if (map.current) {
           const mapInstance = map.current;
           
-          // Churches are loaded via the Mapbox vector tileset (no GeoJSON file needed)
-          setChurchesLoading(false);
+          // Load all churches as GeoJSON from API (cached by Cloudflare for 1 hour)
+          setChurchesLoading(true);
+          fetch('/api/churches/all-geojson')
+            .then(res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then(geojsonData => {
+              setChurchesLoading(false);
+              if (!mapInstance.getSource('all-churches-geojson')) {
+                mapInstance.addSource('all-churches-geojson', {
+                  type: 'geojson',
+                  data: geojsonData
+                });
+
+                mapInstance.addLayer({
+                  id: 'all-churches-geojson-layer',
+                  type: 'circle',
+                  source: 'all-churches-geojson',
+                  minzoom: 0,
+                  maxzoom: 22,
+                  paint: {
+                    'circle-radius': [
+                      'interpolate', ['linear'], ['zoom'],
+                      0, 1.5,
+                      3, 2.5,
+                      6, 4,
+                      10, 6,
+                      14, 10
+                    ],
+                    'circle-color': '#dc2626',
+                    'circle-opacity': 0.85,
+                    'circle-stroke-width': [
+                      'interpolate', ['linear'], ['zoom'],
+                      0, 0.5,
+                      4, 1,
+                      8, 1.5
+                    ],
+                    'circle-stroke-color': '#ffffff'
+                  },
+                  layout: {
+                    'visibility': 'none'
+                  }
+                });
+                console.log('All churches GeoJSON layer added (' + geojsonData.features.length + ' churches)');
+              }
+            })
+            .catch(err => {
+              setChurchesLoading(false);
+              console.error('Failed to load churches GeoJSON:', err);
+            });
           
           // Add the vector tileset source for high zoom levels (v8: US-only with name, city, state)
           // Note: source-layer name is set by Mapbox based on upload name
@@ -867,16 +916,14 @@ export default function Explore() {
       const shouldShow = showAllChurches && !churchesLoading;
       const visibility = shouldShow ? 'visible' : 'none';
       
-      // Update high-zoom vector layer
+      // Update vector tileset layer
       if (map.current?.getLayer('all-churches-layer')) {
-        console.log('Setting all-churches visibility:', visibility, '(toggle:', showAllChurches, 'loading:', churchesLoading, ')');
         map.current.setLayoutProperty('all-churches-layer', 'visibility', visibility);
       }
-      
-      // Update low-zoom GeoJSON layer
-      if (map.current?.getLayer('all-churches-layer')) {
-        console.log('Setting low-zoom churches visibility:', visibility, '(toggle:', showAllChurches, 'loading:', churchesLoading, ')');
-        map.current.setLayoutProperty('all-churches-layer', 'visibility', visibility);
+
+      // Update GeoJSON layer
+      if (map.current?.getLayer('all-churches-geojson-layer')) {
+        map.current.setLayoutProperty('all-churches-geojson-layer', 'visibility', visibility);
       }
     };
     

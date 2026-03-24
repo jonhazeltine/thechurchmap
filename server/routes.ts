@@ -250,6 +250,7 @@ import * as journeyShareRoute from "../app/api/journeys/share/[shareToken]/route
 // Platform pin cache (performance optimization)
 import * as adminPlatformPinsGenerateRoute from "../app/api/admin/platform-pins/generate/route";
 import * as churchPinsRoute from "../app/api/churches/pins/route";
+import * as churchAllGeojsonRoute from "../app/api/churches/all-geojson/route";
 
 import * as fs from "fs";
 import * as path from "path";
@@ -300,6 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Platform pin cache - all pins for a platform as GeoJSON (fast)
   app.get("/api/churches/pins/:platformId", churchPinsRoute.GET);
+  app.get("/api/churches/all-geojson", churchAllGeojsonRoute.GET);
   
   app.get("/api/churches/:id", churchByIdRoute.GET);
   app.patch("/api/churches/:id", churchByIdRoute.PATCH);
