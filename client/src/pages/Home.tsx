@@ -2058,7 +2058,7 @@ export default function Home() {
       // Minimal defaults for remaining Church fields
       address: null, city: null, state: null, zip: null,
       website: null, email: null, phone: null,
-      display_lat: null, display_lng: null,
+      display_lat: f.geometry.coordinates[1], display_lng: f.geometry.coordinates[0],
       primary_ministry_area: null,
       place_calling_id: null,
       collaboration_have: [] as string[], collaboration_need: [] as string[],
@@ -2071,8 +2071,8 @@ export default function Home() {
   const { data: churches = [], isLoading: churchesLoading, isFetching: churchesFetching } = useQuery<ChurchWithCallings[]>({
     queryKey: ["/api/churches", baseFilters, platform?.id, activeRegionId],
     enabled: platformId !== null && !!platform?.id, // Wait for platform to be fully loaded
-    staleTime: 2 * 60 * 1000, // Keep data fresh for 2 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (survives platform switches)
     placeholderData: (prev) => prev ?? cachedPinsAsChurches ?? undefined, // Use cached pins for instant first paint, then keep previous data
     queryFn: async () => {
       if (baseFilters.polygon) {
