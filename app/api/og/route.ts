@@ -14,6 +14,7 @@ import {
   generateFundMissionOGImage,
   generateMissionFundingOGImage,
   generatePostOGImage,
+  generateJourneyOGImage,
 } from "../../../server/services/og-image";
 
 const execFileAsync = promisify(execFile);
@@ -57,13 +58,14 @@ async function extractVideoThumbnail(videoUrl: string): Promise<Buffer | null> {
 
 export async function GET(req: Request, res: Response) {
   try {
-    const { type, id, slug, showChurches, showLds, videoUrl } = req.query as { 
-      type?: string; 
-      id?: string; 
+    const { type, id, slug, showChurches, showLds, videoUrl, token } = req.query as {
+      type?: string;
+      id?: string;
       slug?: string;
       showChurches?: string;
       showLds?: string;
       videoUrl?: string;
+      token?: string;
     };
 
     let imageBuffer: Buffer | null = null;
@@ -130,6 +132,24 @@ export async function GET(req: Request, res: Response) {
           return res.status(400).json({ error: 'Church ID required for mission-funding' });
         }
         imageBuffer = await generateMissionFundingOGImage(id);
+        break;
+      case 'journey':
+        let journeyId = id;
+        if (!journeyId && token) {
+          // Look up journey ID from share token
+          const { supabaseServer } = await import('../../../lib/supabaseServer');
+          const supabase = supabaseServer();
+          const { data: journey } = await supabase
+            .from('prayer_journeys')
+            .select('id')
+            .eq('share_token', token)
+            .single();
+          if (journey) journeyId = journey.id;
+        }
+        if (!journeyId) {
+          return res.status(400).json({ error: 'Journey ID or token required' });
+        }
+        imageBuffer = await generateJourneyOGImage(journeyId);
         break;
       default:
         imageBuffer = await generateHomeOGImage();

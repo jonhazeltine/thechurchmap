@@ -113,7 +113,7 @@ const RESERVED_PREFIXES = new Set([
   'signatures', 'agent-program', 'login', 'signup', 'auth',
   'onboarding', 'profile', 'apply-for-platform', 'platforms',
   'platform', 'explore', 'api', 'church', 'churches', 'community',
-  'map', 'ministry-area', 'posts'
+  'map', 'ministry-area', 'posts', 'journey'
 ]);
 
 // Valid sub-paths under a platform slug that have explicit OG handling
@@ -225,8 +225,100 @@ export async function getOGMetaTagsForRoute(
   // Parse query params
   const queryParams = new URLSearchParams(queryString || '');
 
-  // Check for path-based platform URLs (e.g., /grandrapids, /grandrapids/community, /grandrapids/map)
+  // Parse path segments for all route matching
   const pathSegments = pathname.split('/').filter(Boolean);
+
+  // Check for prayer journey routes
+  // /journey/:shareToken — public journey viewer
+  const journeyShareMatch = pathname.match(/^\/journey\/([a-zA-Z0-9_-]+)$/i);
+  if (journeyShareMatch) {
+    const shareToken = journeyShareMatch[1];
+    try {
+      const supabase = supabaseServer();
+      const { data: journey, error } = await supabase
+        .from('prayer_journeys')
+        .select('id, title, city_platform_id')
+        .eq('share_token', shareToken)
+        .single();
+
+      if (!error && journey) {
+        let platformName = 'The Church Map';
+        if (journey.city_platform_id) {
+          const { data: platform } = await supabase
+            .from('city_platforms')
+            .select('name')
+            .eq('id', journey.city_platform_id)
+            .single();
+          if (platform) platformName = platform.name;
+        }
+
+        const { count } = await supabase
+          .from('prayer_journey_steps')
+          .select('id', { count: 'exact', head: true })
+          .eq('journey_id', journey.id);
+
+        const stepCount = count || 0;
+
+        return {
+          title: `${escapeHtml(journey.title || 'Prayer Journey')} — Prayer Journey`,
+          description: `${stepCount} prayer stop${stepCount !== 1 ? 's' : ''} in ${escapeHtml(platformName)}`,
+          image: `${ogImageBase}?type=journey&id=${journey.id}`,
+          url: `${baseUrl}/journey/${shareToken}`,
+          type: 'article',
+        };
+      }
+    } catch (err) {
+      console.error('Error fetching journey for OG meta:', err);
+    }
+  }
+
+  // /:platform/journey/:id/builder — journey builder
+  if (pathSegments.length >= 3 && pathSegments[1] === 'journey' && pathSegments[3] === 'builder') {
+    const platformSlug = pathSegments[0];
+    const journeyId = pathSegments[2];
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(journeyId);
+    if (isUUID) {
+      try {
+        const supabase = supabaseServer();
+        const { data: journey, error } = await supabase
+          .from('prayer_journeys')
+          .select('id, title, city_platform_id')
+          .eq('id', journeyId)
+          .single();
+
+        if (!error && journey) {
+          let platformName = 'The Church Map';
+          if (journey.city_platform_id) {
+            const { data: platform } = await supabase
+              .from('city_platforms')
+              .select('name')
+              .eq('id', journey.city_platform_id)
+              .single();
+            if (platform) platformName = platform.name;
+          }
+
+          const { count } = await supabase
+            .from('prayer_journey_steps')
+            .select('id', { count: 'exact', head: true })
+            .eq('journey_id', journey.id);
+
+          const stepCount = count || 0;
+
+          return {
+            title: `${escapeHtml(journey.title || 'Prayer Journey')} — Prayer Journey`,
+            description: `${stepCount} prayer stop${stepCount !== 1 ? 's' : ''} in ${escapeHtml(platformName)}`,
+            image: `${ogImageBase}?type=journey&id=${journey.id}`,
+            url: `${baseUrl}/${platformSlug}/journey/${journeyId}/builder`,
+            type: 'article',
+          };
+        }
+      } catch (err) {
+        console.error('Error fetching journey builder for OG meta:', err);
+      }
+    }
+  }
+
+  // Check for path-based platform URLs (e.g., /grandrapids, /grandrapids/community, /grandrapids/map)
   if (pathSegments.length >= 1) {
     const potentialSlug = pathSegments[0].toLowerCase();
     const subPath = pathSegments[1]?.toLowerCase();

@@ -145,6 +145,35 @@ export function getPlatformMapUrl(
 }
 
 /**
+ * Generate static map for a prayer journey with numbered stops
+ * Uses 'auto' bounding to fit all markers in view
+ */
+export function getJourneyMapUrl(
+  stops: Array<{ lon: number; lat: number; index: number }>
+): string {
+  if (!MAPBOX_TOKEN || stops.length === 0) return '';
+
+  const markers: MarkerOptions[] = stops.slice(0, 20).map((s) => ({
+    lon: s.lon,
+    lat: s.lat,
+    color: 'ff6b35',
+    size: 's' as const,
+    label: String(s.index <= 9 ? s.index : ''),
+  }));
+
+  // Build marker overlay string manually for 'auto' fitting
+  const markerStrings = markers.map((m) => {
+    const label = m.label ? `-${m.label}` : '';
+    return `pin-${m.size}${label}+${m.color}(${m.lon.toFixed(5)},${m.lat.toFixed(5)})`;
+  });
+  const overlay = markerStrings.join(',');
+
+  const style = 'mapbox/dark-v11';
+  const url = `https://api.mapbox.com/styles/v1/${style}/static/${overlay}/auto/800x400@2x?padding=60&access_token=${MAPBOX_TOKEN}&attribution=false&logo=false`;
+  return url;
+}
+
+/**
  * Generate static map for a church
  */
 export function getChurchMapUrl(lon: number, lat: number): string {

@@ -1,11 +1,12 @@
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { supabaseServer } from '../../lib/supabaseServer';
-import { 
-  getExploreMapUrl, 
-  getPlatformMapUrl, 
+import {
+  getExploreMapUrl,
+  getPlatformMapUrl,
   getChurchMapUrl,
-  getStaticMapUrl 
+  getJourneyMapUrl,
+  getStaticMapUrl
 } from './mapbox-static';
 
 const OG_WIDTH = 1200;
@@ -2782,4 +2783,324 @@ export async function generatePostOGImage(postId: string): Promise<Buffer | null
   }
 }
 
-export type OGImageType = 'home' | 'church' | 'about' | 'platform' | 'community' | 'post' | 'fund-mission' | 'mission-funding';
+export async function generateJourneyOGImage(journeyId: string): Promise<Buffer | null> {
+  try {
+    const supabase = supabaseServer();
+
+    // Fetch journey
+    const { data: journey, error: journeyError } = await supabase
+      .from('prayer_journeys')
+      .select('id, title, description, city_platform_id')
+      .eq('id', journeyId)
+      .single();
+
+    if (journeyError || !journey) {
+      console.error('Error fetching journey for OG image:', journeyError);
+      return null;
+    }
+
+    // Fetch steps with church locations
+    const { data: steps } = await supabase
+      .from('prayer_journey_steps')
+      .select('id, order_index, step_type, title, church_id, metadata')
+      .eq('journey_id', journeyId)
+      .order('order_index', { ascending: true });
+
+    const stepCount = steps?.length || 0;
+
+    // Fetch church coordinates for steps that have a church_id
+    const churchIds = (steps || [])
+      .filter((s: any) => s.church_id)
+      .map((s: any) => s.church_id);
+
+    let churchLocations: Record<string, { lat: number; lng: number; name: string }> = {};
+    if (churchIds.length > 0) {
+      const { data: churches } = await supabase
+        .from('churches')
+        .select('id, name, display_lat, display_lng')
+        .in('id', churchIds);
+
+      if (churches) {
+        for (const c of churches) {
+          if (c.display_lat && c.display_lng) {
+            churchLocations[c.id] = { lat: c.display_lat, lng: c.display_lng, name: c.name };
+          }
+        }
+      }
+    }
+
+    // Get platform name
+    let platformName = 'The Church Map';
+    if (journey.city_platform_id) {
+      const { data: platform } = await supabase
+        .from('city_platforms')
+        .select('name')
+        .eq('id', journey.city_platform_id)
+        .single();
+      if (platform) {
+        platformName = platform.name;
+      }
+    }
+
+    // Build map stops from church locations
+    const mapStops: Array<{ lon: number; lat: number; index: number }> = [];
+    let stopIndex = 1;
+    for (const step of (steps || [])) {
+      if (step.church_id && churchLocations[step.church_id]) {
+        const loc = churchLocations[step.church_id];
+        mapStops.push({ lon: loc.lng, lat: loc.lat, index: stopIndex });
+      }
+      stopIndex++;
+    }
+
+    // Fetch the static map as base64
+    let mapImageBase64: string | null = null;
+    if (mapStops.length > 0) {
+      const mapUrl = getJourneyMapUrl(mapStops);
+      if (mapUrl) {
+        mapImageBase64 = await fetchImageAsBase64(mapUrl);
+      }
+    }
+
+    // Truncate title
+    let displayTitle = journey.title || 'Prayer Journey';
+    if (displayTitle.length > 60) {
+      displayTitle = displayTitle.slice(0, 57) + '...';
+    }
+
+    const element = {
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          width: OG_WIDTH,
+          height: OG_HEIGHT,
+          position: 'relative',
+          backgroundColor: '#0F172A',
+        },
+        children: [
+          // Static map in the top portion
+          mapImageBase64 ? {
+            type: 'img',
+            props: {
+              src: mapImageBase64,
+              style: {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '65%',
+                objectFit: 'cover',
+              },
+            },
+          } : null,
+          // Gradient overlay on map area
+          {
+            type: 'div',
+            props: {
+              style: {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '65%',
+                background: mapImageBase64
+                  ? 'linear-gradient(180deg, rgba(15,23,42,0.1) 0%, rgba(15,23,42,0.6) 80%, rgba(15,23,42,1) 100%)'
+                  : 'linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%)',
+              },
+            },
+          },
+          // Content overlay
+          {
+            type: 'div',
+            props: {
+              style: {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '48px 60px',
+                justifyContent: 'space-between',
+              },
+              children: [
+                // Top: Logo + badge
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    },
+                    children: [
+                      {
+                        type: 'div',
+                        props: {
+                          style: createLogoSection(),
+                          children: [
+                            {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  width: '48px',
+                                  height: '48px',
+                                  backgroundColor: 'rgba(255,255,255,0.15)',
+                                  borderRadius: '10px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '24px',
+                                },
+                                children: '🙏',
+                              },
+                            },
+                            {
+                              type: 'span',
+                              props: {
+                                style: {
+                                  color: 'rgba(255,255,255,0.8)',
+                                  fontSize: '22px',
+                                  fontWeight: 600,
+                                },
+                                children: 'Prayer Journey',
+                              },
+                            },
+                          ],
+                        },
+                      },
+                      // Step count badge
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: 'rgba(255,107,53,0.25)',
+                            border: '1px solid rgba(255,107,53,0.4)',
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                          },
+                          children: [
+                            {
+                              type: 'span',
+                              props: {
+                                style: { color: '#ff6b35', fontSize: '18px', fontWeight: 700 },
+                                children: `${stepCount} stop${stepCount !== 1 ? 's' : ''}`,
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                // Bottom: Title + platform
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px',
+                    },
+                    children: [
+                      {
+                        type: 'h1',
+                        props: {
+                          style: {
+                            color: 'white',
+                            fontSize: '56px',
+                            fontWeight: 700,
+                            lineHeight: 1.15,
+                            margin: 0,
+                          },
+                          children: displayTitle,
+                        },
+                      },
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '24px',
+                          },
+                          children: [
+                            {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                },
+                                children: [
+                                  { type: 'span', props: { style: { fontSize: '18px' }, children: '📍' } },
+                                  {
+                                    type: 'span',
+                                    props: {
+                                      style: { color: 'rgba(255,255,255,0.7)', fontSize: '20px', fontWeight: 500 },
+                                      children: platformName,
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                            mapStops.length > 0 ? {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                },
+                                children: [
+                                  { type: 'span', props: { style: { fontSize: '18px' }, children: '⛪' } },
+                                  {
+                                    type: 'span',
+                                    props: {
+                                      style: { color: 'rgba(255,255,255,0.7)', fontSize: '20px', fontWeight: 500 },
+                                      children: `${mapStops.length} church${mapStops.length !== 1 ? 'es' : ''}`,
+                                    },
+                                  },
+                                ],
+                              },
+                            } : null,
+                            {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  color: 'rgba(255,255,255,0.5)',
+                                  fontSize: '18px',
+                                },
+                                children: 'thechurchmap.com',
+                              },
+                            },
+                          ].filter(Boolean),
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ].filter(Boolean),
+      },
+    };
+
+    return renderToImage(element);
+  } catch (error) {
+    console.error('Error generating journey OG image:', error);
+    return null;
+  }
+}
+
+export type OGImageType = 'home' | 'church' | 'about' | 'platform' | 'community' | 'post' | 'fund-mission' | 'mission-funding' | 'journey';
