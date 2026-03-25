@@ -3939,18 +3939,44 @@ export default function AdminChurches() {
                           Finish Early
                         </Button>
                         {remainingCount > 1 && (
-                          <Button
-                            variant="outline"
-                            className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950"
-                            onClick={() => autoResolveMutation.mutate()}
-                            disabled={autoResolveMutation.isPending}
-                          >
-                            {autoResolveMutation.isPending ? (
-                              <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Resolving...</>
-                            ) : (
-                              <><Zap className="h-4 w-4 mr-1" /> Auto-Resolve All ({remainingCount})</>
-                            )}
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950"
+                              onClick={() => autoResolveMutation.mutate()}
+                              disabled={autoResolveMutation.isPending || hideClusterMutation.isPending}
+                            >
+                              {autoResolveMutation.isPending ? (
+                                <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Resolving...</>
+                              ) : (
+                                <><Zap className="h-4 w-4 mr-1" /> Auto-Resolve All ({remainingCount})</>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950"
+                              onClick={async () => {
+                                // Collect ALL church IDs from remaining clusters and hide them
+                                const remaining = reviewClusters.slice(currentReviewIndex);
+                                const allIds = remaining.flatMap(c => c.churches.map(ch => ch.platformChurchId));
+                                if (allIds.length === 0) return;
+                                try {
+                                  await apiRequest("POST", `/api/admin/city-platforms/${platformId}/cleanup-duplicates`, {
+                                    action: 'hide-cluster',
+                                    hideIds: allIds,
+                                  });
+                                  queryClient.invalidateQueries({ queryKey: [`/api/admin/city-platforms/${platformId}/churches`] });
+                                  toast({ title: "Hidden from map", description: `${allIds.length} churches hidden. You can restore them from Archived Churches.` });
+                                  setWizardPhase(3);
+                                } catch (err: any) {
+                                  toast({ title: "Error", description: err.message || "Failed to hide churches", variant: "destructive" });
+                                }
+                              }}
+                              disabled={autoResolveMutation.isPending || hideClusterMutation.isPending}
+                            >
+                              <EyeOff className="h-4 w-4 mr-1" /> Hide All From Map ({remainingCount})
+                            </Button>
+                          </>
                         )}
                       </div>
                       <div className="flex gap-2 flex-wrap">
