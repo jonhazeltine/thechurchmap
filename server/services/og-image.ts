@@ -141,7 +141,7 @@ function createGradientBackground() {
     flexDirection: 'column' as const,
     width: '100%',
     height: '100%',
-    background: `linear-gradient(135deg, ${BRAND_COLORS.primaryDark} 0%, ${BRAND_COLORS.primary} 50%, ${BRAND_COLORS.accent} 100%)`,
+    background: `linear-gradient(135deg, #0F172A 0%, #1E293B 50%, ${BRAND_COLORS.primaryDark} 100%)`,
   };
 }
 
@@ -194,8 +194,8 @@ export async function generateHomeOGImage(): Promise<Buffer> {
               width: '100%',
               height: '100%',
               background: mapImageBase64
-                ? 'linear-gradient(135deg, rgba(30, 64, 175, 0.35) 0%, rgba(59, 130, 246, 0.25) 50%, rgba(30, 64, 175, 0.35) 100%)'
-                : `linear-gradient(135deg, ${BRAND_COLORS.primaryDark} 0%, ${BRAND_COLORS.primary} 50%, ${BRAND_COLORS.accent} 100%)`,
+                ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.6) 50%, rgba(15, 23, 42, 0.7) 100%)'
+                : 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
             },
           },
         },
@@ -226,7 +226,7 @@ export async function generateHomeOGImage(): Promise<Buffer> {
                         style: {
                           width: '64px',
                           height: '64px',
-                          backgroundColor: 'white',
+                          backgroundColor: 'rgba(99, 102, 241, 0.3)',
                           borderRadius: '12px',
                           display: 'flex',
                           alignItems: 'center',
@@ -276,7 +276,7 @@ export async function generateHomeOGImage(): Promise<Buffer> {
                       type: 'h1',
                       props: {
                         style: {
-                          color: 'rgba(255,255,255,0.9)',
+                          color: '#6366F1',
                           fontSize: '64px',
                           fontWeight: 700,
                           lineHeight: 1.1,
@@ -422,9 +422,9 @@ export async function generateExploreOGImage(options?: { showChurches?: boolean;
               left: 0,
               width: '100%',
               height: '100%',
-              background: mapImageBase64 
-                ? 'linear-gradient(135deg, rgba(30, 64, 175, 0.35) 0%, rgba(59, 130, 246, 0.25) 50%, rgba(30, 64, 175, 0.35) 100%)'
-                : `linear-gradient(135deg, ${BRAND_COLORS.primaryDark} 0%, ${BRAND_COLORS.primary} 50%, ${BRAND_COLORS.accent} 100%)`,
+              background: mapImageBase64
+                ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.6) 50%, rgba(15, 23, 42, 0.7) 100%)'
+                : 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
             },
           },
         },
@@ -455,7 +455,7 @@ export async function generateExploreOGImage(options?: { showChurches?: boolean;
                         style: {
                           width: '64px',
                           height: '64px',
-                          backgroundColor: 'white',
+                          backgroundColor: 'rgba(99, 102, 241, 0.3)',
                           borderRadius: '12px',
                           display: 'flex',
                           alignItems: 'center',
@@ -684,9 +684,9 @@ export async function generateChurchOGImage(churchId: string): Promise<Buffer | 
                 left: 0,
                 width: '100%',
                 height: '100%',
-                background: mapImageBase64 
-                  ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.4) 0%, rgba(55, 48, 163, 0.35) 50%, rgba(79, 70, 229, 0.4) 100%)'
-                  : `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.primaryDark} 50%, ${BRAND_COLORS.primary} 100%)`,
+                background: mapImageBase64
+                  ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.6) 50%, rgba(15, 23, 42, 0.7) 100%)'
+                  : 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
               },
             },
           },
@@ -726,7 +726,7 @@ export async function generateChurchOGImage(churchId: string): Promise<Buffer | 
                                 style: {
                                   width: '48px',
                                   height: '48px',
-                                  backgroundColor: 'white',
+                                  backgroundColor: 'rgba(99, 102, 241, 0.3)',
                                   borderRadius: '8px',
                                   display: 'flex',
                                   alignItems: 'center',
@@ -754,7 +754,7 @@ export async function generateChurchOGImage(churchId: string): Promise<Buffer | 
                         type: 'div',
                         props: {
                           style: {
-                            backgroundColor: 'rgba(255,255,255,0.2)',
+                            backgroundColor: 'rgba(99, 102, 241, 0.3)',
                             padding: '8px 16px',
                             borderRadius: '20px',
                             color: 'white',
@@ -1143,11 +1143,26 @@ export async function generatePlatformOGImage(platformIdentifier: string): Promi
       ? platform.description.slice(0, 120) + (platform.description.length > 120 ? '...' : '')
       : `Discover churches and ministry opportunities in ${platform.name}.`;
 
+    // Sample church locations for map pins
+    let churchMarkers: Array<{ lon: number; lat: number }> = [];
+    const { data: sampleChurches } = await supabase
+      .from('city_platform_churches')
+      .select('church_id, churches!inner(display_lat, display_lng)')
+      .eq('city_platform_id', platform.id)
+      .not('churches.display_lat', 'is', null)
+      .limit(50);
+
+    if (sampleChurches) {
+      churchMarkers = sampleChurches
+        .filter((sc: any) => sc.churches?.display_lat && sc.churches?.display_lng)
+        .map((sc: any) => ({ lon: sc.churches.display_lng, lat: sc.churches.display_lat }));
+    }
+
     // Get static map URL if we have coordinates and fetch as base64
     const hasCoords = platform.default_center_lat && platform.default_center_lng;
     let mapImageBase64: string | null = null;
     if (hasCoords) {
-      const mapUrl = getPlatformMapUrl(platform.default_center_lng, platform.default_center_lat);
+      const mapUrl = getPlatformMapUrl(platform.default_center_lng, platform.default_center_lat, churchMarkers);
       mapImageBase64 = await fetchImageAsBase64(mapUrl);
     }
 
@@ -1187,8 +1202,8 @@ export async function generatePlatformOGImage(platformIdentifier: string): Promi
                 width: '100%',
                 height: '100%',
                 background: mapImageBase64
-                  ? 'linear-gradient(135deg, rgba(5, 150, 105, 0.4) 0%, rgba(16, 185, 129, 0.35) 50%, rgba(5, 150, 105, 0.4) 100%)'
-                  : 'linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%)',
+                  ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.6) 50%, rgba(15, 23, 42, 0.7) 100%)'
+                  : 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
               },
             },
           },
@@ -1228,7 +1243,7 @@ export async function generatePlatformOGImage(platformIdentifier: string): Promi
                                 style: {
                                   width: '48px',
                                   height: '48px',
-                                  backgroundColor: 'white',
+                                  backgroundColor: 'rgba(99, 102, 241, 0.3)',
                                   borderRadius: '8px',
                                   display: 'flex',
                                   alignItems: 'center',
@@ -1256,7 +1271,7 @@ export async function generatePlatformOGImage(platformIdentifier: string): Promi
                         type: 'div',
                         props: {
                           style: {
-                            backgroundColor: 'rgba(255,255,255,0.2)',
+                            backgroundColor: 'rgba(99, 102, 241, 0.3)',
                             padding: '8px 16px',
                             borderRadius: '20px',
                             color: 'white',
@@ -1426,11 +1441,26 @@ export async function generateCommunityOGImage(platformIdentifier: string): Prom
       .select('*', { count: 'exact', head: true })
       .eq('city_platform_id', platform.id);
 
+    // Sample church locations for map pins
+    let communityChurchMarkers: Array<{ lon: number; lat: number }> = [];
+    const { data: commSampleChurches } = await supabase
+      .from('city_platform_churches')
+      .select('church_id, churches!inner(display_lat, display_lng)')
+      .eq('city_platform_id', platform.id)
+      .not('churches.display_lat', 'is', null)
+      .limit(50);
+
+    if (commSampleChurches) {
+      communityChurchMarkers = commSampleChurches
+        .filter((sc: any) => sc.churches?.display_lat && sc.churches?.display_lng)
+        .map((sc: any) => ({ lon: sc.churches.display_lng, lat: sc.churches.display_lat }));
+    }
+
     // Get static map URL if we have coordinates and fetch as base64
     const hasCoords = platform.default_center_lat && platform.default_center_lng;
     let mapImageBase64: string | null = null;
     if (hasCoords) {
-      const mapUrl = getPlatformMapUrl(platform.default_center_lng, platform.default_center_lat);
+      const mapUrl = getPlatformMapUrl(platform.default_center_lng, platform.default_center_lat, communityChurchMarkers);
       mapImageBase64 = await fetchImageAsBase64(mapUrl);
     }
 
@@ -1459,7 +1489,7 @@ export async function generateCommunityOGImage(platformIdentifier: string): Prom
               },
             },
           } : null,
-          // Purple/blue gradient overlay for community theme
+          // Dark gradient overlay for community theme
           {
             type: 'div',
             props: {
@@ -1470,8 +1500,8 @@ export async function generateCommunityOGImage(platformIdentifier: string): Prom
                 width: '100%',
                 height: '100%',
                 background: mapImageBase64
-                  ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(139, 92, 246, 0.8) 50%, rgba(168, 85, 247, 0.85) 100%)'
-                  : 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%)',
+                  ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(30, 41, 59, 0.65) 50%, rgba(15, 23, 42, 0.75) 100%)'
+                  : 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
               },
             },
           },
@@ -2124,7 +2154,7 @@ export async function generateMissionFundingOGImage(churchId: string): Promise<B
           width: OG_WIDTH,
           height: OG_HEIGHT,
           position: 'relative',
-          background: 'linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)',
+          background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
         },
         children: [
           // Decorative pattern
@@ -2137,7 +2167,7 @@ export async function generateMissionFundingOGImage(churchId: string): Promise<B
                 left: 0,
                 width: '100%',
                 height: '100%',
-                backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.15) 0%, transparent 50%), radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)',
+                backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%)',
               },
             },
           },
@@ -2542,7 +2572,7 @@ export async function generatePostOGImage(postId: string): Promise<Buffer | null
                 height: '100%',
                 background: bgImageBase64
                   ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.75) 50%, rgba(15, 23, 42, 0.85) 100%)'
-                  : 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%)',
+                  : 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
               },
             },
           },

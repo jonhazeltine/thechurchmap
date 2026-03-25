@@ -5,7 +5,7 @@
 
 const MAPBOX_TOKEN = process.env.MAPBOX_SECRET_TOKEN || process.env.VITE_MAPBOX_TOKEN || '';
 
-const MAP_STYLE = 'mapbox/light-v11';
+const MAP_STYLE = 'mapbox/dark-v11';
 
 interface MarkerOptions {
   lon: number;
