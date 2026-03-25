@@ -2488,11 +2488,9 @@ export default function AdminChurches() {
                           {isRunning && <Badge variant="secondary" className="text-xs bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200">Running</Badge>}
                           {job.status === 'completed' && dupesClear && allApproved && <Badge variant="secondary" className="text-xs bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">Complete</Badge>}
                         </div>
-                        {!incompleteJob && pendingCount === 0 && dupesClear && (
-                          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => setPipelineDismissed(true)}>
-                            Dismiss
-                          </Button>
-                        )}
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => setPipelineDismissed(true)}>
+                          Dismiss
+                        </Button>
                       </div>
                       <div className="grid grid-cols-5 gap-2">
                         <div className={`rounded-md p-2 text-center text-xs ${
