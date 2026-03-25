@@ -536,7 +536,7 @@ export default function AdminChurches() {
   });
   
   // Query for duplicate cluster data (to identify pending churches in clusters)
-  const { data: duplicateClusterData } = useQuery<CleanupClustersResponse>({
+  const { data: duplicateClusterData, isLoading: duplicateClustersLoading } = useQuery<CleanupClustersResponse>({
     queryKey: [`/api/admin/city-platforms/${platformId}/cleanup-duplicates`],
     enabled: !!platformId,
     staleTime: 2 * 60 * 1000,
@@ -2905,7 +2905,13 @@ export default function AdminChurches() {
                           </span>
                         )}
                       </div>
-                      {cleanPendingChurches.length > 0 && (
+                      {duplicateClustersLoading && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Checking duplicates...
+                        </Badge>
+                      )}
+                      {cleanPendingChurches.length > 0 && !duplicateClustersLoading && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -2913,7 +2919,7 @@ export default function AdminChurches() {
                             const cleanIds = cleanPendingChurches.map(pc => pc.church.id);
                             bulkApproveMutation.mutate(cleanIds);
                           }}
-                          disabled={bulkApproveMutation.isPending}
+                          disabled={bulkApproveMutation.isPending || duplicateClustersLoading}
                           data-testid="button-approve-all-clean"
                           className="text-green-600 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-900/30"
                         >
@@ -2927,7 +2933,9 @@ export default function AdminChurches() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {pendingInClustersCount > 0 ? (
+                      {duplicateClustersLoading ? (
+                        <>Loading duplicate cluster data before approvals can be made...</>
+                      ) : pendingInClustersCount > 0 ? (
                         <>
                           <strong>{cleanPendingChurches.length}</strong> churches passed auto-dedup and are safe to approve.{' '}
                           <strong>{pendingInClustersCount}</strong> are in possible duplicate clusters — use the <em>Clean Duplicates</em> wizard above to resolve them first.
