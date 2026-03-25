@@ -2802,9 +2802,9 @@ export async function generateJourneyOGImage(journeyId: string): Promise<Buffer 
     // Fetch steps with church locations
     const { data: steps } = await supabase
       .from('prayer_journey_steps')
-      .select('id, order_index, step_type, title, church_id, metadata')
+      .select('id, sort_order, step_type, title, church_id, metadata')
       .eq('journey_id', journeyId)
-      .order('order_index', { ascending: true });
+      .order('sort_order', { ascending: true });
 
     const stepCount = steps?.length || 0;
 
