@@ -332,21 +332,38 @@ export default function JourneyViewer() {
           /* Floating collapsible card for map steps */
           <div className="absolute bottom-16 left-3 right-3 md:left-auto md:right-3 md:w-96 z-20">
             <div className="bg-background/70 backdrop-blur-lg rounded-xl shadow-lg border border-border/30 overflow-hidden">
+              {/* Mobile: collapsible; Desktop: always expanded */}
               {!contentExpanded ? (
-                <button
-                  onClick={() => setContentExpanded(true)}
-                  className="w-full text-left px-4 py-3 flex items-center justify-between"
-                >
-                  <p className="text-sm line-clamp-2 text-foreground/90 flex-1 mr-2">
-                    {currentStep?.body?.substring(0, 100) || "Tap to read prayer..."}
-                  </p>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rotate-90" />
-                </button>
+                <>
+                  {/* Mobile collapsed view */}
+                  <button
+                    onClick={() => setContentExpanded(true)}
+                    className="w-full text-left px-4 py-3 flex items-center justify-between md:hidden"
+                  >
+                    <p className="text-sm line-clamp-2 text-foreground/90 flex-1 mr-2">
+                      {currentStep?.body?.substring(0, 100) || "Tap to read prayer..."}
+                    </p>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rotate-90" />
+                  </button>
+                  {/* Desktop always-expanded view */}
+                  <div className="hidden md:block max-h-[50vh] overflow-y-auto overscroll-contain px-4 py-3">
+                    {currentStep && (
+                      <SlideContent
+                        step={currentStep}
+                        journeyId={journey.id}
+                        session={session}
+                        toast={toast}
+                        allSteps={activeSteps}
+                        guestName={guestName}
+                      />
+                    )}
+                  </div>
+                </>
               ) : (
                 <div className="max-h-[40vh] md:max-h-[50vh] overflow-y-auto overscroll-contain px-4 py-3">
                   <button
                     onClick={() => setContentExpanded(false)}
-                    className="text-xs text-muted-foreground mb-2 flex items-center gap-1"
+                    className="text-xs text-muted-foreground mb-2 flex items-center gap-1 md:hidden"
                   >
                     <ChevronRight className="w-3 h-3 -rotate-90" /> Minimize
                   </button>
