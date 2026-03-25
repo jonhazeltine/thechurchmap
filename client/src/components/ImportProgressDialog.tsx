@@ -33,6 +33,7 @@ interface ImportProgressDialogProps {
   onResume: () => void;
   onStartFresh: () => void;
   onClose: () => void;
+  onPause?: () => void;
 }
 
 export function ImportProgressDialog({
@@ -43,6 +44,7 @@ export function ImportProgressDialog({
   onResume,
   onStartFresh,
   onClose,
+  onPause,
 }: ImportProgressDialogProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerStartRef = useRef<number | null>(null);
@@ -328,15 +330,21 @@ export function ImportProgressDialog({
                 variant="destructive"
                 size="sm"
                 onClick={() => {
-                  onClose();
+                  if (onPause) {
+                    onPause();
+                  } else {
+                    onClose();
+                  }
                 }}
                 data-testid="button-dialog-pause"
               >
                 Pause Import
               </Button>
-              <p className="text-xs text-muted-foreground py-1">
-                You can close this dialog — import continues in the background
-              </p>
+              {!onPause && (
+                <p className="text-xs text-muted-foreground py-1">
+                  You can close this dialog — import continues in the background
+                </p>
+              )}
             </>
           )}
         </DialogFooter>

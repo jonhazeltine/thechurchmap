@@ -614,12 +614,20 @@ export default function Explore() {
         if (map.current) {
           const mapInstance = map.current;
           
-          // Load all churches as GeoJSON from API (cached by Cloudflare for 1 hour)
+          // Load all churches as GeoJSON — try API first, fall back to static file
           setChurchesLoading(true);
           fetch('/api/churches/all-geojson')
             .then(res => {
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               return res.json();
+            })
+            .catch(() => {
+              // Fallback: load pre-generated static GeoJSON file
+              console.log('API failed, falling back to static all-churches-sampled.geojson');
+              return fetch('/all-churches-sampled.geojson').then(r => {
+                if (!r.ok) throw new Error(`Static fallback failed: ${r.status}`);
+                return r.json();
+              });
             })
             .then(geojsonData => {
               setChurchesLoading(false);
@@ -666,155 +674,35 @@ export default function Explore() {
               console.error('Failed to load churches GeoJSON:', err);
             });
           
-          // Add the vector tileset source for high zoom levels (v8: US-only with name, city, state)
-          // Note: source-layer name is set by Mapbox based on upload name
-          mapInstance.addSource('all-churches', {
-            type: 'vector',
-            url: 'mapbox://jonhazeltine.all-churches-v8'
+          // Hover + click handlers for GeoJSON church layer
+          mapInstance.on('mouseenter', 'all-churches-geojson-layer', () => {
+            mapInstance.getCanvas().style.cursor = 'pointer';
           });
-          
-          // Dynamically detect the source-layer name from tileset metadata
-          const TILESET_SOURCE_LAYER = 'churches';
-          
-          // Log any errors loading the source
-          mapInstance.on('error', (e) => {
-            if (e.error?.message?.includes('all-churches')) {
-              console.error('Error loading all-churches tileset:', e.error);
-            }
+
+          mapInstance.on('mouseleave', 'all-churches-geojson-layer', () => {
+            mapInstance.getCanvas().style.cursor = '';
           });
-          
-          // Function to add the church pin layer from vector tileset
-          const addChurchesLayer = () => {
-            if (mapInstance.getLayer('all-churches-layer')) {
-              console.log('All-churches layer already exists');
-              return true;
+
+          mapInstance.on('click', 'all-churches-geojson-layer', (e) => {
+            if (!e.features || e.features.length === 0) return;
+
+            const feature = e.features[0];
+            const props = feature.properties || {};
+            const coordinates = (feature.geometry as any).coordinates.slice();
+
+            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+              coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
             }
 
-            try {
-              mapInstance.addLayer({
-                id: 'all-churches-layer',
-                type: 'circle',
-                source: 'all-churches',
-                'source-layer': TILESET_SOURCE_LAYER,
-                minzoom: 0,
-                maxzoom: 22,
-                paint: {
-                  'circle-radius': [
-                    'interpolate', ['linear'], ['zoom'],
-                    3, 3,
-                    5, 5,
-                    8, 6,
-                    12, 8,
-                    16, 12
-                  ],
-                  'circle-color': '#dc2626',
-                  'circle-opacity': [
-                    'interpolate', ['linear'], ['zoom'],
-                    3, 0.85,
-                    5, 0.9,
-                    10, 0.95
-                  ],
-                  'circle-stroke-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    3, 0,
-                    6, 0.5,
-                    10, 1
-                  ],
-                  'circle-stroke-color': '#ffffff'
-                },
-                layout: {
-                  'visibility': 'none'  // Start hidden - only show when toggle is ON
-                }
-              });
-              console.log('All-churches layer added successfully!');
-              return true;
-            } catch (err) {
-              console.error('Failed to add all-churches layer:', err);
-              return false;
-            }
-          };
-          
-          // Try to add layer immediately (works if source is cached)
-          setTimeout(() => {
-            console.log('Attempting to add all-churches layer (delayed)...');
-            if (!addChurchesLayer()) {
-              console.log('Layer not added yet, waiting for source...');
-            }
-          }, 1000);
-          
-          // Debug: Log feature count on every zoom change
-          mapInstance.on('zoomend', () => {
-            const zoom = mapInstance.getZoom();
-            let count = 0;
-            // Use GeoJSON layer (has ALL 240k churches at every zoom)
-            if (mapInstance.getLayer('all-churches-layer')) {
-              const features = mapInstance.queryRenderedFeatures({ layers: ['all-churches-layer'] });
-              count = features.length;
-            }
-            console.log(`🔴 ZOOM ${zoom.toFixed(1)}: ${count} churches visible`);
-          });
-          
-          // Initial debug log after tiles load
-          setTimeout(() => {
-            let count = 0;
-            // Use GeoJSON layer (has ALL 240k churches at every zoom)
-            if (mapInstance.getLayer('all-churches-layer')) {
-              const features = mapInstance.queryRenderedFeatures({ layers: ['all-churches-layer'] });
-              count = features.length;
-            }
-            const zoom = mapInstance.getZoom();
-            console.log(`🔴 INITIAL: ${count} churches at zoom ${zoom.toFixed(1)}`);
-          }, 3000);
-          
-          // Also listen for source data events as backup
-          mapInstance.on('sourcedata', (e) => {
-            if (e.sourceId === 'all-churches' && e.isSourceLoaded) {
-              console.log('All-churches source loaded event fired');
-              addChurchesLayer();
-            }
-          });
-          
-          // Add hover effect - change cursor (vector tileset layer)
-          mapInstance.on('mouseenter', 'all-churches-layer', () => {
-            mapInstance.getCanvas().style.cursor = 'pointer';
-          });
-          
-          mapInstance.on('mouseleave', 'all-churches-layer', () => {
-            mapInstance.getCanvas().style.cursor = '';
-          });
-          
-          // Add hover effect for lowzoom GeoJSON layer
-          mapInstance.on('mouseenter', 'all-churches-layer', () => {
-            mapInstance.getCanvas().style.cursor = 'pointer';
-          });
-          
-          mapInstance.on('mouseleave', 'all-churches-layer', () => {
-            mapInstance.getCanvas().style.cursor = '';
-          });
-          
-          // Add click handler for lowzoom GeoJSON layer (uses name/city/state from properties)
-          mapInstance.on('click', 'all-churches-layer', (e) => {
-            if (!e.features || e.features.length === 0) return;
-            
-            const feature = e.features[0];
-            const props = feature.properties || {};
-            const coordinates = (feature.geometry as any).coordinates.slice();
-            
-            // Ensure popup appears at click location
-            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-              coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-            }
-            
-            // Close any existing popup
             if (popupRef.current) {
               popupRef.current.remove();
             }
-            
+
             const name = props.name || 'Church';
             const city = props.city || '';
             const state = props.state || '';
             const location = [city, state].filter(Boolean).join(', ');
-            
+
             const popup = new mapboxgl.Popup({
               closeButton: true,
               closeOnClick: true,
@@ -829,49 +717,7 @@ export default function Explore() {
                 </div>
               `)
               .addTo(mapInstance);
-            
-            popupRef.current = popup;
-          });
-          
-          // Add click handler for church details popup (uses name/city/state from tileset)
-          mapInstance.on('click', 'all-churches-layer', (e) => {
-            if (!e.features || e.features.length === 0) return;
-            
-            const feature = e.features[0];
-            const props = feature.properties || {};
-            const coordinates = (feature.geometry as any).coordinates.slice();
-            
-            // Ensure popup appears at click location
-            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-              coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-            }
-            
-            // Close any existing popup
-            if (popupRef.current) {
-              popupRef.current.remove();
-            }
-            
-            // Use name/city/state directly from tileset properties (v7)
-            const name = props.name || 'Church';
-            const city = props.city || '';
-            const state = props.state || '';
-            const location = [city, state].filter(Boolean).join(', ');
-            
-            const popup = new mapboxgl.Popup({
-              closeButton: true,
-              closeOnClick: true,
-              offset: [0, -10],
-              className: 'church-popup',
-            })
-              .setLngLat(coordinates)
-              .setHTML(`
-                <div style="padding: 12px 16px; max-width: 280px;">
-                  <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: #1f2937;">${name}</div>
-                  ${location ? `<div style="font-size: 12px; color: #6b7280;">${location}</div>` : ''}
-                </div>
-              `)
-              .addTo(mapInstance);
-            
+
             popupRef.current = popup;
           });
         }
@@ -912,27 +758,23 @@ export default function Explore() {
     if (!map.current || !mapLoaded) return;
     
     const updateVisibility = () => {
-      // Only show when toggle is ON AND loading is complete
       const shouldShow = showAllChurches && !churchesLoading;
-      const visibility = shouldShow ? 'visible' : 'none';
-      
-      // Update vector tileset layer
-      if (map.current?.getLayer('all-churches-layer')) {
-        map.current.setLayoutProperty('all-churches-layer', 'visibility', visibility);
-      }
-
-      // Update GeoJSON layer
       if (map.current?.getLayer('all-churches-geojson-layer')) {
-        map.current.setLayoutProperty('all-churches-geojson-layer', 'visibility', visibility);
+        map.current.setLayoutProperty('all-churches-geojson-layer', 'visibility', shouldShow ? 'visible' : 'none');
       }
     };
-    
-    // Try immediately
+
     updateVisibility();
-    
-    // Also try after a delay in case layer isn't ready yet
-    const timeout = setTimeout(updateVisibility, 1500);
-    return () => clearTimeout(timeout);
+
+    // Retry until GeoJSON layer exists (loads async)
+    let attempts = 0;
+    const retryInterval = setInterval(() => {
+      updateVisibility();
+      if (map.current?.getLayer('all-churches-geojson-layer') || ++attempts >= 10) {
+        clearInterval(retryInterval);
+      }
+    }, 1000);
+    return () => clearInterval(retryInterval);
   }, [showAllChurches, churchesLoading, mapLoaded]);
 
   // Resize map when fullscreen mode changes on mobile

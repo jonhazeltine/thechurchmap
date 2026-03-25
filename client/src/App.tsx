@@ -9,7 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { PlatformProvider } from "@/contexts/PlatformContext";
 import { usePrefetchPlatformPins } from "@/hooks/usePrefetchPlatformPins";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ErrorBoundary, SectionErrorBoundary } from "@/components/ErrorBoundary";
 import Home from "@/pages/Home";
 import ChurchDetail from "@/pages/ChurchDetail";
 import MinistryAreaDetail from "@/pages/MinistryAreaDetail";
@@ -85,9 +85,11 @@ function AdminPageLoader() {
 
 function LazyRoute({ component: Component }: { component: React.LazyExoticComponent<React.ComponentType<any>> }) {
   return (
-    <Suspense fallback={<AdminPageLoader />}>
-      <Component />
-    </Suspense>
+    <SectionErrorBoundary name="Page">
+      <Suspense fallback={<AdminPageLoader />}>
+        <Component />
+      </Suspense>
+    </SectionErrorBoundary>
   );
 }
 

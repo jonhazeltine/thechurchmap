@@ -890,18 +890,26 @@ export default function Home() {
   }, [prayerOverlayVisible, handleMoveEnd]);
 
   // Navigate to platform when platform changes - single smooth animation
+  const instantFlyDoneRef = useRef<string | null>(null);
   useEffect(() => {
     if (!platform) {
       // Reset the last fly-to platform when going to national view
       lastFlyToPlatformRef.current = null;
+      instantFlyDoneRef.current = null;
       return;
     }
-    
+
     // Check if this is a SWITCH to a different platform or a RETURN to the same platform
     const isSwitchingPlatforms = lastFlyToPlatformRef.current !== platform.id;
-    
+
+    // If instantFly already handled this platform, skip the duplicate fly
+    if (instantFlyDoneRef.current === platform.id && isSwitchingPlatforms) {
+      lastFlyToPlatformRef.current = platform.id;
+      return;
+    }
+
     let cancelled = false;
-    
+
     const handlePlatformNavigation = () => {
       if (cancelled) return;
       
@@ -987,7 +995,7 @@ export default function Home() {
             {
               padding: { top: 80, bottom: 80, left: 80, right: 80 },
               maxZoom: 14,
-              duration: 1500,
+              duration: 3500,
             }
           );
           return;
@@ -999,8 +1007,9 @@ export default function Home() {
         console.log('[Platform] Using default center/zoom for:', platform.id);
         map.flyTo({
           center: [platform.default_center_lng!, platform.default_center_lat!],
-          zoom: platform.default_zoom || 9, // Use zoom 9 for a good city-level view
-          duration: 1500,
+          zoom: platform.default_zoom || 9,
+          duration: 3500,
+          essential: true,
         });
       }
     };
@@ -1176,6 +1185,46 @@ export default function Home() {
       }),
   });
 
+  // Instant fly: start moving toward platform as soon as platformId changes,
+  // using cached platformsMapData (centroids/boundaries already loaded on national view).
+  // This eliminates the 2s delay waiting for /api/platforms/{slug} to resolve.
+  useEffect(() => {
+    if (!platformId || !platformsMapData?.length) return;
+    const cached = platformsMapData.find(
+      p => p.id === platformId || p.slug === platformId
+    );
+    if (!cached) return;
+    if (instantFlyDoneRef.current === (cached.id || platformId)) return;
+    instantFlyDoneRef.current = cached.id || platformId;
+
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const allBoundaries = cached.boundaries || [];
+    if (allBoundaries.length > 0) {
+      const featureCollection: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: allBoundaries.map(geom => ({
+          type: "Feature" as const,
+          properties: {},
+          geometry: geom,
+        })),
+      };
+      const bounds = bbox(featureCollection);
+      map.fitBounds(
+        [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
+        { padding: { top: 80, bottom: 80, left: 80, right: 80 }, maxZoom: 14, duration: 3500 }
+      );
+    } else if (cached.centroid) {
+      map.flyTo({
+        center: cached.centroid.coordinates,
+        zoom: 10,
+        duration: 3500,
+        essential: true,
+      });
+    }
+  }, [platformId, platformsMapData]);
+
   // CONUS constants for national view
   const CONUS_CENTER: [number, number] = [-98.5795, 39.8283];
   // Use lower zoom on mobile to show full continental US from coast to coast
@@ -1206,13 +1255,13 @@ export default function Home() {
           const bounds = bbox(featureCollection);
           map.fitBounds(
             [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
-            { padding: 50, duration: 1000 }
+            { padding: 50, duration: 3500 }
           );
         } else if (clickedPlatform.centroid) {
           map.flyTo({
             center: clickedPlatform.centroid.coordinates,
             zoom: 10,
-            duration: 1000,
+            duration: 3500,
           });
         }
       }

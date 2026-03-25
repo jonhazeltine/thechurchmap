@@ -1,7 +1,44 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ReactNode, type FC } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+
+/** Lightweight inline error boundary for sections (map, journey, admin) */
+export class SectionErrorBoundary extends Component<
+  { children: ReactNode; name?: string },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; name?: string }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error(`[${this.props.name || 'Section'}] Error:`, error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 gap-4 min-h-[200px]">
+          <AlertTriangle className="h-8 w-8 text-amber-500" />
+          <p className="text-muted-foreground text-sm">
+            {this.props.name ? `${this.props.name} failed to load.` : 'This section failed to load.'}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            <RefreshCw className="w-3 h-3 mr-1" /> Retry
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface Props {
   children: ReactNode;

@@ -129,11 +129,15 @@ export async function fetchCDCPlacesData(
     const url = `${CDC_PLACES_BASE}?${params.toString()}`;
     console.log(`Fetching CDC PLACES data: ${url}`);
     
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
       },
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
     
     if (!response.ok) {
       const text = await response.text();

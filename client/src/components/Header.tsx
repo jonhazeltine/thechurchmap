@@ -203,9 +203,9 @@ export function Header({ onAddChurch, showPrayerOverlay, onTogglePrayerOverlay, 
               )}
 
               <Link href={getCommunityUrl()}>
-                <Button variant="ghost" size="icon" className="sm:w-auto sm:px-4 sm:gap-2" data-testid="button-community-nav">
+                <Button variant="ghost" className="px-3 gap-1.5 sm:px-4 sm:gap-2" data-testid="button-community-nav">
                   <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline text-sm">Community</span>
+                  <span className="text-xs sm:text-sm">Community</span>
                 </Button>
               </Link>
             </>

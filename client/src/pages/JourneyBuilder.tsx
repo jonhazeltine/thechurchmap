@@ -650,7 +650,7 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
           // Expand bbox slightly to catch edge churches (~1 mile buffer)
           bboxMinLng -= 0.02; bboxMinLat -= 0.02; bboxMaxLng += 0.02; bboxMaxLat += 0.02;
         }
-        const res = await fetch(`/api/churches/in-viewport?minLng=${bboxMinLng}&minLat=${bboxMinLat}&maxLng=${bboxMaxLng}&maxLat=${bboxMaxLat}&limit=2000&platformId=${encodeURIComponent(pid)}`);
+        const res = await fetch(`/api/churches/in-viewport?minLng=${bboxMinLng}&minLat=${bboxMinLat}&maxLng=${bboxMaxLng}&maxLat=${bboxMaxLat}&limit=500&platformId=${encodeURIComponent(pid)}`);
         if (!res.ok) return [];
         return res.json();
       }

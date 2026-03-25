@@ -281,21 +281,25 @@ export async function GET(req: Request, res: Response) {
       (c.boundary_ids || []).forEach((id: string) => allBoundaryIds.add(id));
     });
     
-    // Fetch boundary details (name, type) for all boundary_ids
+    // Fetch boundary details (name, type) for all boundary_ids — batch to avoid URL length limits
     let boundariesMap = new Map<string, { id: string; name: string; type: string }>();
     if (allBoundaryIds.size > 0) {
-      const { data: boundariesData, error: boundariesError } = await supabase
-        .from('boundaries')
-        .select('id, name, type')
-        .in('id', Array.from(allBoundaryIds));
-      
-      if (boundariesError) {
-        console.error('Error fetching boundaries:', boundariesError);
-      } else if (boundariesData) {
-        boundariesData.forEach((b: any) => {
-          boundariesMap.set(b.id, { id: b.id, name: b.name, type: b.type });
-        });
-        console.log(`🗺️ Fetched ${boundariesMap.size} boundary details`);
+      const boundaryIdArray = Array.from(allBoundaryIds);
+      const BOUNDARY_BATCH_SIZE = 200;
+      for (let i = 0; i < boundaryIdArray.length; i += BOUNDARY_BATCH_SIZE) {
+        const batch = boundaryIdArray.slice(i, i + BOUNDARY_BATCH_SIZE);
+        const { data: boundariesData, error: boundariesError } = await supabase
+          .from('boundaries')
+          .select('id, name, type')
+          .in('id', batch);
+
+        if (boundariesError) {
+          console.error('Error fetching boundaries:', boundariesError);
+        } else if (boundariesData) {
+          boundariesData.forEach((b: any) => {
+            boundariesMap.set(b.id, { id: b.id, name: b.name, type: b.type });
+          });
+        }
       }
     }
     

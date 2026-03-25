@@ -89,36 +89,40 @@ function getStateFromCoordinates(lat: number, lng: number): string | null {
 }
 
 export async function warmCDCCache(): Promise<void> {
+  // Defer cache warming to let server handle requests first
+  console.log('🔥 CDC cache warming scheduled (starting in 30s)...');
+  await new Promise(resolve => setTimeout(resolve, 30000));
+
   console.log('🔥 Starting CDC cache warming for all city platforms...');
   const startTime = Date.now();
-  
+
   if (!supabaseUrl || !supabaseServiceKey) {
     console.log('⚠️ Supabase credentials not available, skipping cache warming');
     return;
   }
-  
+
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  
+
   try {
     const { data: platforms, error } = await supabase
       .from('city_platforms')
       .select('id, name, default_center_lat, default_center_lng, is_active')
       .eq('is_active', true);
-    
+
     if (error) {
       console.error('❌ Failed to fetch city platforms:', error);
       return;
     }
-    
+
     if (!platforms || platforms.length === 0) {
       console.log('⚠️ No active city platforms found');
       return;
     }
-    
+
     console.log(`📍 Found ${platforms.length} active city platforms`);
-    
+
     const statesNeeded = new Set<string>();
-    
+
     for (const platform of platforms) {
       if (platform.default_center_lat && platform.default_center_lng) {
         const state = getStateFromCoordinates(
@@ -127,47 +131,64 @@ export async function warmCDCCache(): Promise<void> {
         );
         if (state) {
           statesNeeded.add(state);
-          console.log(`   - ${platform.name}: ${state}`);
         }
       }
     }
-    
+
     if (statesNeeded.size === 0) {
       console.log('⚠️ No states determined from platforms');
       return;
     }
-    
+
     console.log(`🗺️ Warming cache for ${statesNeeded.size} states: ${Array.from(statesNeeded).join(', ')}`);
-    
+
     const cdcMetrics = PRIORITY_METRICS.filter(m => METRIC_KEY_TO_CDC_MEASUREID[m]);
-    console.log(`📊 Fetching ${cdcMetrics.length} CDC metrics per state...`);
-    
+
     let successCount = 0;
     let errorCount = 0;
-    
+    let consecutiveErrors = 0;
+
     for (const state of Array.from(statesNeeded)) {
       console.log(`   🏛️ Warming cache for ${state}...`);
-      
-      for (const metricKey of cdcMetrics) {
-        const measureId = METRIC_KEY_TO_CDC_MEASUREID[metricKey];
-        if (!measureId) continue;
-        
-        try {
-          await fetchCDCPlacesData(measureId, state);
-          successCount++;
-        } catch (err) {
-          errorCount++;
-          console.warn(`   ⚠️ Failed to fetch ${metricKey} for ${state}`);
+
+      // Process metrics in batches of 2 to limit concurrency
+      for (let i = 0; i < cdcMetrics.length; i += 2) {
+        // If CDC API appears down, skip remaining
+        if (consecutiveErrors >= 5) {
+          console.warn('   ⚠️ CDC API appears unreachable, skipping remaining metrics');
+          errorCount += (cdcMetrics.length - i) * (Array.from(statesNeeded).indexOf(state) === statesNeeded.size - 1 ? 1 : 0);
+          break;
         }
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const batch = cdcMetrics.slice(i, i + 2);
+        const results = await Promise.allSettled(
+          batch.map(metricKey => {
+            const measureId = METRIC_KEY_TO_CDC_MEASUREID[metricKey];
+            return measureId ? fetchCDCPlacesData(measureId, state) : Promise.reject('no measureId');
+          })
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            successCount++;
+            consecutiveErrors = 0;
+          } else {
+            errorCount++;
+            consecutiveErrors++;
+          }
+        }
+
+        // Brief pause between batches
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
+
+      // Reset consecutive errors between states
+      consecutiveErrors = 0;
     }
-    
+
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`✅ CDC cache warming complete in ${duration}s`);
-    console.log(`   📊 ${successCount} metrics cached, ${errorCount} errors`);
-    
+    console.log(`✅ CDC cache warming complete in ${duration}s (${successCount} cached, ${errorCount} errors)`);
+
   } catch (error) {
     console.error('❌ CDC cache warming failed:', error);
   }

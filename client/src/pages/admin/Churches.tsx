@@ -3385,6 +3385,25 @@ export default function AdminChurches() {
             setActiveJobId(null);
             queryClient.invalidateQueries({ queryKey: [`/api/admin/city-platforms/${platformId}/churches`] });
           }}
+          onPause={async () => {
+            const jobId = currentDialogJob?.id || activeJobId;
+            if (!jobId || !platformId) return;
+            try {
+              const { data: { session: sess } } = await supabase.auth.getSession();
+              if (!sess?.access_token) return;
+              await fetch(`/api/admin/city-platforms/${platformId}/import-churches`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sess.access_token}` },
+                body: JSON.stringify({ jobId, action: 'cancel' }),
+              });
+              setImportDialogOpen(false);
+              setActiveJobId(null);
+              queryClient.invalidateQueries({ queryKey: [`/api/admin/city-platforms/${platformId}/import-churches`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/admin/city-platforms/${platformId}/churches`] });
+            } catch (err) {
+              console.error('Failed to pause import:', err);
+            }
+          }}
         />
 
         {/* Duplicate Cleanup Wizard Dialog */}

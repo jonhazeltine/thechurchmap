@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSafePlatformContext } from "@/contexts/PlatformContext";
@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
-import { Plus, MapPin, ChevronRight, ChevronLeft, BookOpen, PenLine, Calendar, Share2 } from "lucide-react";
+import { Plus, MapPin, ChevronRight, ChevronLeft, BookOpen, PenLine, Calendar, Share2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PrayerJourney } from "@shared/schema";
 
@@ -17,9 +17,12 @@ export default function JourneyList() {
   const { session, user } = useAuth();
   const { platform: currentPlatform } = useSafePlatformContext();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [showDrafts, setShowDrafts] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<PrayerJourney | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
 
   const platformPrefix = currentPlatform ? `/${currentPlatform.slug}` : "";
@@ -92,6 +95,29 @@ export default function JourneyList() {
     }
   };
 
+  const handleDeleteJourney = async () => {
+    if (!deleteTarget || !session?.access_token) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/journeys/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: "Error", description: err.error || "Failed to delete journey", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Journey deleted" });
+      queryClient.invalidateQueries({ queryKey: ["journeys"] });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete journey", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
   const isExpired = (journey: PrayerJourney) => {
     if (!journey.expires_at) return false;
     return new Date(journey.expires_at) < new Date();
@@ -113,7 +139,7 @@ export default function JourneyList() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <Button variant="ghost" size="sm" className="mb-4" onClick={() => setLocation(platformPrefix || "/")}>
+        <Button variant="ghost" size="sm" className="mb-4" onClick={() => setLocation(platformPrefix ? `${platformPrefix}/map` : "/")}>
           <ChevronLeft className="w-4 h-4 mr-1" /> Back to Map
         </Button>
 
@@ -199,10 +225,10 @@ export default function JourneyList() {
                   }
                 }}
               >
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="truncate">{journey.title}</span>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-start justify-between gap-2 text-base">
+                    <span className="leading-snug">{journey.title}</span>
+                    <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
                       {/* Share button */}
                       {journey.share_token && !showDrafts && (
                         <Button
@@ -231,20 +257,34 @@ export default function JourneyList() {
                           <Share2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
-                      {/* Edit button for owned journeys */}
+                      {/* Edit + Delete buttons for owned journeys */}
                       {user && journey.created_by_user_id === user.id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`${platformPrefix}/journey/${journey.id}/builder`);
-                          }}
-                          title="Edit journey"
-                        >
-                          <PenLine className="w-3.5 h-3.5" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocation(`${platformPrefix}/journey/${journey.id}/builder`);
+                            }}
+                            title="Edit journey"
+                          >
+                            <PenLine className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(journey);
+                            }}
+                            title="Delete journey"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
                       )}
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </div>
@@ -285,6 +325,26 @@ export default function JourneyList() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Journey</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteTarget?.title}"? This will permanently remove the journey and all its steps. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteJourney} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete Journey"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Journey Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

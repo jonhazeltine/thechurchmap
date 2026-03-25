@@ -14,16 +14,42 @@ const isLocal = !!(dbUrl && (dbUrl.includes("localhost") || dbUrl.includes("127.
 
 let pool: any;
 
-if (isLocal) {
-  pool = new pg.Pool({ connectionString: dbUrl });
-} else {
+function createNeonPool() {
   neonConfig.webSocketConstructor = ws;
   const user = process.env.SUPABASE_DB_USER || '';
   const pass = process.env.SUPABASE_DB_PASSWORD || '';
   const host = process.env.SUPABASE_DB_HOST || 'aws-0-us-west-2.pooler.supabase.com';
   const port = process.env.SUPABASE_DB_PORT || '5432';
+
+  if (!user || !pass) {
+    console.error('[PostGIS Pool] SUPABASE_DB_USER or SUPABASE_DB_PASSWORD not set — PostGIS queries will fail');
+  }
+
   const connStr = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/postgres?sslmode=require`;
-  pool = new NeonPool({ connectionString: connStr });
+  const newPool = new NeonPool({
+    connectionString: connStr,
+    max: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  });
+
+  newPool.on('error', (err: Error) => {
+    console.error('[PostGIS Pool] Unexpected pool error:', err.message);
+    // Recreate pool on fatal errors instead of leaving it broken
+    try {
+      newPool.end().catch(() => {});
+    } catch {}
+    pool = createNeonPool();
+    console.log('[PostGIS Pool] Pool recreated after error');
+  });
+
+  return newPool;
+}
+
+if (isLocal) {
+  pool = new pg.Pool({ connectionString: dbUrl });
+} else {
+  pool = createNeonPool();
 }
 
 export interface IStorage {

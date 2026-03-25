@@ -256,8 +256,9 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     [clearHighlights]
   );
 
-  // Fly-to when target changes — use a counter to cancel stale callbacks
+  // Fly-to when target changes — instantly responsive to rapid Next/Back
   const flyCounterRef = useRef(0);
+  const moveendHandlerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -267,67 +268,73 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       return;
     }
 
-    // Increment counter — any previous fly's callbacks will see a stale count and bail
+    // Increment counter — stale callbacks bail immediately
     const thisFlightId = ++flyCounterRef.current;
+
+    // Cancel any in-progress animation instantly
+    if (moveendHandlerRef.current) {
+      map.off("moveend", moveendHandlerRef.current);
+      moveendHandlerRef.current = null;
+    }
+    map.stop();
     stopOrbit();
     clearHighlights();
 
-    const doFlyTo = () => {
-      // Bail if a newer fly was triggered
+    // Fade satellite out quickly for the transition
+    fadeSatellite(false, 400);
+
+    // Compute bearing toward next destination
+    let bearing = 0;
+    if (nextTarget) {
+      const dLng = nextTarget.lng - target.lng;
+      const dLat = nextTarget.lat - target.lat;
+      bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
+    }
+
+    const isMobile = window.innerWidth < 768;
+
+    // Fade satellite back in during flight
+    const satTimer = setTimeout(() => {
       if (flyCounterRef.current !== thisFlightId) return;
+      fadeSatellite(true, 1500);
+    }, 800);
 
-      fadeSatellite(false, 800);
+    // Start fly immediately — speed 0.8 is responsive but still cinematic
+    map.flyTo({
+      center: [target.lng, target.lat],
+      zoom: isMobile ? 17 : 17.5,
+      pitch: 60,
+      bearing,
+      speed: 0.8,
+      curve: 1.4,
+      essential: true,
+      padding: isMobile
+        ? { top: 80, bottom: 60, left: 0, right: 0 }
+        : { top: 60, bottom: 40, left: 0, right: 180 },
+    });
 
-      // Face toward next destination, or north if no next target
-      let bearing = 0;
-      if (nextTarget) {
-        const dLng = nextTarget.lng - target.lng;
-        const dLat = nextTarget.lat - target.lat;
-        bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
-      }
-
-      const isMobile = window.innerWidth < 768;
-
-      // Start fading satellite in halfway through the flight
-      setTimeout(() => {
-        if (flyCounterRef.current !== thisFlightId) return;
-        fadeSatellite(true, 3000);
-      }, 2000);
-
-      // One seamless flyTo all the way to final zoom
-      map.flyTo({
-        center: [target.lng, target.lat],
-        zoom: isMobile ? 17 : 17.5,
-        pitch: 60,
-        bearing,
-        speed: 0.4,
-        curve: 1.5,
-        essential: true,
-        padding: isMobile
-          ? { top: 80, bottom: 60, left: 0, right: 0 }
-          : { top: 60, bottom: 40, left: 0, right: 180 },
-      });
-
-      const onArrive = () => {
-        if (flyCounterRef.current !== thisFlightId) return;
-        highlightAtPoint(target);
-        startOrbit();
-        arrivedRef.current?.();
-      };
-
-      map.once("moveend", onArrive);
-      setTimeout(onArrive, 8000);
+    const onArrive = () => {
+      if (flyCounterRef.current !== thisFlightId) return;
+      moveendHandlerRef.current = null;
+      highlightAtPoint(target);
+      startOrbit();
+      arrivedRef.current?.();
     };
 
-    // Use rAF to ensure orbit's last setBearing frame has completed
-    requestAnimationFrame(() => {
-      if (flyCounterRef.current !== thisFlightId) return;
-      if (map.loaded()) {
-        doFlyTo();
-      } else {
-        map.once("load", doFlyTo);
+    moveendHandlerRef.current = onArrive;
+    map.once("moveend", onArrive);
+
+    // Safety fallback — if moveend never fires
+    const fallbackTimer = setTimeout(() => {
+      if (flyCounterRef.current === thisFlightId && moveendHandlerRef.current) {
+        onArrive();
       }
-    });
+    }, 5000);
+
+    return () => {
+      clearTimeout(satTimer);
+      clearTimeout(fallbackTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIndex]);
 

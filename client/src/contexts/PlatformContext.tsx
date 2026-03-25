@@ -177,48 +177,41 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, [setPlatformId]);
 
   // Track last known URL to detect changes
-  const lastUrlRef = { current: typeof window !== 'undefined' ? window.location.href : '' };
+  const lastUrlRef = useRef(typeof window !== 'undefined' ? window.location.href : '');
 
-  // Listen for URL changes (both popstate for back/forward and periodic checks for programmatic navigation)
+  // Listen for URL changes via popstate and MutationObserver (no polling)
   useEffect(() => {
     const syncFromUrl = () => {
       const currentUrl = window.location.href;
-      
-      // Check path-based platform first (new style)
+      if (currentUrl === lastUrlRef.current) return;
+      lastUrlRef.current = currentUrl;
+
       const pathPlatform = extractPlatformFromPath();
-      // Backward compat: also check query param
       const urlParams = new URLSearchParams(window.location.search);
       const queryPlatform = urlParams.get('platform');
-      
       const urlPlatformId = pathPlatform || queryPlatform;
-      
-      // Only update if the URL actually changed
-      if (currentUrl !== lastUrlRef.current) {
-        lastUrlRef.current = currentUrl;
-        
-        // If URL has a platform (path or param), use it and sync to state/localStorage
-        if (urlPlatformId && urlPlatformId !== platformId) {
-          setPlatformIdState(urlPlatformId);
-          localStorage.setItem(PLATFORM_STORAGE_KEY, urlPlatformId);
-        }
-        // If URL doesn't have platform, DON'T clear the state
-        // The platform context should persist unless explicitly cleared via clearPlatform()
-        // This allows navigation to pages like /church/xxx without losing platform context
+
+      if (urlPlatformId && urlPlatformId !== platformId) {
+        setPlatformIdState(urlPlatformId);
+        localStorage.setItem(PLATFORM_STORAGE_KEY, urlPlatformId);
       }
     };
 
     // Handle browser back/forward
     window.addEventListener('popstate', syncFromUrl);
-    
-    // Poll for URL changes to catch programmatic navigation (wouter's setLocation)
-    const pollInterval = setInterval(syncFromUrl, 100);
-    
-    // Initial sync
+
+    // Detect programmatic navigation (replaceState/pushState) via patching
+    const origPushState = history.pushState.bind(history);
+    const origReplaceState = history.replaceState.bind(history);
+    history.pushState = (...args) => { origPushState(...args); syncFromUrl(); };
+    history.replaceState = (...args) => { origReplaceState(...args); syncFromUrl(); };
+
     syncFromUrl();
 
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
-      clearInterval(pollInterval);
+      history.pushState = origPushState;
+      history.replaceState = origReplaceState;
     };
   }, [platformId]);
 

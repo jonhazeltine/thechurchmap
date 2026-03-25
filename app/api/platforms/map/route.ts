@@ -23,8 +23,17 @@ export interface PlatformMapData {
   boundaries: BoundaryFeature[]; // All platform boundaries
 }
 
+// Server-side cache for platforms map data (changes rarely)
+let platformsMapCache: { data: any; timestamp: number } | null = null;
+const PLATFORMS_MAP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function GET(req: Request, res: Response) {
   try {
+    // Return cached data if fresh
+    if (platformsMapCache && (Date.now() - platformsMapCache.timestamp) < PLATFORMS_MAP_CACHE_TTL) {
+      return res.status(200).json(platformsMapCache.data);
+    }
+
     const supabase = supabaseServer();
 
     const { data: platforms, error: platformsError } = await supabase
@@ -53,9 +62,13 @@ export async function GET(req: Request, res: Response) {
       return res.status(200).json([]);
     }
 
+    const platformIds = platforms.map(p => p.id);
+
+    // Fetch counts filtered to only the platforms we need (was loading ALL rows before)
     const { data: churchCounts } = await supabase
       .from('city_platform_churches')
-      .select('city_platform_id');
+      .select('city_platform_id')
+      .in('city_platform_id', platformIds);
 
     const churchCountMap = new Map<string, number>();
     if (churchCounts) {
@@ -68,7 +81,8 @@ export async function GET(req: Request, res: Response) {
     const { data: memberCounts } = await supabase
       .from('city_platform_users')
       .select('city_platform_id')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .in('city_platform_id', platformIds);
 
     const memberCountMap = new Map<string, number>();
     if (memberCounts) {
@@ -79,9 +93,6 @@ export async function GET(req: Request, res: Response) {
         }
       });
     }
-
-    // Fetch ALL boundaries for each platform from city_platform_boundaries
-    const platformIds = platforms.map(p => p.id);
     
     const { data: platformBoundaryLinks, error: linksError } = await supabase
       .from('city_platform_boundaries')
@@ -252,6 +263,9 @@ export async function GET(req: Request, res: Response) {
         boundaries, // All boundaries
       };
     });
+
+    // Cache the result
+    platformsMapCache = { data: platformsWithData, timestamp: Date.now() };
 
     return res.status(200).json(platformsWithData);
 

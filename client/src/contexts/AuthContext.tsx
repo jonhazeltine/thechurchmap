@@ -129,7 +129,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Auto-claim anonymous submissions when user logs in
       if (_event === 'SIGNED_IN' && session?.access_token) {
-        claimAnonymousSubmissions(session.access_token);
+        claimAnonymousSubmissions(session.access_token).catch(err => {
+          console.warn('[Auth] Failed to claim anonymous submissions:', err);
+        });
       }
     });
 

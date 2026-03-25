@@ -775,8 +775,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Circuit breaker for ministry saturation PostGIS queries
+  let saturationFailCount = 0;
+  let saturationCircuitOpenUntil = 0;
+
   app.get("/api/ministry-saturation/clipped", async (req, res) => {
     try {
+      // Circuit breaker: if too many recent failures, return empty result
+      if (saturationFailCount >= 3 && Date.now() < saturationCircuitOpenUntil) {
+        return res.json({ type: 'FeatureCollection', features: [] });
+      }
+
       const bbox = req.query.bbox as string;
       const platformId = req.query.platform_id as string | undefined;
       if (!bbox) {
@@ -787,10 +796,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "bbox must be 4 comma-separated numbers: west,south,east,north" });
       }
       const geojson = await storage.getClippedSaturationGeoJSON(bbox, platformId);
+      saturationFailCount = 0; // Reset on success
       res.json(geojson);
     } catch (error) {
+      saturationFailCount++;
+      saturationCircuitOpenUntil = Date.now() + 60000; // 60s cooldown
       console.error("Error fetching clipped ministry saturation:", error);
-      res.status(500).json({ error: "Failed to fetch clipped ministry saturation" });
+      // Return empty FeatureCollection instead of 500 so map still loads
+      res.json({ type: 'FeatureCollection', features: [] });
     }
   });
 
