@@ -3548,7 +3548,7 @@ export default function AdminChurches() {
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium">High Confidence clusters (click to adjust):</h4>
                       <p className="text-xs text-muted-foreground">Toggle individual records to Keep or Hide. Green = Keep, Red = Hide.</p>
-                      <ScrollArea className="h-[500px]">
+                      <ScrollArea className="max-h-[40vh]">
                         <div className="space-y-2 pr-4">
                           {wizardClusters.clusters
                             .filter(c => c.confidenceTier === 'auto')
@@ -3930,11 +3930,29 @@ export default function AdminChurches() {
                   const allKeep = hideCount === 0;
                   const noneKeep = keepCount === 0;
                   
+                  const remainingCount = reviewClusters.length - currentReviewIndex;
+
                   return (
                     <div className="flex gap-2 w-full justify-between flex-wrap">
-                      <Button variant="outline" onClick={() => setWizardPhase(3)}>
-                        Finish Early
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setWizardPhase(3)}>
+                          Finish Early
+                        </Button>
+                        {remainingCount > 1 && (
+                          <Button
+                            variant="outline"
+                            className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950"
+                            onClick={() => autoResolveMutation.mutate()}
+                            disabled={autoResolveMutation.isPending}
+                          >
+                            {autoResolveMutation.isPending ? (
+                              <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Resolving...</>
+                            ) : (
+                              <><Zap className="h-4 w-4 mr-1" /> Auto-Resolve All ({remainingCount})</>
+                            )}
+                          </Button>
+                        )}
+                      </div>
                       <div className="flex gap-2 flex-wrap">
                         <Button 
                           variant="outline" 
