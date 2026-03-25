@@ -342,6 +342,7 @@ export default function AdminChurches() {
     not_verified_yet: true,
   });
   const [showOnlySelected, setShowOnlySelected] = useState(false);
+  const [pipelineDismissed, setPipelineDismissed] = useState(false);
 
   // Wizard state
   const [showCleanupWizard, setShowCleanupWizard] = useState(false);
@@ -2457,12 +2458,19 @@ export default function AdminChurches() {
                   </AlertDescription>
                 </Alert>
 
-                {/* Pipeline Status Summary — shown after import controls as a progression */}
-                {(incompleteJob || pendingCount > 0) && (
+                {/* Pipeline Status Summary — persists until dupes resolved or manually dismissed */}
+                {(incompleteJob || pendingCount > 0 || (duplicateClusterData?.summary?.totalClusters ?? 0) > 0) && !pipelineDismissed && (
                   <div className="mb-4 rounded-lg border bg-muted/30 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Zap className="h-4 w-4 text-primary" />
-                      <span className="font-medium text-sm">Import Pipeline</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-sm">Import Pipeline</span>
+                      </div>
+                      {!incompleteJob && pendingCount === 0 && pendingInClustersCount === 0 && (
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => setPipelineDismissed(true)}>
+                          Dismiss
+                        </Button>
+                      )}
                     </div>
                     <div className="grid grid-cols-5 gap-2">
                       <div className={`rounded-md p-2 text-center text-xs ${
