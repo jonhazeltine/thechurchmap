@@ -2458,79 +2458,99 @@ export default function AdminChurches() {
                   </AlertDescription>
                 </Alert>
 
-                {/* Pipeline Status Summary — persists until dupes resolved or manually dismissed */}
-                {(incompleteJob || pendingCount > 0 || (duplicateClusterData?.summary?.totalClusters ?? 0) > 0) && !pipelineDismissed && (
-                  <div className="mb-4 rounded-lg border bg-muted/30 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-sm">Import Pipeline</span>
+                {/* Pipeline Status — tied to the most recent import job */}
+                {(() => {
+                  // Find the active pipeline job: running/interrupted first, then most recent completed with unresolved work
+                  const activeJob = incompleteJob || importJobs.find((j: any) => j.status === 'completed');
+                  const hasUnresolvedClusters = (duplicateClusterData?.summary?.totalClusters ?? 0) > 0;
+                  const showPipeline = !pipelineDismissed && activeJob && (
+                    incompleteJob || pendingCount > 0 || hasUnresolvedClusters
+                  );
+                  if (!showPipeline) return null;
+
+                  const job = activeJob;
+                  const isRunning = job.status === 'running';
+                  const phase = job.current_phase || 'completed';
+                  const jobDate = new Date(job.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+                  // Steps are done if the job completed past them OR if there are pending/cluster results
+                  const searchDone = job.grid_points_completed === job.grid_points_total || job.status === 'completed' || pendingCount > 0 || hasUnresolvedClusters;
+                  const boundsDone = (job.churches_in_boundaries ?? 0) > 0 || job.status === 'completed' || pendingCount > 0 || hasUnresolvedClusters;
+                  const dedupDone = (job.duplicates_skipped ?? 0) > 0 || job.status === 'completed' || pendingCount > 0 || hasUnresolvedClusters;
+                  const dupesClear = !hasUnresolvedClusters && pendingInClustersCount === 0;
+                  const allApproved = pendingCount === 0 && cleanPendingChurches.length === 0;
+
+                  return (
+                    <div className="mb-4 rounded-lg border bg-muted/30 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Zap className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-sm">Import: {jobDate}</span>
+                          {isRunning && <Badge variant="secondary" className="text-xs bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200">Running</Badge>}
+                          {job.status === 'completed' && dupesClear && allApproved && <Badge variant="secondary" className="text-xs bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">Complete</Badge>}
+                        </div>
+                        {!incompleteJob && pendingCount === 0 && dupesClear && (
+                          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => setPipelineDismissed(true)}>
+                            Dismiss
+                          </Button>
+                        )}
                       </div>
-                      {!incompleteJob && pendingCount === 0 && pendingInClustersCount === 0 && (
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => setPipelineDismissed(true)}>
-                          Dismiss
-                        </Button>
-                      )}
+                      <div className="grid grid-cols-5 gap-2">
+                        <div className={`rounded-md p-2 text-center text-xs ${
+                          phase === 'searching' && isRunning ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
+                          searchDone ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                        }`}>
+                          <div className="font-medium">1. Search</div>
+                          <div className="text-muted-foreground">
+                            {phase === 'searching' && isRunning ? `${job.grid_points_completed}/${job.grid_points_total}` :
+                             searchDone ? `✓ ${job.churches_found_raw || ''}` : '—'}
+                          </div>
+                        </div>
+                        <div className={`rounded-md p-2 text-center text-xs ${
+                          phase === 'boundary_check' && isRunning ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
+                          boundsDone ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                        }`}>
+                          <div className="font-medium">2. Bounds</div>
+                          <div className="text-muted-foreground">
+                            {phase === 'boundary_check' && isRunning ? `${job.churches_in_boundaries} in` :
+                             boundsDone ? `✓ ${job.churches_in_boundaries || ''}` : '—'}
+                          </div>
+                        </div>
+                        <div className={`rounded-md p-2 text-center text-xs ${
+                          phase === 'deduplication' && isRunning ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
+                          dedupDone ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                        }`}>
+                          <div className="font-medium">3. Dedup</div>
+                          <div className="text-muted-foreground">
+                            {phase === 'deduplication' && isRunning ? 'Running...' :
+                             dedupDone ? `✓ ${job.duplicates_skipped || 0} removed` : '—'}
+                          </div>
+                        </div>
+                        <div className={`rounded-md p-2 text-center text-xs ${
+                          hasUnresolvedClusters ? 'bg-amber-100 dark:bg-amber-900/30 ring-2 ring-amber-400' :
+                          dupesClear && (pendingCount > 0 || allApproved) ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                        }`}>
+                          <div className="font-medium">4. Dupes</div>
+                          <div className="text-muted-foreground">
+                            {hasUnresolvedClusters
+                              ? <span className="text-amber-700 dark:text-amber-400 font-medium">{duplicateClusterData!.summary.totalClusters}</span>
+                              : dupesClear ? '✓ Clear' : '—'}
+                          </div>
+                        </div>
+                        <div className={`rounded-md p-2 text-center text-xs ${
+                          cleanPendingChurches.length > 0 ? 'bg-green-100 dark:bg-green-900/30 ring-2 ring-green-400' :
+                          allApproved && dedupDone ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                        }`}>
+                          <div className="font-medium">5. Approve</div>
+                          <div className="text-muted-foreground">
+                            {cleanPendingChurches.length > 0
+                              ? <span className="text-green-700 dark:text-green-400 font-medium">{cleanPendingChurches.length}</span>
+                              : allApproved && dedupDone ? `✓ ${job.churches_inserted || 0}` : '—'}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-2">
-                      <div className={`rounded-md p-2 text-center text-xs ${
-                        incompleteJob?.current_phase === 'searching' ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
-                        (incompleteJob?.grid_points_completed ?? 0) > 0 || pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
-                      }`}>
-                        <div className="font-medium">1. Search</div>
-                        <div className="text-muted-foreground">
-                          {incompleteJob?.current_phase === 'searching'
-                            ? `${incompleteJob.grid_points_completed}/${incompleteJob.grid_points_total}`
-                            : (incompleteJob?.grid_points_completed ?? 0) > 0 || pendingCount > 0 ? '✓ Done' : '—'}
-                        </div>
-                      </div>
-                      <div className={`rounded-md p-2 text-center text-xs ${
-                        incompleteJob?.current_phase === 'boundary_check' ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
-                        (incompleteJob?.churches_in_boundaries ?? 0) > 0 || pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
-                      }`}>
-                        <div className="font-medium">2. Bounds</div>
-                        <div className="text-muted-foreground">
-                          {incompleteJob?.current_phase === 'boundary_check'
-                            ? `${incompleteJob.churches_in_boundaries} in`
-                            : (incompleteJob?.churches_in_boundaries ?? 0) > 0 || pendingCount > 0 ? '✓ Done' : '—'}
-                        </div>
-                      </div>
-                      <div className={`rounded-md p-2 text-center text-xs ${
-                        incompleteJob?.current_phase === 'deduplication' ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
-                        (incompleteJob?.duplicates_skipped ?? 0) > 0 || pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
-                      }`}>
-                        <div className="font-medium">3. Dedup</div>
-                        <div className="text-muted-foreground">
-                          {incompleteJob?.current_phase === 'deduplication'
-                            ? 'Running...'
-                            : (incompleteJob?.duplicates_skipped ?? 0) > 0 ? `${incompleteJob!.duplicates_skipped} removed`
-                            : pendingCount > 0 ? '✓ Done' : '—'}
-                        </div>
-                      </div>
-                      <div className={`rounded-md p-2 text-center text-xs ${
-                        pendingInClustersCount > 0 ? 'bg-amber-100 dark:bg-amber-900/30 ring-2 ring-amber-400' :
-                        pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
-                      }`}>
-                        <div className="font-medium">4. Dupes</div>
-                        <div className="text-muted-foreground">
-                          {pendingInClustersCount > 0
-                            ? <span className="text-amber-700 dark:text-amber-400 font-medium">{pendingInClustersCount}</span>
-                            : pendingCount > 0 ? '✓ Clear' : '—'}
-                        </div>
-                      </div>
-                      <div className={`rounded-md p-2 text-center text-xs ${
-                        cleanPendingChurches.length > 0 ? 'bg-green-100 dark:bg-green-900/30 ring-2 ring-green-400' : 'bg-muted'
-                      }`}>
-                        <div className="font-medium">5. Approve</div>
-                        <div className="text-muted-foreground">
-                          {cleanPendingChurches.length > 0
-                            ? <span className="text-green-700 dark:text-green-400 font-medium">{cleanPendingChurches.length}</span>
-                            : '—'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Import History Section */}
                 <Collapsible
