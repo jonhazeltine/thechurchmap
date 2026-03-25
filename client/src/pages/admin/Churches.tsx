@@ -2063,10 +2063,10 @@ export default function AdminChurches() {
                         <AlertTriangle className="h-3 w-3" />
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="cursor-help border-b border-dashed border-amber-400">Needs Review (All)</span>
+                            <span className="cursor-help border-b border-dashed border-amber-400">Low Quality / Flagged</span>
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
-                            <p className="mb-2">Total churches platform-wide that are flagged or have quality scores below 30%. Click to start reviewing.</p>
+                            <p className="mb-2">Churches flagged by Google verification or with data quality scores below 30%. These may have wrong addresses, be permanently closed, or have other data issues. Click to review.</p>
                             {summaryData?.breakdown?.needs_attention_by_platform_status && (
                               <div className="text-xs border-t pt-2 mt-1">
                                 <p className="font-medium mb-1">Breakdown by status:</p>
@@ -2457,6 +2457,73 @@ export default function AdminChurches() {
                   </AlertDescription>
                 </Alert>
 
+                {/* Pipeline Status Summary — shown after import controls as a progression */}
+                {(incompleteJob || pendingCount > 0) && (
+                  <div className="mb-4 rounded-lg border bg-muted/30 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Zap className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-sm">Import Pipeline</span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      <div className={`rounded-md p-2 text-center text-xs ${
+                        incompleteJob?.current_phase === 'searching' ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
+                        (incompleteJob?.grid_points_completed ?? 0) > 0 || pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                      }`}>
+                        <div className="font-medium">1. Search</div>
+                        <div className="text-muted-foreground">
+                          {incompleteJob?.current_phase === 'searching'
+                            ? `${incompleteJob.grid_points_completed}/${incompleteJob.grid_points_total}`
+                            : (incompleteJob?.grid_points_completed ?? 0) > 0 || pendingCount > 0 ? '✓ Done' : '—'}
+                        </div>
+                      </div>
+                      <div className={`rounded-md p-2 text-center text-xs ${
+                        incompleteJob?.current_phase === 'boundary_check' ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
+                        (incompleteJob?.churches_in_boundaries ?? 0) > 0 || pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                      }`}>
+                        <div className="font-medium">2. Bounds</div>
+                        <div className="text-muted-foreground">
+                          {incompleteJob?.current_phase === 'boundary_check'
+                            ? `${incompleteJob.churches_in_boundaries} in`
+                            : (incompleteJob?.churches_in_boundaries ?? 0) > 0 || pendingCount > 0 ? '✓ Done' : '—'}
+                        </div>
+                      </div>
+                      <div className={`rounded-md p-2 text-center text-xs ${
+                        incompleteJob?.current_phase === 'deduplication' ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400' :
+                        (incompleteJob?.duplicates_skipped ?? 0) > 0 || pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                      }`}>
+                        <div className="font-medium">3. Dedup</div>
+                        <div className="text-muted-foreground">
+                          {incompleteJob?.current_phase === 'deduplication'
+                            ? 'Running...'
+                            : (incompleteJob?.duplicates_skipped ?? 0) > 0 ? `${incompleteJob!.duplicates_skipped} removed`
+                            : pendingCount > 0 ? '✓ Done' : '—'}
+                        </div>
+                      </div>
+                      <div className={`rounded-md p-2 text-center text-xs ${
+                        pendingInClustersCount > 0 ? 'bg-amber-100 dark:bg-amber-900/30 ring-2 ring-amber-400' :
+                        pendingCount > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                      }`}>
+                        <div className="font-medium">4. Dupes</div>
+                        <div className="text-muted-foreground">
+                          {pendingInClustersCount > 0
+                            ? <span className="text-amber-700 dark:text-amber-400 font-medium">{pendingInClustersCount}</span>
+                            : pendingCount > 0 ? '✓ Clear' : '—'}
+                        </div>
+                      </div>
+                      <div className={`rounded-md p-2 text-center text-xs ${
+                        cleanPendingChurches.length > 0 ? 'bg-green-100 dark:bg-green-900/30 ring-2 ring-green-400' : 'bg-muted'
+                      }`}>
+                        <div className="font-medium">5. Approve</div>
+                        <div className="text-muted-foreground">
+                          {cleanPendingChurches.length > 0
+                            ? <span className="text-green-700 dark:text-green-400 font-medium">{cleanPendingChurches.length}</span>
+                            : '—'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Import History Section */}
                 <Collapsible
                   open={importHistoryOpen}
@@ -2630,12 +2697,17 @@ export default function AdminChurches() {
                   </CollapsibleContent>
                 </Collapsible>
 
-                {/* Duplicates & Cleanup Section */}
-                <div className="mt-6 mb-4">
-                  <div className="flex items-center justify-between gap-2 mb-3">
+                {/* Duplicates & Cleanup Section — grouped in a bordered card */}
+                <div className="mt-6 rounded-lg border p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 text-muted-foreground" />
                       <h3 className="font-semibold">Duplicates & Cleanup</h3>
+                      {pendingInClustersCount > 0 && (
+                        <Badge variant="secondary" className="bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200">
+                          {pendingInClustersCount} to review
+                        </Badge>
+                      )}
                     </div>
                     <Button
                       variant="outline"
@@ -2647,24 +2719,19 @@ export default function AdminChurches() {
                       Clean Duplicates
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Find and resolve duplicate church records, manage archived and hidden churches
-                  </p>
-                </div>
 
-                {/* Reviewed Clusters Section */}
-                <Collapsible
-                  open={showReviewedClusters}
-                  onOpenChange={setShowReviewedClusters}
-                  className="mb-6"
-                >
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex items-center gap-2 w-full justify-start p-2 mb-2"
-                      data-testid="button-toggle-reviewed-clusters"
-                    >
+                  {/* Collapsible sub-sections inside the card */}
+                  <Collapsible
+                    open={showReviewedClusters}
+                    onOpenChange={setShowReviewedClusters}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-2 w-full justify-start p-2"
+                        data-testid="button-toggle-reviewed-clusters"
+                      >
                       <CheckCircle2 className="h-4 w-4" />
                       <span className="font-medium">Reviewed Clusters</span>
                       {reviewedClustersData?.count ? (
@@ -2741,14 +2808,13 @@ export default function AdminChurches() {
                       )}
                     </div>
                   </CollapsibleContent>
-                </Collapsible>
+                  </Collapsible>
 
-                {/* Archived Churches Section */}
-                <Collapsible
-                  open={showArchivedChurches}
-                  onOpenChange={setShowArchivedChurches}
-                  className="mb-6"
-                >
+                  {/* Archived Churches — inside same card */}
+                  <Collapsible
+                    open={showArchivedChurches}
+                    onOpenChange={setShowArchivedChurches}
+                  >
                   <CollapsibleTrigger asChild>
                     <Button
                       variant="ghost"
@@ -2820,11 +2886,12 @@ export default function AdminChurches() {
                       )}
                     </div>
                   </CollapsibleContent>
-                </Collapsible>
+                  </Collapsible>
+                </div>
 
-                {/* Pending Imported Churches */}
+                {/* Pending Imported Churches — grouped in a bordered card */}
                 {pendingCount > 0 && (
-                  <div className="mt-6">
+                  <div className="mt-4 rounded-lg border p-4">
                     <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                       <div className="flex items-center gap-2">
                         <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -2860,11 +2927,13 @@ export default function AdminChurches() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Imported churches waiting for approval
-                      {pendingInClustersCount > 0 && (
-                        <span className="ml-1">
-                          • Churches in duplicate clusters should be reviewed via the Duplicate Cleanup Wizard first
-                        </span>
+                      {pendingInClustersCount > 0 ? (
+                        <>
+                          <strong>{cleanPendingChurches.length}</strong> churches passed auto-dedup and are safe to approve.{' '}
+                          <strong>{pendingInClustersCount}</strong> are in possible duplicate clusters — use the <em>Clean Duplicates</em> wizard above to resolve them first.
+                        </>
+                      ) : (
+                        <>All {pendingCount} churches passed auto-dedup and are ready to approve.</>
                       )}
                     </p>
                     
