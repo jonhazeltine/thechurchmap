@@ -29,6 +29,7 @@ const BOUNDARY_OUTLINE_LAYER = "journey-boundary-outline";
 const CONTEXT_PINS_SOURCE = "journey-context-pins";
 const CONTEXT_PINS_GLOW_LAYER = "journey-context-pins-glow";
 const CONTEXT_PINS_LAYER = "journey-context-pins-dot";
+const CONTEXT_PINS_LABELS = "journey-context-pins-labels";
 
 /**
  * Full-screen interactive Mapbox map for the prayer journey.
@@ -275,6 +276,40 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
             "circle-stroke-color": "#FFD54F",
           },
         });
+        // Name labels above pins
+        map.addLayer({
+          id: CONTEXT_PINS_LABELS,
+          type: "symbol",
+          source: CONTEXT_PINS_SOURCE,
+          layout: {
+            "text-field": ["get", "name"],
+            "text-size": 11,
+            "text-offset": [0, -1.8],
+            "text-anchor": "bottom",
+            "text-max-width": 12,
+            "text-optional": true,
+            "text-allow-overlap": false,
+          },
+          paint: {
+            "text-color": "#FFFFFF",
+            "text-halo-color": "rgba(0,0,0,0.7)",
+            "text-halo-width": 1.5,
+            "text-opacity": 0.9,
+          },
+        });
+
+        // Click handler for context pins — show popup with church name
+        map.on("click", CONTEXT_PINS_LAYER, (e: any) => {
+          if (!e.features?.length) return;
+          const name = e.features[0].properties?.name || "Church";
+          const coords = e.features[0].geometry.coordinates.slice();
+          new mapboxgl.Popup({ closeButton: false, closeOnClick: true, offset: 12 })
+            .setLngLat(coords)
+            .setHTML(`<div style="font-size:13px;font-weight:600;padding:2px 4px">${name}</div>`)
+            .addTo(map);
+        });
+        map.on("mouseenter", CONTEXT_PINS_LAYER, () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", CONTEXT_PINS_LAYER, () => { map.getCanvas().style.cursor = ""; });
       }
     });
 
