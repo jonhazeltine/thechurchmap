@@ -1328,7 +1328,7 @@ function LocationPicker({ value, onChange }: { value: LocationData | null; onCha
     try {
       const encoded = encodeURIComponent(q);
       const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${MAPBOX_TOKEN}&types=place,address,poi,neighborhood&limit=5`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${MAPBOX_TOKEN}&types=country,region,place,address,poi,neighborhood&limit=5`
       );
       if (!res.ok) throw new Error("Geocoding failed");
       const data = await res.json();
