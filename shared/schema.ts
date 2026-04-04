@@ -515,6 +515,7 @@ export interface PrayerInteraction {
 export type PrayerJourneyStatus = 'draft' | 'published' | 'archived';
 
 export type PrayerJourneyStepType =
+  | 'boundary'
   | 'church'
   | 'community_need'
   | 'custom'
@@ -577,7 +578,7 @@ export const updatePrayerJourneySchema = z.object({
 });
 
 export const insertPrayerJourneyStepSchema = z.object({
-  step_type: z.enum(['church', 'community_need', 'custom', 'scripture', 'user_prayer', 'thanksgiving', 'prayer_request']),
+  step_type: z.enum(['boundary', 'church', 'community_need', 'custom', 'scripture', 'user_prayer', 'thanksgiving', 'prayer_request']),
   sort_order: z.number().int().min(0).default(0),
   title: z.string().max(200).optional().nullable(),
   body: z.string().max(5000).optional().nullable(),

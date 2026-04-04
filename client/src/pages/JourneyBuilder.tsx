@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   MapPin, Church, Heart, PenLine, Sparkles, Eye, ArrowLeft, ArrowRight,
   Check, GripVertical, Trash2, EyeOff, Save, Plus, HandHeart, Map, X, ChevronRight,
-  ImagePlus, Loader2, Navigation
+  ImagePlus, Loader2, Navigation, Globe, Search
 } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -292,10 +292,12 @@ export default function JourneyBuilder() {
         {activeStep === "location" && (
           <LocationStep
             journey={journey}
+            steps={steps}
             authHeaders={authHeaders}
             journeyId={id!}
+            onAddSteps={(s) => addStepsMutation.mutateAsync(s)}
+            onDeleteStep={(stepId: string) => deleteStepMutation.mutate(stepId)}
             onNext={() => setActiveStep("churches")}
-            onSave={() => saveMutation.mutate()}
             platform={currentPlatform}
           />
         )}
@@ -352,40 +354,84 @@ export default function JourneyBuilder() {
 
 // --- Sub-components for each builder step ---
 
-function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platform }: any) {
+// Compute centroid from a GeoJSON geometry by averaging all coordinates
+function computeCentroid(geometry: any): { lat: number; lng: number } {
+  let sumLat = 0, sumLng = 0, count = 0;
+  const extractCoords = (coords: any) => {
+    if (typeof coords[0] === "number") {
+      sumLng += coords[0];
+      sumLat += coords[1];
+      count++;
+    } else {
+      for (const c of coords) extractCoords(c);
+    }
+  };
+  if (geometry?.coordinates) extractCoords(geometry.coordinates);
+  return count > 0 ? { lat: sumLat / count, lng: sumLng / count } : { lat: 0, lng: 0 };
+}
+
+// Compute bounding box from a GeoJSON geometry
+function computeBbox(geometry: any): { minLng: number; minLat: number; maxLng: number; maxLat: number } {
+  let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+  const extractCoords = (coords: any) => {
+    if (typeof coords[0] === "number") {
+      minLng = Math.min(minLng, coords[0]);
+      minLat = Math.min(minLat, coords[1]);
+      maxLng = Math.max(maxLng, coords[0]);
+      maxLat = Math.max(maxLat, coords[1]);
+    } else {
+      for (const c of coords) extractCoords(c);
+    }
+  };
+  if (geometry?.coordinates) extractCoords(geometry.coordinates);
+  return { minLng, minLat, maxLng, maxLat };
+}
+
+// Fetch demographic context for a boundary and generate a prayer body
+async function fetchDemographicPrayerBody(geometry: any, name: string): Promise<string> {
+  const fallback = `Lift up the ${name} community. Pray for the families, schools, businesses, and churches in this area.`;
+  try {
+    const bbox = computeBbox(geometry);
+    const res = await fetch(
+      `/api/prayers/prompts-for-area?bbox=${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}&limit=5&mode=journey`
+    );
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    const prompts = data.prompts || [];
+    if (prompts.length === 0) return fallback;
+
+    // Build prayer text from top community needs
+    const topNeeds = prompts.slice(0, 3).map((p: any) => {
+      const display = p.metric_display || p.metric_key;
+      const value = p.value ? ` (${Math.round(p.value * 10) / 10}%)` : "";
+      return `${display}${value}`;
+    });
+    const critical = data.area_summary?.critical_count || 0;
+    const concerning = data.area_summary?.concerning_count || 0;
+
+    let body = `Lift up the ${name} community in prayer.`;
+    if (critical > 0 || concerning > 0) {
+      body += ` This area faces ${critical > 0 ? `${critical} critical` : ""}${critical > 0 && concerning > 0 ? " and " : ""}${concerning > 0 ? `${concerning} concerning` : ""} health and social needs.`;
+    }
+    if (topNeeds.length > 0) {
+      body += `\n\nTop needs: ${topNeeds.join(", ")}.`;
+    }
+    body += `\n\nPray for healing, hope, and the churches serving this neighborhood.`;
+    return body;
+  } catch {
+    return fallback;
+  }
+}
+
+function LocationStep({ journey, steps, authHeaders, journeyId, onAddSteps, onDeleteStep, onNext, platform }: any) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPlaces, setSelectedPlaces] = useState<Array<{ id: string; name: string; type: string; state_code?: string }>>([]);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch boundary names for existing tract_ids on load
-  const tractIds = journey?.tract_ids || [];
-  const { data: existingBoundaries } = useQuery<any[]>({
-    queryKey: ["journey-boundary-names", tractIds],
-    queryFn: async () => {
-      if (tractIds.length === 0) return [];
-      const params = new URLSearchParams();
-      tractIds.forEach((id: string) => params.append("ids", id));
-      const res = await fetch(`/api/boundaries/by-ids?${params}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: tractIds.length > 0 && selectedPlaces.length === 0,
-  });
-
-  // Populate selectedPlaces from fetched boundary data
-  useEffect(() => {
-    if (existingBoundaries && existingBoundaries.length > 0 && selectedPlaces.length === 0) {
-      setSelectedPlaces(existingBoundaries.map((b: any) => ({
-        id: b.id,
-        name: b.name || b.id,
-        type: b.type || "area",
-        state_code: b.state_code,
-      })));
-    }
-  }, [existingBoundaries]);
+  // Existing boundary steps in the journey
+  const boundarySteps = steps.filter((s: any) => s.step_type === "boundary");
+  const existingBoundaryIds = new Set(boundarySteps.map((s: any) => s.metadata?.boundary_id));
 
   // Autocomplete search — same API as FilterSidebar's "Filter by Place"
   const { data: searchResults = [] } = useQuery<any[]>({
@@ -399,72 +445,67 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platfor
   });
 
   const handleSelectPlace = async (place: any) => {
-    const placeId = place.id; // Use the UUID primary key (not external_id) for boundary lookups
-    if (selectedPlaces.some((p) => p.id === placeId)) return;
-
-    const newPlace = { id: placeId, name: place.name, type: place.type, state_code: place.state_code };
-    const updated = [...selectedPlaces, newPlace];
-    setSelectedPlaces(updated);
+    if (existingBoundaryIds.has(place.id)) return;
     setSearchQuery("");
     setSearchOpen(false);
 
-    // Save tract_ids to journey
-    const tractIds = updated.map((p) => p.id);
-    await fetch(`/api/journeys/${journeyId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ tract_ids: tractIds }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
-    toast({ title: "Location added", description: `${place.name} added to journey.` });
-  };
+    const centroid = computeCentroid(place.geometry);
+    const currentMax = Math.max(0, ...steps.map((s: any) => s.sort_order));
+    const body = await fetchDemographicPrayerBody(place.geometry, place.name);
 
-  const handleRemovePlace = async (placeId: string) => {
-    const updated = selectedPlaces.filter((p) => p.id !== placeId);
-    setSelectedPlaces(updated);
-    const tractIds = updated.map((p) => p.id);
-    await fetch(`/api/journeys/${journeyId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ tract_ids: tractIds }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+    await onAddSteps([{
+      step_type: "boundary",
+      title: `Pray for ${place.name}${place.state_code ? `, ${place.state_code}` : ""}`,
+      body,
+      sort_order: currentMax + 1,
+      metadata: {
+        boundary_id: place.id,
+        boundary_name: place.name,
+        boundary_type: place.type,
+        boundary_geometry: place.geometry,
+        centroid_lat: centroid.lat,
+        centroid_lng: centroid.lng,
+      },
+    }]);
+    toast({ title: "Location added", description: `${place.name} added as a prayer focus.` });
   };
 
   const handleMapPickerSave = async (boundaries: any[]) => {
-    // Sync to whatever the map picker returns (handles both adds and removes)
-    const updated = boundaries.map((b: any) => ({
-      id: b.id,
-      name: b.name || b.id,
-      type: b.type || "area",
-      state_code: b.state_code,
-    }));
-    setSelectedPlaces(updated);
     setMapPickerOpen(false);
+    // Only add new boundaries that aren't already steps
+    const newBoundaries = boundaries.filter((b: any) => !existingBoundaryIds.has(b.id));
+    if (newBoundaries.length === 0) return;
 
-    const tractIds = updated.map((p) => p.id);
-    await fetch(`/api/journeys/${journeyId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ tract_ids: tractIds }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
-    const added = boundaries.filter((b: any) => !selectedPlaces.some((p) => p.id === b.id)).length;
-    const removed = selectedPlaces.filter((p) => !boundaries.some((b: any) => b.id === p.id)).length;
-    const parts = [];
-    if (added > 0) parts.push(`${added} added`);
-    if (removed > 0) parts.push(`${removed} removed`);
-    if (parts.length > 0) {
-      toast({ title: "Areas updated", description: parts.join(", ") });
-    }
+    const currentMax = Math.max(0, ...steps.map((s: any) => s.sort_order));
+    const newSteps = await Promise.all(newBoundaries.map(async (b: any, i: number) => {
+      const centroid = computeCentroid(b.geometry);
+      const body = await fetchDemographicPrayerBody(b.geometry, b.name || b.id);
+      return {
+        step_type: "boundary" as const,
+        title: `Pray for ${b.name || b.id}${b.state_code ? `, ${b.state_code}` : ""}`,
+        body,
+        sort_order: currentMax + i + 1,
+        metadata: {
+          boundary_id: b.id,
+          boundary_name: b.name || b.id,
+          boundary_type: b.type || "area",
+          boundary_geometry: b.geometry,
+          centroid_lat: centroid.lat,
+          centroid_lng: centroid.lng,
+        },
+      };
+    }));
+
+    await onAddSteps(newSteps);
+    toast({ title: "Locations added", description: `${newSteps.length} area${newSteps.length !== 1 ? "s" : ""} added as prayer focuses.` });
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-2">Select Location</h2>
+        <h2 className="text-xl font-semibold mb-2">Location Prayer Focuses</h2>
         <p className="text-muted-foreground">
-          Search for a city, township, or neighborhood — or select areas directly on the map.
+          Select areas to pray over. Each location becomes a step in your journey with a map zoom and community context.
         </p>
       </div>
 
@@ -495,7 +536,7 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platfor
         isOpen={mapPickerOpen}
         onClose={() => setMapPickerOpen(false)}
         onSave={handleMapPickerSave}
-        initialSelectedIds={selectedPlaces.map((p) => p.id)}
+        initialSelectedIds={boundarySteps.map((s: any) => s.metadata?.boundary_id).filter(Boolean)}
         initialCenter={platform?.default_center_lat && platform?.default_center_lng
           ? [platform.default_center_lng, platform.default_center_lat]
           : undefined}
@@ -506,7 +547,7 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platfor
         selectionColor="#6366F1"
       />
 
-      {/* Inline search panel — shown when "Search by Name" is clicked */}
+      {/* Inline search panel */}
       {searchOpen && (
         <Card>
           <CardContent className="p-3">
@@ -526,12 +567,11 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platfor
                 {searchResults.length > 0 && (
                   <CommandGroup>
                     {searchResults.map((result: any) => {
-                      const resultId = result.id;
-                      const isSelected = selectedPlaces.some((p) => p.id === resultId);
+                      const isSelected = existingBoundaryIds.has(result.id);
                       return (
                         <CommandItem
-                          key={resultId}
-                          value={resultId}
+                          key={result.id}
+                          value={result.id}
                           onSelect={() => handleSelectPlace(result)}
                         >
                           <span className="mr-2 w-5 h-4 flex items-center justify-center shrink-0">
@@ -563,26 +603,29 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platfor
         </Card>
       )}
 
-      {/* Selected places */}
-      {selectedPlaces.length > 0 && (
+      {/* Added boundary steps */}
+      {boundarySteps.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Selected Areas ({selectedPlaces.length})</CardTitle>
+            <CardTitle className="text-sm">Location Focuses ({boundarySteps.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {selectedPlaces.map((place) => (
-                <span key={place.id} className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-sm rounded-full">
-                  <MapPin className="w-3 h-3" />
-                  {place.name !== place.id ? place.name : place.id}
-                  {place.state_code && <span className="text-muted-foreground">, {place.state_code}</span>}
-                  <button
-                    onClick={() => handleRemovePlace(place.id)}
-                    className="ml-1 hover:text-destructive"
+            <div className="space-y-2">
+              {boundarySteps.map((step: any) => (
+                <div key={step.id} className="flex items-center gap-2 text-sm">
+                  <MapPin className="w-4 h-4 text-blue-500" />
+                  <span className="flex-1 font-medium">{step.title}</span>
+                  <span className="text-xs text-muted-foreground">{step.metadata?.boundary_type}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => onDeleteStep(step.id)}
+                    title="Remove location"
                   >
-                    ×
-                  </button>
-                </span>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               ))}
             </div>
           </CardContent>
@@ -601,98 +644,67 @@ function LocationStep({ journey, authHeaders, journeyId, onNext, onSave, platfor
 function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformId, journeyId, authHeaders }: any) {
   const [nameFilter, setNameFilter] = useState("");
   const [showCount, setShowCount] = useState(50);
+  const [scope, setScope] = useState<"platform" | "national">(platformId ? "platform" : "national");
+  const [nationalSearch, setNationalSearch] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const existingChurchIds = new Set(steps.filter((s: any) => s.step_type === "church").map((s: any) => s.church_id));
 
-  const tractIds = journey?.tract_ids || [];
+  // Derive boundary geometries from boundary steps (not tract_ids)
+  const boundarySteps = steps.filter((s: any) => s.step_type === "boundary");
+  const boundaryGeometries = boundarySteps.map((s: any) => s.metadata?.boundary_geometry).filter(Boolean);
 
-  // Step 1: Fetch boundary geometries for the selected places
-  const { data: boundaries = [] } = useQuery<any[]>({
-    queryKey: ["journey-boundaries", tractIds],
-    queryFn: async () => {
-      if (tractIds.length === 0) return [];
-      const params = new URLSearchParams();
-      tractIds.forEach((id: string) => params.append("ids", id));
-      const res = await fetch(`/api/boundaries/by-ids?${params}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: tractIds.length > 0,
-  });
-
-  // Step 2: Query churches — use platform membership if available, otherwise viewport
   const pid = journey?.city_platform_id || platformId;
-  const { data: churches = [], isLoading } = useQuery<any[]>({
-    queryKey: ["journey-churches", pid, boundaries.map((b: any) => b.id)],
+
+  // Platform scope: fetch churches using boundary step geometries as bbox, or platform default area
+  const { data: platformChurches = [], isLoading: platformLoading } = useQuery<any[]>({
+    queryKey: ["journey-churches-platform", pid, boundaryGeometries.length, boundarySteps.map((s: any) => s.id).join(",")],
     queryFn: async () => {
-      // If we have a platform context, fetch all platform churches using boundary bbox
-      if (pid) {
-        // Compute bbox from selected boundaries — only query when boundaries are loaded
-        if (boundaries.length === 0) return [];
-        let bboxMinLng = 180, bboxMinLat = 90, bboxMaxLng = -180, bboxMaxLat = -90;
-        {
-          for (const b of boundaries) {
-            const geom = b.geometry;
-            if (!geom) continue;
-            const extractCoords = (coords: any) => {
-              if (typeof coords[0] === "number") {
-                bboxMinLng = Math.min(bboxMinLng, coords[0]);
-                bboxMinLat = Math.min(bboxMinLat, coords[1]);
-                bboxMaxLng = Math.max(bboxMaxLng, coords[0]);
-                bboxMaxLat = Math.max(bboxMaxLat, coords[1]);
-              } else {
-                for (const c of coords) extractCoords(c);
-              }
-            };
-            extractCoords(geom.coordinates);
-          }
-          // Expand bbox slightly to catch edge churches (~1 mile buffer)
-          bboxMinLng -= 0.02; bboxMinLat -= 0.02; bboxMaxLng += 0.02; bboxMaxLat += 0.02;
-        }
-        const res = await fetch(`/api/churches/in-viewport?minLng=${bboxMinLng}&minLat=${bboxMinLat}&maxLng=${bboxMaxLng}&maxLat=${bboxMaxLat}&limit=500&platformId=${encodeURIComponent(pid)}`);
-        if (!res.ok) return [];
-        return res.json();
+      if (!pid) return [];
+      // Compute bbox from boundary step geometries
+      let bboxMinLng = 180, bboxMinLat = 90, bboxMaxLng = -180, bboxMaxLat = -90;
+      for (const geom of boundaryGeometries) {
+        const bbox = computeBbox(geom);
+        bboxMinLng = Math.min(bboxMinLng, bbox.minLng);
+        bboxMinLat = Math.min(bboxMinLat, bbox.minLat);
+        bboxMaxLng = Math.max(bboxMaxLng, bbox.maxLng);
+        bboxMaxLat = Math.max(bboxMaxLat, bbox.maxLat);
       }
-
-      // Fallback: use bounding box from boundary geometries
-      if (boundaries.length === 0) return [];
-      let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
-      for (const b of boundaries) {
-        const geom = b.geometry;
-        if (!geom) continue;
-        const extractCoords = (coords: any) => {
-          if (typeof coords[0] === "number") {
-            minLng = Math.min(minLng, coords[0]);
-            minLat = Math.min(minLat, coords[1]);
-            maxLng = Math.max(maxLng, coords[0]);
-            maxLat = Math.max(maxLat, coords[1]);
-          } else {
-            for (const c of coords) extractCoords(c);
-          }
-        };
-        extractCoords(geom.coordinates);
+      // If no boundary steps, use a wide bbox around the platform center
+      if (boundaryGeometries.length === 0) {
+        const lat = journey?.platform_data?.default_center_lat || 42.96;
+        const lng = journey?.platform_data?.default_center_lng || -85.67;
+        bboxMinLng = lng - 0.3; bboxMaxLng = lng + 0.3;
+        bboxMinLat = lat - 0.3; bboxMaxLat = lat + 0.3;
+      } else {
+        bboxMinLng -= 0.02; bboxMinLat -= 0.02; bboxMaxLng += 0.02; bboxMaxLat += 0.02;
       }
-      if (minLng > maxLng) return [];
-
-      const params = new URLSearchParams({
-        minLng: String(minLng),
-        minLat: String(minLat),
-        maxLng: String(maxLng),
-        maxLat: String(maxLat),
-        limit: "500",
-      });
-
-      const res = await fetch(`/api/churches/in-viewport?${params}`);
+      const res = await fetch(`/api/churches/in-viewport?minLng=${bboxMinLng}&minLat=${bboxMinLat}&maxLng=${bboxMaxLng}&maxLat=${bboxMaxLat}&limit=500&platformId=${encodeURIComponent(pid)}`);
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: (!!pid && (tractIds.length === 0 || boundaries.length > 0)) || boundaries.length > 0,
+    enabled: scope === "platform" && !!pid,
   });
 
-  // Filter by name locally
+  // National scope: search churches by name
+  const { data: nationalChurches = [], isLoading: nationalLoading } = useQuery<any[]>({
+    queryKey: ["journey-churches-national", nationalSearch],
+    queryFn: async () => {
+      if (!nationalSearch || nationalSearch.length < 2) return [];
+      const res = await fetch(`/api/churches/search?q=${encodeURIComponent(nationalSearch)}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: scope === "national" && nationalSearch.length >= 2,
+  });
+
+  const churches = scope === "platform" ? platformChurches : nationalChurches;
+  const isLoading = scope === "platform" ? platformLoading : nationalLoading;
+
+  // Filter by name locally (platform scope only — national already filtered by search)
   const filteredChurches = churches.filter((c: any) => {
     if (existingChurchIds.has(c.id)) return false;
+    if (scope === "national") return true;
     if (!nameFilter.trim()) return true;
     const q = nameFilter.toLowerCase();
     return (
@@ -774,11 +786,29 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
       <div>
         <h2 className="text-xl font-semibold mb-2">Select Churches</h2>
         <p className="text-muted-foreground">
-          {tractIds.length > 0
-            ? `Showing churches within your selected area${churches.length > 0 ? ` (${churches.length} found)` : ""}.`
-            : "Go back to the Location step to select an area first."}
+          Add churches to pray for. Search within your platform or across the nation.
         </p>
       </div>
+
+      {/* Scope toggle */}
+      {pid && (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={scope === "platform" ? "default" : "outline"}
+            onClick={() => setScope("platform")}
+          >
+            <MapPin className="w-3.5 h-3.5 mr-1.5" /> Platform
+          </Button>
+          <Button
+            size="sm"
+            variant={scope === "national" ? "default" : "outline"}
+            onClick={() => setScope("national")}
+          >
+            <Globe className="w-3.5 h-3.5 mr-1.5" /> National
+          </Button>
+        </div>
+      )}
 
       {addedChurchSteps.length > 0 && (
         <Card>
@@ -846,17 +876,27 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
         </Card>
       )}
 
-      {/* Name search filter */}
-      {churches.length > 0 && (
+      {/* Search / filter input */}
+      {scope === "national" ? (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={nationalSearch}
+            onChange={(e) => setNationalSearch(e.target.value)}
+            placeholder="Search churches across the nation..."
+            className="pl-9"
+          />
+        </div>
+      ) : churches.length > 0 ? (
         <Input
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
           placeholder="Filter churches by name..."
         />
-      )}
+      ) : null}
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading churches in your area...</p>
+        <p className="text-muted-foreground">{scope === "national" ? "Searching churches..." : "Loading churches in your area..."}</p>
       ) : filteredChurches.length > 0 ? (
         <div className="space-y-2 max-h-[500px] overflow-y-auto">
           {filteredChurches.slice(0, showCount).map((church: any) => (
@@ -886,9 +926,13 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
             </Button>
           )}
         </div>
-      ) : tractIds.length > 0 && !isLoading ? (
+      ) : !isLoading && (scope === "national" ? nationalSearch.length >= 2 : churches.length === 0 && boundarySteps.length > 0) ? (
         <p className="text-muted-foreground">
-          {nameFilter ? "No churches match your search." : "No churches found in this area."}
+          {nameFilter || nationalSearch ? "No churches match your search." : "No churches found in this area."}
+        </p>
+      ) : !isLoading && scope === "platform" && boundarySteps.length === 0 ? (
+        <p className="text-muted-foreground">
+          Add location focuses first, or switch to National to search by name.
         </p>
       ) : null}
 
@@ -903,44 +947,24 @@ function ChurchesStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platfo
 
 function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformId }: any) {
   const existingMetrics = new Set(steps.filter((s: any) => s.step_type === "community_need").map((s: any) => s.metric_key));
-  const tractIds = journey?.tract_ids || [];
 
-  // Fetch boundary geometries (cached — same query as ChurchesStep)
-  const { data: boundaries = [] } = useQuery<any[]>({
-    queryKey: ["journey-boundaries", tractIds],
-    queryFn: async () => {
-      if (tractIds.length === 0) return [];
-      const params = new URLSearchParams();
-      tractIds.forEach((id: string) => params.append("ids", id));
-      const res = await fetch(`/api/boundaries/by-ids?${params}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: tractIds.length > 0,
-  });
+  // Derive bbox from boundary steps (not journey.tract_ids)
+  const boundarySteps = steps.filter((s: any) => s.step_type === "boundary");
+  const boundaryGeometries = boundarySteps.map((s: any) => s.metadata?.boundary_geometry).filter(Boolean);
+  const hasBoundaries = boundaryGeometries.length > 0;
 
   // Fetch area-specific health data using the prompts-for-area endpoint
-  // This returns needs with severity levels, just like on church profiles
   const { data: areaNeeds = [], isLoading } = useQuery<any[]>({
-    queryKey: ["journey-area-needs", boundaries.map((b: any) => b.id)],
+    queryKey: ["journey-area-needs", boundarySteps.map((s: any) => s.id).join(",")],
     queryFn: async () => {
-      if (boundaries.length === 0) return [];
-      // Compute center point from boundaries for the prompts-for-area query
+      if (!hasBoundaries) return [];
       let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
-      for (const b of boundaries) {
-        const geom = b.geometry;
-        if (!geom) continue;
-        const extractCoords = (coords: any) => {
-          if (typeof coords[0] === "number") {
-            minLng = Math.min(minLng, coords[0]);
-            minLat = Math.min(minLat, coords[1]);
-            maxLng = Math.max(maxLng, coords[0]);
-            maxLat = Math.max(maxLat, coords[1]);
-          } else {
-            for (const c of coords) extractCoords(c);
-          }
-        };
-        extractCoords(geom.coordinates);
+      for (const geom of boundaryGeometries) {
+        const bbox = computeBbox(geom);
+        minLng = Math.min(minLng, bbox.minLng);
+        minLat = Math.min(minLat, bbox.minLat);
+        maxLng = Math.max(maxLng, bbox.maxLng);
+        maxLat = Math.max(maxLat, bbox.maxLat);
       }
       const bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
 
@@ -949,10 +973,9 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
       );
       if (!res.ok) return [];
       const data = await res.json();
-      // The prompts-for-area returns { prompts: [...], area_summary: {...} }
       return data.prompts || [];
     },
-    enabled: boundaries.length > 0,
+    enabled: hasBoundaries,
   });
 
   const handleAddNeed = async (need: any) => {
@@ -977,9 +1000,9 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
       <div>
         <h2 className="text-xl font-semibold mb-2">Community Needs</h2>
         <p className="text-muted-foreground">
-          {tractIds.length > 0
-            ? "Priority community needs identified in your selected area, ranked by severity."
-            : "Go back to the Location step to select an area first."}
+          {hasBoundaries
+            ? "Priority community needs identified in your selected areas, ranked by severity."
+            : "Add location focuses first to see community needs for those areas."}
         </p>
       </div>
 
@@ -1050,7 +1073,7 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
             );
           })}
         </div>
-      ) : tractIds.length > 0 && !isLoading ? (
+      ) : hasBoundaries && !isLoading ? (
         <p className="text-muted-foreground">No significant community needs identified in this area.</p>
       ) : null}
 
@@ -1513,6 +1536,7 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
   const activeSteps = steps.filter((s: any) => !s.is_excluded);
 
   const typeBadgeColors: Record<string, string> = {
+    boundary: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
     church: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
     community_need: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     custom: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -1521,7 +1545,7 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
     prayer_request: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
   };
   const typeLabels: Record<string, string> = {
-    church: "Church", community_need: "Community Need", custom: "Custom",
+    boundary: "Location", church: "Church", community_need: "Community Need", custom: "Custom",
     scripture: "Scripture", thanksgiving: "Thanksgiving", prayer_request: "Prayer Request",
   };
 

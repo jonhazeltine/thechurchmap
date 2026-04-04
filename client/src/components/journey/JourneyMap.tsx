@@ -11,6 +11,10 @@ interface JourneyMapProps {
   slideIndex?: number;
   /** Called when fly-to animation ends */
   onArrived?: () => void;
+  /** Boundary polygon geometry to highlight (for boundary steps) */
+  boundaryGeometry?: any | null;
+  /** Context church pins to show within a boundary */
+  contextPins?: Array<{ lng: number; lat: number; name: string }> | null;
 }
 
 const BUILDING_HIGHLIGHT_SOURCE = "journey-building-highlight";
@@ -19,12 +23,19 @@ const BUILDING_HIGHLIGHT_GLOW = "journey-building-highlight-glow";
 const PULSE_MARKER_SOURCE = "journey-pulse-marker";
 const PULSE_MARKER_LAYER = "journey-pulse-marker-circle";
 const PULSE_MARKER_GLOW_LAYER = "journey-pulse-marker-glow";
+const BOUNDARY_SOURCE = "journey-boundary";
+const BOUNDARY_FILL_LAYER = "journey-boundary-fill";
+const BOUNDARY_OUTLINE_LAYER = "journey-boundary-outline";
+const CONTEXT_PINS_SOURCE = "journey-context-pins";
+const CONTEXT_PINS_GLOW_LAYER = "journey-context-pins-glow";
+const CONTEXT_PINS_LAYER = "journey-context-pins-dot";
 
 /**
  * Full-screen interactive Mapbox map for the prayer journey.
- * Handles fly-to animations, 3D buildings, and building highlighting.
+ * Handles fly-to animations, 3D buildings, building highlighting,
+ * boundary polygon rendering, and contextual church pins.
  */
-export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArrived }: JourneyMapProps) {
+export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArrived, boundaryGeometry, contextPins }: JourneyMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const orbitRef = useRef<number | null>(null);
@@ -151,7 +162,6 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
           type: "geojson",
           data: { type: "FeatureCollection", features: [] },
         });
-        // Glow layer (larger, semi-transparent)
         map.addLayer({
           id: BUILDING_HIGHLIGHT_GLOW,
           type: "fill-extrusion",
@@ -163,7 +173,6 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
             "fill-extrusion-opacity": 0.35,
           },
         });
-        // Main highlight layer
         map.addLayer({
           id: BUILDING_HIGHLIGHT_LAYER,
           type: "fill-extrusion",
@@ -183,7 +192,6 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
           type: "geojson",
           data: { type: "FeatureCollection", features: [] },
         });
-        // Outer glow
         map.addLayer({
           id: PULSE_MARKER_GLOW_LAYER,
           type: "circle",
@@ -195,7 +203,6 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
             "circle-blur": 1,
           },
         });
-        // Inner dot
         map.addLayer({
           id: PULSE_MARKER_LAYER,
           type: "circle",
@@ -206,6 +213,66 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
             "circle-opacity": 0.9,
             "circle-stroke-width": 3,
             "circle-stroke-color": "#ffffff",
+          },
+        });
+      }
+
+      // Boundary polygon source/layers (for boundary steps)
+      if (!map.getSource(BOUNDARY_SOURCE)) {
+        map.addSource(BOUNDARY_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: BOUNDARY_FILL_LAYER,
+          type: "fill",
+          source: BOUNDARY_SOURCE,
+          paint: {
+            "fill-color": "#3B82F6",
+            "fill-opacity": 0.2,
+          },
+        });
+        map.addLayer({
+          id: BOUNDARY_OUTLINE_LAYER,
+          type: "line",
+          source: BOUNDARY_SOURCE,
+          paint: {
+            "line-color": "#2563EB",
+            "line-width": 3,
+            "line-opacity": 0.8,
+          },
+        });
+      }
+
+      // Contextual church pins source/layers (glory glow on boundary steps)
+      if (!map.getSource(CONTEXT_PINS_SOURCE)) {
+        map.addSource(CONTEXT_PINS_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        // Outer glow — white-gold, ethereal
+        map.addLayer({
+          id: CONTEXT_PINS_GLOW_LAYER,
+          type: "circle",
+          source: CONTEXT_PINS_SOURCE,
+          paint: {
+            "circle-radius": 18,
+            "circle-color": "#FFE082",
+            "circle-opacity": 0.3,
+            "circle-blur": 1,
+          },
+        });
+        // Inner dot — bright white core with gold stroke
+        map.addLayer({
+          id: CONTEXT_PINS_LAYER,
+          type: "circle",
+          source: CONTEXT_PINS_SOURCE,
+          paint: {
+            "circle-radius": 5,
+            "circle-color": "#FFF8E1",
+            "circle-opacity": 0.95,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#FFD54F",
           },
         });
       }
@@ -230,6 +297,16 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     }
   }, []);
 
+  // Clear boundary polygon
+  const clearBoundary = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const src = map.getSource(BOUNDARY_SOURCE) as mapboxgl.GeoJSONSource;
+    if (src) src.setData({ type: "FeatureCollection", features: [] });
+    const pinSrc = map.getSource(CONTEXT_PINS_SOURCE) as mapboxgl.GeoJSONSource;
+    if (pinSrc) pinSrc.setData({ type: "FeatureCollection", features: [] });
+  }, []);
+
   // Place an animated glory-glow HTML marker at the target
   const highlightAtPoint = useCallback(
     (lngLat: { lng: number; lat: number }) => {
@@ -237,7 +314,6 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       if (!map) return;
       clearHighlights();
 
-      // Create the glow element — CSS-animated, no Mapbox layer flickering
       const el = document.createElement("div");
       el.className = "journey-glow-marker";
       el.innerHTML = `
@@ -256,6 +332,37 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     [clearHighlights]
   );
 
+  // Show boundary polygon
+  const showBoundary = useCallback((geometry: any) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const src = map.getSource(BOUNDARY_SOURCE) as mapboxgl.GeoJSONSource;
+    if (src) {
+      src.setData({
+        type: "Feature",
+        properties: {},
+        geometry,
+      } as any);
+    }
+  }, []);
+
+  // Show context church pins
+  const showContextPins = useCallback((pins: Array<{ lng: number; lat: number; name: string }>) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const src = map.getSource(CONTEXT_PINS_SOURCE) as mapboxgl.GeoJSONSource;
+    if (src) {
+      src.setData({
+        type: "FeatureCollection",
+        features: pins.map(p => ({
+          type: "Feature" as const,
+          properties: { name: p.name },
+          geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+        })),
+      });
+    }
+  }, []);
+
   // Fly-to when target changes — instantly responsive to rapid Next/Back
   const flyCounterRef = useRef(0);
   const moveendHandlerRef = useRef<(() => void) | null>(null);
@@ -265,10 +372,10 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     if (!map || !target) {
       stopOrbit();
       clearHighlights();
+      clearBoundary();
       return;
     }
 
-    // Increment counter — stale callbacks bail immediately
     const thisFlightId = ++flyCounterRef.current;
 
     // Cancel any in-progress animation instantly
@@ -279,55 +386,103 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
     map.stop();
     stopOrbit();
     clearHighlights();
+    clearBoundary();
 
     // Fade satellite out quickly for the transition
     fadeSatellite(false, 400);
 
-    // Compute bearing toward next destination
-    let bearing = 0;
-    if (nextTarget) {
-      const dLng = nextTarget.lng - target.lng;
-      const dLat = nextTarget.lat - target.lat;
-      bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
-    }
-
     const isMobile = window.innerWidth < 768;
+    const isBoundaryStep = !!boundaryGeometry;
 
     // Fade satellite back in during flight
     const satTimer = setTimeout(() => {
       if (flyCounterRef.current !== thisFlightId) return;
-      fadeSatellite(true, 1500);
+      fadeSatellite(true, isBoundaryStep ? 800 : 1500);
     }, 800);
 
-    // Start fly immediately — speed 0.8 is responsive but still cinematic
-    map.flyTo({
-      center: [target.lng, target.lat],
-      zoom: isMobile ? 17 : 17.5,
-      pitch: 60,
-      bearing,
-      speed: 0.8,
-      curve: 1.4,
-      essential: true,
-      padding: isMobile
-        ? { top: 80, bottom: 60, left: 0, right: 0 }
-        : { top: 60, bottom: 40, left: 0, right: 180 },
-    });
+    if (isBoundaryStep) {
+      // Boundary step: fitBounds to show the full polygon
+      showBoundary(boundaryGeometry);
+      if (contextPins && contextPins.length > 0) {
+        showContextPins(contextPins);
+      }
 
-    const onArrive = () => {
-      if (flyCounterRef.current !== thisFlightId) return;
-      moveendHandlerRef.current = null;
-      highlightAtPoint(target);
-      startOrbit();
-      arrivedRef.current?.();
-    };
+      // Compute bbox from geometry
+      let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+      const extractCoords = (coords: any) => {
+        if (typeof coords[0] === "number") {
+          minLng = Math.min(minLng, coords[0]);
+          minLat = Math.min(minLat, coords[1]);
+          maxLng = Math.max(maxLng, coords[0]);
+          maxLat = Math.max(maxLat, coords[1]);
+        } else {
+          for (const c of coords) extractCoords(c);
+        }
+      };
+      if (boundaryGeometry?.coordinates) extractCoords(boundaryGeometry.coordinates);
 
-    moveendHandlerRef.current = onArrive;
-    map.once("moveend", onArrive);
+      const bounds = new mapboxgl.LngLatBounds(
+        [minLng, minLat],
+        [maxLng, maxLat]
+      );
+
+      map.fitBounds(bounds, {
+        padding: isMobile
+          ? { top: 100, bottom: 120, left: 40, right: 40 }
+          : { top: 80, bottom: 60, left: 40, right: 220 },
+        pitch: 45,
+        bearing: 0,
+        duration: 2000,
+        essential: true,
+      });
+
+      const onArrive = () => {
+        if (flyCounterRef.current !== thisFlightId) return;
+        moveendHandlerRef.current = null;
+        // No orbit for boundary steps — keep the overview static
+        arrivedRef.current?.();
+      };
+
+      moveendHandlerRef.current = onArrive;
+      map.once("moveend", onArrive);
+    } else {
+      // Point step: normal fly-to with orbit
+      let bearing = 0;
+      if (nextTarget) {
+        const dLng = nextTarget.lng - target.lng;
+        const dLat = nextTarget.lat - target.lat;
+        bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
+      }
+
+      map.flyTo({
+        center: [target.lng, target.lat],
+        zoom: isMobile ? 17 : 17.5,
+        pitch: 60,
+        bearing,
+        speed: 0.8,
+        curve: 1.4,
+        essential: true,
+        padding: isMobile
+          ? { top: 80, bottom: 60, left: 0, right: 0 }
+          : { top: 60, bottom: 40, left: 0, right: 180 },
+      });
+
+      const onArrive = () => {
+        if (flyCounterRef.current !== thisFlightId) return;
+        moveendHandlerRef.current = null;
+        highlightAtPoint(target);
+        startOrbit();
+        arrivedRef.current?.();
+      };
+
+      moveendHandlerRef.current = onArrive;
+      map.once("moveend", onArrive);
+    }
 
     // Safety fallback — if moveend never fires
     const fallbackTimer = setTimeout(() => {
       if (flyCounterRef.current === thisFlightId && moveendHandlerRef.current) {
-        onArrive();
+        moveendHandlerRef.current();
       }
     }, 5000);
 

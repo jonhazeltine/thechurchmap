@@ -9,13 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
   X, ChevronLeft, ChevronRight, Church, Heart, BookOpen,
-  PenLine, Share2, HandHeart, Sparkles, Send, Check, MapPin
+  PenLine, Share2, HandHeart, Sparkles, Send, Check, MapPin, Eye, EyeOff
 } from "lucide-react";
 import type { PrayerJourney, PrayerJourneyStep } from "@shared/schema";
 import JourneyMap from "@/components/journey/JourneyMap";
 
 // ─── Step type badges ────────────────────────────────────────────────
 const STEP_BADGES: Record<string, { label: string; icon: any; color: string }> = {
+  boundary: { label: "Location", icon: MapPin, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
   church: { label: "Church", icon: Church, color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" },
   community_need: { label: "Community Need", icon: Heart, color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
   custom: { label: "Custom", icon: PenLine, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
@@ -40,6 +41,14 @@ function StepBadge({ stepType }: { stepType: string }) {
 
 function getStepCoords(step: any): { lng: number; lat: number } | null {
   if (!step) return null;
+
+  // Boundary step: use centroid from metadata
+  if (step.step_type === "boundary") {
+    const meta = typeof step.metadata === "string" ? JSON.parse(step.metadata) : step.metadata;
+    if (meta?.centroid_lat && meta?.centroid_lng) {
+      return { lng: Number(meta.centroid_lng), lat: Number(meta.centroid_lat) };
+    }
+  }
 
   // Church step: use church_data coordinates
   if (step.step_type === "church") {
@@ -169,6 +178,50 @@ export default function JourneyViewer() {
   const nextStep = activeSteps[currentSlide + 1] || null;
   const nextMapTarget = useMemo(() => getStepCoords(nextStep), [nextStep]);
 
+  // Boundary step: extract geometry and fetch context pins
+  const isBoundaryStep = currentStep?.step_type === "boundary";
+  const boundaryGeometry = useMemo(() => {
+    if (!isBoundaryStep) return null;
+    const meta = typeof currentStep?.metadata === "string" ? JSON.parse(currentStep.metadata) : currentStep?.metadata;
+    return meta?.boundary_geometry || null;
+  }, [isBoundaryStep, currentStep]);
+
+  const [showContextPins, setShowContextPins] = useState(true);
+
+  // Fetch churches within boundary bbox for context pins
+  const { data: contextChurches } = useQuery<any[]>({
+    queryKey: ["journey-context-churches", currentStep?.id],
+    queryFn: async () => {
+      if (!boundaryGeometry) return [];
+      let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+      const extractCoords = (coords: any) => {
+        if (typeof coords[0] === "number") {
+          minLng = Math.min(minLng, coords[0]);
+          minLat = Math.min(minLat, coords[1]);
+          maxLng = Math.max(maxLng, coords[0]);
+          maxLat = Math.max(maxLat, coords[1]);
+        } else {
+          for (const c of coords) extractCoords(c);
+        }
+      };
+      extractCoords(boundaryGeometry.coordinates);
+      const res = await fetch(`/api/churches/in-viewport?minLng=${minLng}&minLat=${minLat}&maxLng=${maxLng}&maxLat=${maxLat}&limit=200`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isBoundaryStep && !!boundaryGeometry,
+    staleTime: 60000,
+  });
+
+  const contextPins = useMemo(() => {
+    if (!showContextPins || !contextChurches || contextChurches.length === 0) return null;
+    return contextChurches.map((c: any) => ({
+      lng: Number(c.display_lng || c.longitude),
+      lat: Number(c.display_lat || c.latitude),
+      name: c.name,
+    })).filter((p: any) => p.lng && p.lat);
+  }, [contextChurches, showContextPins]);
+
   // When the map finishes flying, pop the sheet up
   const handleMapArrived = () => {
     setSheetSnap(1);
@@ -274,11 +327,24 @@ export default function JourneyViewer() {
           nextTarget={nextMapTarget}
           slideIndex={currentSlide}
           onArrived={handleMapArrived}
+          boundaryGeometry={boundaryGeometry}
+          contextPins={contextPins}
         />
 
         {/* Non-map overlay for steps without coordinates */}
         {!mapTarget && (
           <div className="absolute inset-0 bg-gradient-to-b from-muted/80 to-muted/50 z-10" />
+        )}
+
+        {/* Context pins toggle for boundary steps */}
+        {isBoundaryStep && contextChurches && contextChurches.length > 0 && (
+          <button
+            onClick={() => setShowContextPins(prev => !prev)}
+            className="absolute top-3 left-3 z-30 bg-background/70 backdrop-blur-sm rounded-full p-2 shadow-lg border border-border/30"
+            title={showContextPins ? "Hide church pins" : "Show church pins"}
+          >
+            {showContextPins ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </button>
         )}
 
         {/* Floating header card */}
