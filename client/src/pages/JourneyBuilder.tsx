@@ -505,9 +505,44 @@ function BoundaryChurchList({ step, journeyId, authHeaders, onDelete, expanded, 
 
         {expanded && (
           <div className="border-t px-4 py-3 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Toggle which churches appear as pins when viewing this location step.
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Toggle which churches appear as pins when viewing this location step.
+              </p>
+              <div className="flex gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={async () => {
+                    await fetch(`/api/journeys/${journeyId}/steps/${step.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json", ...authHeaders },
+                      body: JSON.stringify({ metadata: { ...meta, excluded_church_ids: [] } }),
+                    });
+                    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+                  }}
+                >
+                  All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={async () => {
+                    const allIds = churches.map((c: any) => c.id);
+                    await fetch(`/api/journeys/${journeyId}/steps/${step.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json", ...authHeaders },
+                      body: JSON.stringify({ metadata: { ...meta, excluded_church_ids: allIds } }),
+                    });
+                    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+                  }}
+                >
+                  None
+                </Button>
+              </div>
+            </div>
             <Input
               value={churchFilter}
               onChange={(e) => setChurchFilter(e.target.value)}
