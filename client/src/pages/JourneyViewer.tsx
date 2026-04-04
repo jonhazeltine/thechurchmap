@@ -1260,12 +1260,24 @@ function CompletionScreen({ journey, steps, onBack, onClose, session }: {
 }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const churchCount = steps.filter((s) => s.step_type === "church").length;
   const needsCount = steps.filter((s) => s.step_type === "community_need").length;
 
   const shareUrl = journey.share_token
     ? `${window.location.origin}/journey/${journey.share_token}`
     : window.location.href;
+
+  // Generate QR code
+  useEffect(() => {
+    import("qrcode").then((QRCode) => {
+      QRCode.toDataURL(shareUrl, {
+        width: 200,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      }).then(setQrDataUrl).catch(() => {});
+    }).catch(() => {});
+  }, [shareUrl]);
 
   const handleShare = async () => {
     try {
@@ -1334,6 +1346,14 @@ function CompletionScreen({ journey, steps, onBack, onClose, session }: {
             >
               Already have an account? Sign in
             </button>
+          </div>
+        )}
+
+        {/* QR Code */}
+        {qrDataUrl && (
+          <div className="flex flex-col items-center gap-2">
+            <img src={qrDataUrl} alt="Scan to share this journey" className="w-40 h-40 rounded-lg border" />
+            <p className="text-xs text-muted-foreground">Scan to share this journey</p>
           </div>
         )}
 
