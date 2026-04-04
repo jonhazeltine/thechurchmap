@@ -1106,50 +1106,47 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
 
   // Derive bbox from boundary steps (not journey.tract_ids)
   const boundarySteps = steps.filter((s: any) => s.step_type === "boundary");
-  const boundaryGeometries = boundarySteps.map((s: any) => s.metadata?.boundary_geometry).filter(Boolean);
-  const hasBoundaries = boundaryGeometries.length > 0;
+  const hasBoundaries = boundarySteps.length > 0;
 
-  // Fetch area-specific health data using the prompts-for-area endpoint
-  const { data: areaNeeds = [], isLoading } = useQuery<any[]>({
-    queryKey: ["journey-area-needs", boundarySteps.map((s: any) => s.id).join(",")],
+  // Fetch needs per boundary so we can show which location each need comes from
+  const { data: needsByBoundary = [], isLoading } = useQuery<Array<{ boundaryName: string; needs: any[] }>>({
+    queryKey: ["journey-area-needs-grouped", boundarySteps.map((s: any) => s.id).join(",")],
     queryFn: async () => {
-      if (!hasBoundaries) return [];
-      let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
-      for (const geom of boundaryGeometries) {
-        const bbox = computeBbox(geom);
-        minLng = Math.min(minLng, bbox.minLng);
-        minLat = Math.min(minLat, bbox.minLat);
-        maxLng = Math.max(maxLng, bbox.maxLng);
-        maxLat = Math.max(maxLat, bbox.maxLat);
-      }
-      const bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
-
-      const res = await fetch(
-        `/api/prayers/prompts-for-area?bbox=${encodeURIComponent(bbox)}&limit=30&mode=journey`
+      const results = await Promise.all(
+        boundarySteps.map(async (bs: any) => {
+          const geom = bs.metadata?.boundary_geometry;
+          if (!geom) return { boundaryName: bs.metadata?.boundary_name || "Unknown", needs: [] };
+          const bbox = computeBbox(geom);
+          const bboxStr = `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`;
+          const res = await fetch(
+            `/api/prayers/prompts-for-area?bbox=${encodeURIComponent(bboxStr)}&limit=15&mode=journey`
+          );
+          if (!res.ok) return { boundaryName: bs.metadata?.boundary_name || "Unknown", needs: [] };
+          const data = await res.json();
+          return { boundaryName: bs.metadata?.boundary_name || "Unknown", needs: data.prompts || [] };
+        })
       );
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.prompts || [];
+      return results;
     },
     enabled: hasBoundaries,
   });
 
-  const handleAddNeed = async (need: any) => {
+  const handleAddNeed = async (need: any, boundaryName: string) => {
     const currentMax = Math.max(0, ...steps.map((s: any) => s.sort_order));
     const value = need.value;
     const displayValue = value ? ` (${Math.round(value * 10) / 10}%)` : "";
     await onAddSteps([{
       step_type: "community_need",
       title: `Pray for ${need.metric_display}`,
-      body: need.prayer_text || `${need.metric_display}${displayValue} is a significant need in this community. Pray for healing, resources, and hope for those affected.`,
+      body: need.prayer_text || `${need.metric_display}${displayValue} is a significant need in ${boundaryName}. Pray for healing, resources, and hope for those affected.`,
       metric_key: need.metric_key,
       sort_order: currentMax + 1,
+      metadata: { source_boundary: boundaryName },
     }]);
   };
 
   // Only show community needs with a metric_key (not church-specific prayer requests)
   const addedNeedSteps = steps.filter((s: any) => s.step_type === "community_need" && s.metric_key);
-  const filteredNeeds = areaNeeds.filter((n: any) => !existingMetrics.has(n.metric_key));
 
   return (
     <div className="space-y-6">
@@ -1157,7 +1154,7 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
         <h2 className="text-xl font-semibold mb-2">Community Needs</h2>
         <p className="text-muted-foreground">
           {hasBoundaries
-            ? `Priority community needs from ${boundarySteps.map((s: any) => s.metadata?.boundary_name).filter(Boolean).join(", ")}, ranked by severity.`
+            ? "Priority community needs for each location, ranked by severity."
             : "Add location focuses first to see community needs for those areas."}
         </p>
       </div>
@@ -1172,6 +1169,9 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
                   <div className="flex items-center gap-2">
                     <Heart className="w-4 h-4 text-red-500" />
                     <span>{step.title}</span>
+                    {step.metadata?.source_boundary && (
+                      <span className="text-xs text-muted-foreground">({step.metadata.source_boundary})</span>
+                    )}
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => onDeleteStep?.(step.id)}>
                     <X className="w-4 h-4" />
@@ -1184,53 +1184,71 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
       )}
 
       {isLoading ? (
-        <p className="text-muted-foreground">Analyzing community needs in your area...</p>
-      ) : filteredNeeds.length > 0 ? (
-        <div className="space-y-2">
-          {filteredNeeds.map((need: any, i: number) => {
-            const name = need.metric_display || need.metric_key;
-            const estimate = need.value;
-            const level = need.severity;
-            const isCritical = level === "critical" || level === "very_critical";
-
+        <p className="text-muted-foreground">Analyzing community needs in your areas...</p>
+      ) : needsByBoundary.length > 0 ? (
+        <div className="space-y-6">
+          {needsByBoundary.map(({ boundaryName, needs }) => {
+            const filtered = needs.filter((n: any) => !existingMetrics.has(n.metric_key));
+            if (filtered.length === 0 && needs.length > 0) return null;
             return (
-              <Card
-                key={need.metricKey || need.metric_key || i}
-                className="cursor-pointer hover:shadow-sm"
-                onClick={() => handleAddNeed(need)}
-              >
-                <CardContent className="py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      isCritical ? "bg-red-500" : "bg-amber-500"
-                    }`} />
-                    <div>
-                      <p className="font-medium text-sm">
-                        {name}
-                        {estimate && (
-                          <span className={`ml-2 text-xs font-normal ${isCritical ? "text-red-600" : "text-amber-600"}`}>
-                            {Math.round(estimate * 10) / 10}%
-                          </span>
-                        )}
-                      </p>
-                      {level && (
-                        <p className={`text-xs ${isCritical ? "text-red-500" : "text-amber-500"}`}>
-                          {isCritical ? "Critical" : "Concerning"}
-                        </p>
-                      )}
-                      {need.need_description && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{need.need_description}</p>
-                      )}
-                    </div>
+              <div key={boundaryName}>
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-500" />
+                  {boundaryName}
+                </h3>
+                {filtered.length > 0 ? (
+                  <div className="space-y-2">
+                    {filtered.map((need: any, i: number) => {
+                      const name = need.metric_display || need.metric_key;
+                      const estimate = need.value;
+                      const level = need.severity;
+                      const isCritical = level === "critical" || level === "very_critical";
+
+                      return (
+                        <Card
+                          key={need.metric_key || i}
+                          className="cursor-pointer hover:shadow-sm"
+                          onClick={() => handleAddNeed(need, boundaryName)}
+                        >
+                          <CardContent className="py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                isCritical ? "bg-red-500" : "bg-amber-500"
+                              }`} />
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {name}
+                                  {estimate && (
+                                    <span className={`ml-2 text-xs font-normal ${isCritical ? "text-red-600" : "text-amber-600"}`}>
+                                      {Math.round(estimate * 10) / 10}%
+                                    </span>
+                                  )}
+                                </p>
+                                {level && (
+                                  <p className={`text-xs ${isCritical ? "text-red-500" : "text-amber-500"}`}>
+                                    {isCritical ? "Critical" : "Concerning"}
+                                  </p>
+                                )}
+                                {need.need_description && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">{need.need_description}</p>
+                                )}
+                              </div>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleAddNeed(need, boundaryName); }}>Add</Button>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
-                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleAddNeed(need); }}>Add</Button>
-                </CardContent>
-              </Card>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No significant needs identified.</p>
+                )}
+              </div>
             );
           })}
         </div>
       ) : hasBoundaries && !isLoading ? (
-        <p className="text-muted-foreground">No significant community needs identified in this area.</p>
+        <p className="text-muted-foreground">No significant community needs identified in these areas.</p>
       ) : null}
 
       {/* Regional & Global Prayer Requests */}
