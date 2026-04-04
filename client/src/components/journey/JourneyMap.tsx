@@ -15,6 +15,8 @@ interface JourneyMapProps {
   boundaryGeometry?: any | null;
   /** Context church pins to show within a boundary */
   contextPins?: Array<{ lng: number; lat: number; name: string }> | null;
+  /** Bounding box [minLng, minLat, maxLng, maxLat] for wide-area steps (states, countries) */
+  viewBbox?: [number, number, number, number] | null;
 }
 
 const BUILDING_HIGHLIGHT_SOURCE = "journey-building-highlight";
@@ -36,7 +38,7 @@ const CONTEXT_PINS_LABELS = "journey-context-pins-labels";
  * Handles fly-to animations, 3D buildings, building highlighting,
  * boundary polygon rendering, and contextual church pins.
  */
-export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArrived, boundaryGeometry, contextPins }: JourneyMapProps) {
+export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArrived, boundaryGeometry, contextPins, viewBbox }: JourneyMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const orbitRef = useRef<number | null>(null);
@@ -475,6 +477,31 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
         if (flyCounterRef.current !== thisFlightId) return;
         moveendHandlerRef.current = null;
         // No orbit for boundary steps — keep the overview static
+        arrivedRef.current?.();
+      };
+
+      moveendHandlerRef.current = onArrive;
+      map.once("moveend", onArrive);
+    } else if (viewBbox) {
+      // Wide-area step (state, country): fitBounds to the bbox
+      const bounds = new mapboxgl.LngLatBounds(
+        [viewBbox[0], viewBbox[1]],
+        [viewBbox[2], viewBbox[3]]
+      );
+
+      map.fitBounds(bounds, {
+        padding: isMobile
+          ? { top: 100, bottom: 120, left: 40, right: 40 }
+          : { top: 80, bottom: 60, left: 40, right: 220 },
+        pitch: 30,
+        bearing: 0,
+        duration: 2000,
+        essential: true,
+      });
+
+      const onArrive = () => {
+        if (flyCounterRef.current !== thisFlightId) return;
+        moveendHandlerRef.current = null;
         arrivedRef.current?.();
       };
 

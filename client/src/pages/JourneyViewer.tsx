@@ -186,6 +186,13 @@ export default function JourneyViewer() {
     return meta?.boundary_geometry || null;
   }, [isBoundaryStep, currentStep]);
 
+  // Extract bbox for custom steps with large areas (states, countries)
+  const viewBbox = useMemo(() => {
+    if (isBoundaryStep) return null; // boundary steps use boundaryGeometry for fitBounds
+    const meta = typeof currentStep?.metadata === "string" ? JSON.parse(currentStep?.metadata || "{}") : currentStep?.metadata;
+    return meta?.bbox || null;
+  }, [currentStep, isBoundaryStep]);
+
   const [showContextPins, setShowContextPins] = useState(true);
 
   // Fetch churches within boundary bbox for context pins
@@ -333,6 +340,7 @@ export default function JourneyViewer() {
           onArrived={handleMapArrived}
           boundaryGeometry={boundaryGeometry}
           contextPins={contextPins}
+          viewBbox={viewBbox}
         />
 
         {/* Non-map overlay for steps without coordinates */}

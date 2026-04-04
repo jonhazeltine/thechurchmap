@@ -1327,6 +1327,7 @@ interface LocationData {
   longitude: number;
   address: string;
   place_name: string;
+  bbox?: [number, number, number, number];
 }
 
 function LocationPicker({ value, onChange }: { value: LocationData | null; onChange: (loc: LocationData | null) => void }) {
@@ -1406,6 +1407,7 @@ function LocationPicker({ value, onChange }: { value: LocationData | null; onCha
       longitude: lng,
       address: feature.text || feature.place_name,
       place_name: feature.place_name,
+      bbox: feature.bbox || undefined,
     });
     setQuery(feature.place_name);
     setOpen(false);
@@ -1592,6 +1594,7 @@ function CustomStep({ steps, onAddSteps, onDeleteStep, onNext, journeyId, authHe
       metadata.longitude = location.longitude;
       metadata.address = location.address;
       metadata.place_name = location.place_name;
+      if (location.bbox) metadata.bbox = location.bbox;
     }
     if (imageUrl) {
       metadata.image_url = imageUrl;
