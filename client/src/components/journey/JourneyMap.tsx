@@ -493,6 +493,17 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIndex]);
 
+  // Update context pins when they load (async, arrives after slide change)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (contextPins && contextPins.length > 0 && boundaryGeometry) {
+      showContextPins(contextPins);
+    } else {
+      const src = mapRef.current.getSource(CONTEXT_PINS_SOURCE) as mapboxgl.GeoJSONSource;
+      if (src) src.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [contextPins, boundaryGeometry, showContextPins]);
+
   return (
     <div
       ref={containerRef}
