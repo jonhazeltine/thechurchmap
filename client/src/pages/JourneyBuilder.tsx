@@ -330,6 +330,7 @@ export default function JourneyBuilder() {
           <CustomStep
             steps={steps}
             onAddSteps={(s) => addStepsMutation.mutateAsync(s)}
+            onDeleteStep={(stepId: string) => deleteStepMutation.mutate(stepId)}
             onNext={() => setActiveStep("refine")}
           />
         )}
@@ -1154,7 +1155,7 @@ function NeedsStep({ journey, steps, onAddSteps, onDeleteStep, onNext, platformI
         <h2 className="text-xl font-semibold mb-2">Community Needs</h2>
         <p className="text-muted-foreground">
           {hasBoundaries
-            ? "Priority community needs identified in your selected areas, ranked by severity."
+            ? `Priority community needs from ${boundarySteps.map((s: any) => s.metadata?.boundary_name).filter(Boolean).join(", ")}, ranked by severity.`
             : "Add location focuses first to see community needs for those areas."}
         </p>
       </div>
@@ -1549,7 +1550,7 @@ const CUSTOM_STEP_TYPES = [
   { value: "scripture", label: "Scripture" },
 ] as const;
 
-function CustomStep({ steps, onAddSteps, onNext }: any) {
+function CustomStep({ steps, onAddSteps, onDeleteStep, onNext }: any) {
   const [customTitle, setCustomTitle] = useState("");
   const [customBody, setCustomBody] = useState("");
   const [stepType, setStepType] = useState<string>("custom");
@@ -1605,7 +1606,7 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
               {customSteps.map((step: any) => (
                 <div key={step.id} className="flex items-start gap-2 text-sm">
                   <PenLine className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <span className="font-medium">{step.title}</span>
                     {step.metadata?.place_name && (
                       <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -1620,6 +1621,15 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
                       />
                     )}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => onDeleteStep(step.id)}
+                    title="Remove step"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               ))}
             </div>
@@ -1667,6 +1677,91 @@ function CustomStep({ steps, onAddSteps, onNext }: any) {
           Next: AI Suggestions <ArrowRight className="w-4 h-4 ml-1" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+function SortableStepCard({ step, suggestion, editingStep, editTitle, editBody, editScriptureRef, editScriptureText, setEditTitle, setEditBody, setEditScriptureRef, setEditScriptureText, onSaveEdit, onStartEditing, onCancelEditing, onRegenerate, regeneratingStep, onToggle, onDelete, onApplySuggestion, typeBadgeColors, typeLabels }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : undefined };
+  const badgeColor = typeBadgeColors[step.step_type] || "bg-muted text-muted-foreground";
+
+  return (
+    <div ref={setNodeRef} style={style} className={`border rounded-lg overflow-hidden ${step.is_excluded ? "opacity-40 border-dashed" : ""}`}>
+      {step.is_excluded && (
+        <div className="bg-muted/50 px-3 py-1 text-xs text-muted-foreground flex items-center justify-between">
+          <span>Excluded from journey</span>
+          <Button variant="ghost" size="sm" className="h-5 text-xs" onClick={() => onToggle(step.id, false)}>Restore</Button>
+        </div>
+      )}
+      <div className="p-3">
+        {editingStep === step.id ? (
+          <div className="space-y-3">
+            <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" className="text-sm" />
+            <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder="Prayer prompt" rows={3} className="text-sm" />
+            <div className="grid grid-cols-[1fr_2fr] gap-2">
+              <Input value={editScriptureRef} onChange={(e) => setEditScriptureRef(e.target.value)} placeholder="e.g. Jeremiah 29:7" className="text-sm" />
+              <Input value={editScriptureText} onChange={(e) => setEditScriptureText(e.target.value)} placeholder="Verse text" className="text-sm" />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => onSaveEdit(step.id)}><Save className="w-3 h-3 mr-1" /> Save</Button>
+              <Button size="sm" variant="ghost" onClick={onCancelEditing}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1 shrink-0">
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${badgeColor}`}>
+                  {typeLabels[step.step_type] || step.step_type}
+                </span>
+              </div>
+              <p className="text-sm font-medium">{step.title || "Untitled"}</p>
+              {step.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{step.body}</p>}
+              {step.scripture_ref && (
+                <p className="text-xs text-primary mt-1 italic">
+                  {step.scripture_ref}{step.scripture_text ? `: ${step.scripture_text}` : ""}
+                </p>
+              )}
+              {!step.scripture_ref && !step.is_excluded && (
+                <p className="text-xs text-muted-foreground/40 mt-1 italic">No scripture yet</p>
+              )}
+            </div>
+            <div className="flex gap-0.5 shrink-0">
+              <Button variant="ghost" size="sm" onClick={() => onRegenerate(step)} disabled={regeneratingStep === step.id} title="Regenerate prayer & scripture">
+                {regeneratingStep === step.id ? <span className="w-4 h-4 animate-spin">...</span> : <Sparkles className="w-3.5 h-3.5 text-amber-500" />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onStartEditing(step)} title="Edit"><PenLine className="w-3.5 h-3.5" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => onToggle(step.id, !step.is_excluded)} title={step.is_excluded ? "Include" : "Exclude"}>
+                {step.is_excluded ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onDelete(step.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Inline AI suggestion */}
+      {suggestion && editingStep !== step.id && (
+        <div className="border-t bg-amber-50/50 dark:bg-amber-950/20 p-3">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">AI Suggestion</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{suggestion.body}</p>
+              {suggestion.scripture_ref && (
+                <p className="text-xs text-primary mt-1 italic">{suggestion.scripture_ref}: {suggestion.scripture_text}</p>
+              )}
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 text-xs h-7" onClick={() => onApplySuggestion(step, suggestion)}>
+              Use This
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1833,92 +1928,6 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
     toast({ title: "Updated with AI suggestion" });
   };
 
-  function SortableStepCard({ step }: { step: any }) {
-    const suggestion = getSuggestionForStep(step);
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
-    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : undefined };
-    const badgeColor = typeBadgeColors[step.step_type] || "bg-muted text-muted-foreground";
-
-    return (
-      <div ref={setNodeRef} style={style} className={`border rounded-lg overflow-hidden ${step.is_excluded ? "opacity-40 border-dashed" : ""}`}>
-        {step.is_excluded && (
-          <div className="bg-muted/50 px-3 py-1 text-xs text-muted-foreground flex items-center justify-between">
-            <span>Excluded from journey</span>
-            <Button variant="ghost" size="sm" className="h-5 text-xs" onClick={() => onToggle(step.id, false)}>Restore</Button>
-          </div>
-        )}
-        <div className="p-3">
-          {editingStep === step.id ? (
-            <div className="space-y-3">
-              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" className="text-sm" />
-              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder="Prayer prompt" rows={3} className="text-sm" />
-              <div className="grid grid-cols-[1fr_2fr] gap-2">
-                <Input value={editScriptureRef} onChange={(e) => setEditScriptureRef(e.target.value)} placeholder="e.g. Jeremiah 29:7" className="text-sm" />
-                <Input value={editScriptureText} onChange={(e) => setEditScriptureText(e.target.value)} placeholder="Verse text" className="text-sm" />
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => saveEdit(step.id)}><Save className="w-3 h-3 mr-1" /> Save</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingStep(null)}>Cancel</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-start gap-2">
-              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1 shrink-0">
-                <GripVertical className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${badgeColor}`}>
-                    {typeLabels[step.step_type] || step.step_type}
-                  </span>
-                </div>
-                <p className="text-sm font-medium">{step.title || "Untitled"}</p>
-                {step.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{step.body}</p>}
-                {step.scripture_ref && (
-                  <p className="text-xs text-primary mt-1 italic">
-                    {step.scripture_ref}{step.scripture_text ? `: ${step.scripture_text}` : ""}
-                  </p>
-                )}
-                {!step.scripture_ref && !step.is_excluded && (
-                  <p className="text-xs text-muted-foreground/40 mt-1 italic">No scripture yet</p>
-                )}
-              </div>
-              <div className="flex gap-0.5 shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => regenerateForStep(step)} disabled={regeneratingStep === step.id} title="Regenerate prayer & scripture">
-                  {regeneratingStep === step.id ? <span className="w-4 h-4 animate-spin">...</span> : <Sparkles className="w-3.5 h-3.5 text-amber-500" />}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => startEditing(step)} title="Edit"><PenLine className="w-3.5 h-3.5" /></Button>
-                <Button variant="ghost" size="sm" onClick={() => onToggle(step.id, !step.is_excluded)} title={step.is_excluded ? "Include" : "Exclude"}>
-                  {step.is_excluded ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => onDelete(step.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Inline AI suggestion */}
-        {suggestion && editingStep !== step.id && (
-          <div className="border-t bg-amber-50/50 dark:bg-amber-950/20 p-3">
-            <div className="flex items-start gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">AI Suggestion</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{suggestion.body}</p>
-                {suggestion.scripture_ref && (
-                  <p className="text-xs text-primary mt-1 italic">{suggestion.scripture_ref}: {suggestion.scripture_text}</p>
-                )}
-              </div>
-              <Button size="sm" variant="outline" className="shrink-0 text-xs h-7" onClick={() => applyInlineSuggestion(step, suggestion)}>
-                Use This
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -1934,7 +1943,30 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
         <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {sortedSteps.map((step: any) => (
-              <SortableStepCard key={step.id} step={step} />
+              <SortableStepCard
+                key={step.id}
+                step={step}
+                suggestion={getSuggestionForStep(step)}
+                editingStep={editingStep}
+                editTitle={editTitle}
+                editBody={editBody}
+                editScriptureRef={editScriptureRef}
+                editScriptureText={editScriptureText}
+                setEditTitle={setEditTitle}
+                setEditBody={setEditBody}
+                setEditScriptureRef={setEditScriptureRef}
+                setEditScriptureText={setEditScriptureText}
+                onSaveEdit={saveEdit}
+                onStartEditing={startEditing}
+                onCancelEditing={() => setEditingStep(null)}
+                onRegenerate={regenerateForStep}
+                regeneratingStep={regeneratingStep}
+                onToggle={onToggle}
+                onDelete={onDelete}
+                onApplySuggestion={applyInlineSuggestion}
+                typeBadgeColors={typeBadgeColors}
+                typeLabels={typeLabels}
+              />
             ))}
           </div>
         </SortableContext>
