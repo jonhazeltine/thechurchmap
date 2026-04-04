@@ -1349,8 +1349,8 @@ function CompletionScreen({ journey, steps, onBack, onClose, session }: {
           </div>
         )}
 
-        {/* QR Code */}
-        {qrDataUrl && (
+        {/* QR Code (opt-in via builder) */}
+        {journey.show_qr_code && qrDataUrl && (
           <div className="flex flex-col items-center gap-2">
             <img src={qrDataUrl} alt="Scan to share this journey" className="w-40 h-40 rounded-lg border" />
             <p className="text-xs text-muted-foreground">Scan to share this journey</p>

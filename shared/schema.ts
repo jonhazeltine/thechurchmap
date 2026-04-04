@@ -539,6 +539,7 @@ export interface PrayerJourney {
   starts_at: string | null;
   expires_at: string | null;
   platform_approved: boolean;
+  show_qr_code: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -575,6 +576,7 @@ export const updatePrayerJourneySchema = z.object({
   tract_ids: z.array(z.string()).optional(),
   starts_at: z.string().optional().nullable(),
   expires_at: z.string().optional().nullable(),
+  show_qr_code: z.boolean().optional(),
 });
 
 export const insertPrayerJourneyStepSchema = z.object({

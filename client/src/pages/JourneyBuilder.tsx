@@ -339,6 +339,7 @@ export default function JourneyBuilder() {
 
         {activeStep === "refine" && (
           <RefineStep
+            journey={journey}
             steps={steps}
             journeyId={id!}
             authHeaders={authHeaders}
@@ -1830,7 +1831,8 @@ function SortableStepCard({ step, suggestion, editingStep, editTitle, editBody, 
   );
 }
 
-function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestions, onToggle, onDelete, onPublish, isPublishing }: any) {
+function RefineStep({ journey, steps, journeyId, authHeaders, aiMutation, onAddSuggestions, onToggle, onDelete, onPublish, isPublishing }: any) {
+  const queryClient = useQueryClient();
   const [editingStep, setEditingStep] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
@@ -2055,6 +2057,28 @@ function RefineStep({ steps, journeyId, authHeaders, aiMutation, onAddSuggestion
           <Sparkles className="w-3.5 h-3.5 mr-1.5" />
           {aiMutation.isPending ? "Generating..." : "Generate"}
         </Button>
+      </div>
+
+      {/* QR Code toggle */}
+      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
+        <div className="flex-1">
+          <p className="text-sm font-medium">Show QR Code</p>
+          <p className="text-xs text-muted-foreground">Display a scannable QR code on the completion screen for easy sharing.</p>
+        </div>
+        <button
+          onClick={async () => {
+            const newVal = !journey?.show_qr_code;
+            await fetch(`/api/journeys/${journeyId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", ...authHeaders },
+              body: JSON.stringify({ show_qr_code: newVal }),
+            });
+            queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+          }}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${journey?.show_qr_code ? "bg-primary" : "bg-muted-foreground/30"}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${journey?.show_qr_code ? "translate-x-6" : "translate-x-1"}`} />
+        </button>
       </div>
 
       {/* Publish */}
