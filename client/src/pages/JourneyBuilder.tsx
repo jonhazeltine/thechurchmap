@@ -332,6 +332,8 @@ export default function JourneyBuilder() {
             onAddSteps={(s) => addStepsMutation.mutateAsync(s)}
             onDeleteStep={(stepId: string) => deleteStepMutation.mutate(stepId)}
             onNext={() => setActiveStep("refine")}
+            journeyId={id}
+            authHeaders={authHeaders}
           />
         )}
 
@@ -1550,12 +1552,17 @@ const CUSTOM_STEP_TYPES = [
   { value: "scripture", label: "Scripture" },
 ] as const;
 
-function CustomStep({ steps, onAddSteps, onDeleteStep, onNext }: any) {
+function CustomStep({ steps, onAddSteps, onDeleteStep, onNext, journeyId, authHeaders }: any) {
   const [customTitle, setCustomTitle] = useState("");
   const [customBody, setCustomBody] = useState("");
   const [stepType, setStepType] = useState<string>("custom");
   const [location, setLocation] = useState<LocationData | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const handleAdd = async () => {
     if (!customTitle.trim()) return;
@@ -1586,6 +1593,23 @@ function CustomStep({ steps, onAddSteps, onDeleteStep, onNext }: any) {
     setImageUrl(null);
   };
 
+  const startEditing = (step: any) => {
+    setEditingId(step.id);
+    setEditTitle(step.title || "");
+    setEditBody(step.body || "");
+  };
+
+  const saveEdit = async (stepId: string) => {
+    await fetch(`/api/journeys/${journeyId}/steps/${stepId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ title: editTitle, body: editBody || null }),
+    });
+    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+    setEditingId(null);
+    toast({ title: "Step updated" });
+  };
+
   const customStepTypes = new Set(["custom", "thanksgiving", "prayer_request", "scripture"]);
   const customSteps = steps.filter((s: any) => customStepTypes.has(s.step_type));
 
@@ -1604,32 +1628,51 @@ function CustomStep({ steps, onAddSteps, onDeleteStep, onNext }: any) {
           <CardContent>
             <div className="space-y-3">
               {customSteps.map((step: any) => (
-                <div key={step.id} className="flex items-start gap-2 text-sm">
-                  <PenLine className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <span className="font-medium">{step.title}</span>
-                    {step.metadata?.place_name && (
-                      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" /> {step.metadata.place_name}
+                <div key={step.id} className="border-b last:border-0 pb-3 last:pb-0">
+                  {editingId === step.id ? (
+                    <div className="space-y-2">
+                      <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" className="text-sm" />
+                      <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder="Prayer prompt" rows={2} className="text-sm" />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => saveEdit(step.id)}><Save className="w-3 h-3 mr-1" /> Save</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
                       </div>
-                    )}
-                    {step.metadata?.image_url && (
-                      <img
-                        src={step.metadata.image_url}
-                        alt=""
-                        className="h-16 rounded mt-1 object-cover"
-                      />
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
-                    onClick={() => onDeleteStep(step.id)}
-                    title="Remove step"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-sm">
+                      <PenLine className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium">{step.title}</span>
+                        {step.body && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{step.body}</p>}
+                        {step.metadata?.place_name && (
+                          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" /> {step.metadata.place_name}
+                          </div>
+                        )}
+                        {step.metadata?.image_url && (
+                          <img src={step.metadata.image_url} alt="" className="h-16 rounded mt-1 object-cover" />
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-muted-foreground shrink-0"
+                        onClick={() => startEditing(step)}
+                        title="Edit step"
+                      >
+                        <PenLine className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => onDeleteStep(step.id)}
+                        title="Remove step"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
