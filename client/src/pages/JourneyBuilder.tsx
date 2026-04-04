@@ -423,11 +423,144 @@ async function fetchDemographicPrayerBody(geometry: any, name: string): Promise<
   }
 }
 
+function BoundaryChurchList({ step, journeyId, authHeaders, onDelete, expanded, onToggleExpand, queryClient }: any) {
+  const [churchFilter, setChurchFilter] = useState("");
+  const { toast } = useToast();
+  const meta = step.metadata || {};
+  const excludedIds: string[] = meta.excluded_church_ids || [];
+  const geometry = meta.boundary_geometry;
+
+  // Fetch churches within this boundary's bbox
+  const { data: churches = [], isLoading } = useQuery<any[]>({
+    queryKey: ["boundary-churches", step.id],
+    queryFn: async () => {
+      if (!geometry) return [];
+      const bbox = computeBbox(geometry);
+      const res = await fetch(
+        `/api/churches/in-viewport?minLng=${bbox.minLng}&minLat=${bbox.minLat}&maxLng=${bbox.maxLng}&maxLat=${bbox.maxLat}&limit=300`
+      );
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: expanded && !!geometry,
+    staleTime: 60000,
+  });
+
+  const toggleChurch = async (churchId: string) => {
+    const newExcluded = excludedIds.includes(churchId)
+      ? excludedIds.filter((id: string) => id !== churchId)
+      : [...excludedIds, churchId];
+
+    await fetch(`/api/journeys/${journeyId}/steps/${step.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({
+        metadata: { ...meta, excluded_church_ids: newExcluded },
+      }),
+    });
+    queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+  };
+
+  const filteredChurches = churches.filter((c: any) => {
+    if (!churchFilter.trim()) return true;
+    const q = churchFilter.toLowerCase();
+    return (
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.address && c.address.toLowerCase().includes(q))
+    );
+  });
+
+  const includedCount = churches.length - excludedIds.length;
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="flex items-center gap-2 px-4 py-3">
+          <MapPin className="w-4 h-4 text-blue-500 shrink-0" />
+          <button onClick={onToggleExpand} className="flex-1 text-left min-w-0">
+            <span className="text-sm font-medium">{step.title}</span>
+            <span className="text-xs text-muted-foreground ml-2">
+              {meta.boundary_type}
+              {churches.length > 0 && ` · ${includedCount}/${churches.length} churches`}
+            </span>
+          </button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-muted-foreground"
+            onClick={onToggleExpand}
+          >
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+            onClick={onDelete}
+            title="Remove location"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+
+        {expanded && (
+          <div className="border-t px-4 py-3 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Toggle which churches appear as pins when viewing this location step.
+            </p>
+            <Input
+              value={churchFilter}
+              onChange={(e) => setChurchFilter(e.target.value)}
+              placeholder="Filter churches by name..."
+              className="h-8 text-sm"
+            />
+            {isLoading ? (
+              <p className="text-xs text-muted-foreground">Loading churches...</p>
+            ) : filteredChurches.length > 0 ? (
+              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                {filteredChurches.map((church: any) => {
+                  const isExcluded = excludedIds.includes(church.id);
+                  return (
+                    <button
+                      key={church.id}
+                      onClick={() => toggleChurch(church.id)}
+                      className={`w-full flex items-center gap-2 text-xs rounded px-2 py-1.5 text-left transition-colors ${
+                        isExcluded ? "bg-muted/30 text-muted-foreground" : "bg-primary/5"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                        isExcluded ? "border-muted-foreground/30" : "border-primary bg-primary"
+                      }`}>
+                        {!isExcluded && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </div>
+                      <Church className={`w-3 h-3 shrink-0 ${isExcluded ? "text-muted-foreground/50" : "text-primary"}`} />
+                      <span className="flex-1 truncate">{church.name}</span>
+                      {church.denomination && (
+                        <span className="text-muted-foreground truncate max-w-[100px]">{church.denomination}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {churchFilter ? "No churches match your filter." : "No churches found in this area."}
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function LocationStep({ journey, steps, authHeaders, journeyId, onAddSteps, onDeleteStep, onNext, platform }: any) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [expandedBoundary, setExpandedBoundary] = useState<string | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Existing boundary steps in the journey
   const boundarySteps = steps.filter((s: any) => s.step_type === "boundary");
@@ -603,34 +736,19 @@ function LocationStep({ journey, steps, authHeaders, journeyId, onAddSteps, onDe
         </Card>
       )}
 
-      {/* Added boundary steps */}
-      {boundarySteps.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Location Focuses ({boundarySteps.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {boundarySteps.map((step: any) => (
-                <div key={step.id} className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-blue-500" />
-                  <span className="flex-1 font-medium">{step.title}</span>
-                  <span className="text-xs text-muted-foreground">{step.metadata?.boundary_type}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => onDeleteStep(step.id)}
-                    title="Remove location"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Added boundary steps with church lists */}
+      {boundarySteps.map((step: any) => (
+        <BoundaryChurchList
+          key={step.id}
+          step={step}
+          journeyId={journeyId}
+          authHeaders={authHeaders}
+          onDelete={() => onDeleteStep(step.id)}
+          expanded={expandedBoundary === step.id}
+          onToggleExpand={() => setExpandedBoundary(expandedBoundary === step.id ? null : step.id)}
+          queryClient={queryClient}
+        />
+      ))}
 
       <div className="flex justify-end">
         <Button onClick={onNext}>

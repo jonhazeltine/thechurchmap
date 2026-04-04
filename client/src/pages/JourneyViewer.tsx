@@ -215,12 +215,16 @@ export default function JourneyViewer() {
 
   const contextPins = useMemo(() => {
     if (!showContextPins || !contextChurches || contextChurches.length === 0) return null;
-    return contextChurches.map((c: any) => ({
-      lng: Number(c.display_lng || c.longitude),
-      lat: Number(c.display_lat || c.latitude),
-      name: c.name,
-    })).filter((p: any) => p.lng && p.lat);
-  }, [contextChurches, showContextPins]);
+    const meta = typeof currentStep?.metadata === "string" ? JSON.parse(currentStep.metadata) : currentStep?.metadata;
+    const excludedIds = new Set(meta?.excluded_church_ids || []);
+    return contextChurches
+      .filter((c: any) => !excludedIds.has(c.id))
+      .map((c: any) => ({
+        lng: Number(c.display_lng || c.longitude),
+        lat: Number(c.display_lat || c.latitude),
+        name: c.name,
+      })).filter((p: any) => p.lng && p.lat);
+  }, [contextChurches, showContextPins, currentStep]);
 
   // When the map finishes flying, pop the sheet up
   const handleMapArrived = () => {
