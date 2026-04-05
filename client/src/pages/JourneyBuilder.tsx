@@ -213,19 +213,19 @@ export default function JourneyBuilder() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setLocation(`${platformPrefix}/journeys`)}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Back
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Button variant="ghost" size="sm" className="shrink-0 px-2" onClick={() => setLocation(`${platformPrefix}/journeys`)}>
+              <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline ml-1">Back</span>
             </Button>
-            <div>
+            <div className="min-w-0 flex-1">
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="text-lg font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0"
+                className="text-base sm:text-lg font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0"
                 placeholder="Journey Title"
               />
-              <div className="flex items-center gap-3 mt-1">
+              <div className="hidden sm:flex items-center gap-3 mt-1">
                 <Input
                   type="date"
                   value={startsAt}
@@ -246,11 +246,11 @@ export default function JourneyBuilder() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              <Save className="w-4 h-4 mr-1" /> Save
+          <div className="flex gap-1.5 shrink-0">
+            <Button variant="outline" size="sm" className="px-2 sm:px-3" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              <Save className="w-4 h-4" /> <span className="hidden sm:inline ml-1">Save</span>
             </Button>
-            <Button size="sm" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending || steps.filter(s => !s.is_excluded).length === 0}>
+            <Button size="sm" className="px-2 sm:px-3" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending || steps.filter(s => !s.is_excluded).length === 0}>
               Publish
             </Button>
           </div>
@@ -1844,7 +1844,6 @@ function RefineStep({ journey, steps, journeyId, authHeaders, aiMutation, onAddS
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const [regeneratingStep, setRegeneratingStep] = useState<string | null>(null);
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const activeSteps = steps.filter((s: any) => !s.is_excluded);
