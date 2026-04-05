@@ -175,7 +175,14 @@ export default function JourneyViewer() {
     if (isShareMode) {
       setLocation("/");
     } else {
-      setLocation("/journeys");
+      // Navigate back to platform-scoped journeys list or home
+      const pathParts2 = window.location.pathname.split("/").filter(Boolean);
+      const platformSlug = pathParts2[0];
+      if (platformSlug && platformSlug !== "journey" && platformSlug !== "journeys") {
+        setLocation(`/${platformSlug}/journeys`);
+      } else {
+        setLocation("/");
+      }
     }
   };
 
