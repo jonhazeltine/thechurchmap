@@ -518,8 +518,8 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
 
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: isMobile ? 17.5 : 18,
-        pitch: 60,
+        zoom: isMobile ? 16 : 16.5,
+        pitch: 72,
         bearing,
         speed: 0.8,
         curve: 1.4,
