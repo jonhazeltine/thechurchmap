@@ -494,7 +494,7 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
         const centerLat = (viewBbox[1] + viewBbox[3]) / 2;
         map.flyTo({
           center: [centerLng, centerLat],
-          zoom: isMobile ? 3.5 : 4,
+          zoom: isMobile ? 4.5 : 5,
           pitch: 30,
           bearing: -60,
           speed: 0.6,
