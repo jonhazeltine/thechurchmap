@@ -483,18 +483,17 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       moveendHandlerRef.current = onArrive;
       map.once("moveend", onArrive);
     } else if (viewBbox) {
-      // Wide-area step (state, country)
+      // Has a bounding box — country, state, or city
       const lngSpan = Math.abs(viewBbox[2] - viewBbox[0]);
       const isCountryScale = lngSpan > 20;
 
       if (isCountryScale) {
-        // Country: fly to center point at fixed zoom — fitBounds with
-        // huge bboxes (US includes Alaska/Hawaii) zooms too far out
+        // Country: fly to center at fixed zoom (US bbox includes Alaska/Hawaii)
         const centerLng = (viewBbox[0] + viewBbox[2]) / 2;
         const centerLat = (viewBbox[1] + viewBbox[3]) / 2;
         map.flyTo({
           center: [centerLng, centerLat],
-          zoom: isMobile ? 4.5 : 5,
+          zoom: isMobile ? 3.8 : 4.2,
           pitch: 30,
           bearing: -60,
           speed: 0.6,
@@ -503,7 +502,7 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
           essential: true,
         });
       } else {
-        // State/region: fitBounds works fine at this scale
+        // State, city, or region: fitBounds to show the full area
         const bounds = new mapboxgl.LngLatBounds(
           [viewBbox[0], viewBbox[1]],
           [viewBbox[2], viewBbox[3]]
@@ -512,8 +511,8 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
           padding: isMobile
             ? { top: 40, bottom: 60, left: 10, right: 10 }
             : { top: 30, bottom: 20, left: 10, right: 160 },
-          pitch: 40,
-          bearing: -45,
+          pitch: 45,
+          bearing: -30,
           duration: 2500,
           essential: true,
         });
