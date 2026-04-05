@@ -483,39 +483,21 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       moveendHandlerRef.current = onArrive;
       map.once("moveend", onArrive);
     } else if (viewBbox) {
-      // Has a bounding box — country, state, or city
-      const lngSpan = Math.abs(viewBbox[2] - viewBbox[0]);
-      const isCountryScale = lngSpan > 20;
+      // Has a bounding box — fitBounds to show the full area
+      const bounds = new mapboxgl.LngLatBounds(
+        [viewBbox[0], viewBbox[1]],
+        [viewBbox[2], viewBbox[3]]
+      );
 
-      if (isCountryScale) {
-        // Country: fly to continental US center (don't trust geocoder
-        // center which lands in Pacific NW due to Alaska/Hawaii skew)
-        map.flyTo({
-          center: [-98.5, 39.5],
-          zoom: isMobile ? 3.8 : 4.2,
-          pitch: 30,
-          bearing: -60,
-          speed: 0.6,
-          curve: 1.4,
-          duration: 2500,
-          essential: true,
-        });
-      } else {
-        // State, city, or region: fitBounds to show the full area
-        const bounds = new mapboxgl.LngLatBounds(
-          [viewBbox[0], viewBbox[1]],
-          [viewBbox[2], viewBbox[3]]
-        );
-        map.fitBounds(bounds, {
-          padding: isMobile
-            ? { top: 40, bottom: 60, left: 10, right: 10 }
-            : { top: 30, bottom: 20, left: 10, right: 160 },
-          pitch: 45,
-          bearing: -30,
-          duration: 2500,
-          essential: true,
-        });
-      }
+      map.fitBounds(bounds, {
+        padding: isMobile
+          ? { top: 80, bottom: 100, left: 30, right: 30 }
+          : { top: 60, bottom: 40, left: 30, right: 200 },
+        pitch: 0,
+        bearing: 0,
+        duration: 2000,
+        essential: true,
+      });
 
       const onArrive = () => {
         if (flyCounterRef.current !== thisFlightId) return;
