@@ -498,11 +498,11 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
         padding: isMobile
           ? { top: 40, bottom: 60, left: 10, right: 10 }
           : { top: 30, bottom: 20, left: 10, right: 160 },
-        pitch: isCountryScale ? 20 : 35,
-        bearing: -30, // eastern angle
+        pitch: isCountryScale ? 25 : 40,
+        bearing: -60, // strong eastern angle
         duration: 2500,
         essential: true,
-        maxZoom: isCountryScale ? 5 : isStateScale ? 8 : 14,
+        maxZoom: isCountryScale ? 6 : isStateScale ? 9 : 14,
       });
 
       const onArrive = () => {
