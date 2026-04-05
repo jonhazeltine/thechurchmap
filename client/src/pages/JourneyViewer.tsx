@@ -110,7 +110,13 @@ export default function JourneyViewer() {
     retry: 1,
   });
 
-  const activeSteps = (journey?.steps || []).filter((s) => !s.is_excluded);
+  const isPresentationMode = !!journey?.presentation_mode;
+  const interactiveTypes = new Set(["prayer_request", "user_prayer"]);
+  const activeSteps = (journey?.steps || []).filter((s) => {
+    if (s.is_excluded) return false;
+    if (isPresentationMode && interactiveTypes.has(s.step_type)) return false;
+    return true;
+  });
   const currentStep = activeSteps[currentSlide];
   const isLastSlide = currentSlide === activeSteps.length - 1;
   const isFirstSlide = currentSlide === 0;
@@ -136,7 +142,7 @@ export default function JourneyViewer() {
   }, [isNonMapStep, currentSlide]);
 
   // Find the prayer_request slide index — we insert name capture right before it
-  const prayerRequestIndex = activeSteps.findIndex(s => s.step_type === "prayer_request");
+  const prayerRequestIndex = isPresentationMode ? -1 : activeSteps.findIndex(s => s.step_type === "prayer_request");
 
   const handleNext = () => {
     if (isLastSlide) {

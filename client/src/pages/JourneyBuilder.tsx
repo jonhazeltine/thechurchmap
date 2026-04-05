@@ -2058,6 +2058,28 @@ function RefineStep({ journey, steps, journeyId, authHeaders, aiMutation, onAddS
         </Button>
       </div>
 
+      {/* Presentation Mode toggle */}
+      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
+        <div className="flex-1">
+          <p className="text-sm font-medium">Presentation Mode</p>
+          <p className="text-xs text-muted-foreground">For big screens. Skips interactive steps (prayer requests, name capture) so the journey flows uninterrupted.</p>
+        </div>
+        <button
+          onClick={async () => {
+            const newVal = !journey?.presentation_mode;
+            await fetch(`/api/journeys/${journeyId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", ...authHeaders },
+              body: JSON.stringify({ presentation_mode: newVal }),
+            });
+            queryClient.invalidateQueries({ queryKey: ["journey", journeyId] });
+          }}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${journey?.presentation_mode ? "bg-primary" : "bg-muted-foreground/30"}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${journey?.presentation_mode ? "translate-x-6" : "translate-x-1"}`} />
+        </button>
+      </div>
+
       {/* QR Code toggle */}
       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
         <div className="flex-1">
