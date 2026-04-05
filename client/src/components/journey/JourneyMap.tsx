@@ -488,11 +488,10 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       const isCountryScale = lngSpan > 20;
 
       if (isCountryScale) {
-        // Country: fly to center at fixed zoom (US bbox includes Alaska/Hawaii)
-        const centerLng = (viewBbox[0] + viewBbox[2]) / 2;
-        const centerLat = (viewBbox[1] + viewBbox[3]) / 2;
+        // Country: fly to continental US center (don't trust geocoder
+        // center which lands in Pacific NW due to Alaska/Hawaii skew)
         map.flyTo({
-          center: [centerLng, centerLat],
+          center: [-98.5, 39.5],
           zoom: isMobile ? 3.8 : 4.2,
           pitch: 30,
           bearing: -60,
