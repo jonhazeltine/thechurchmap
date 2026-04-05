@@ -483,27 +483,41 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
       moveendHandlerRef.current = onArrive;
       map.once("moveend", onArrive);
     } else if (viewBbox) {
-      // Wide-area step (state, country): fitBounds to the bbox
-      const bounds = new mapboxgl.LngLatBounds(
-        [viewBbox[0], viewBbox[1]],
-        [viewBbox[2], viewBbox[3]]
-      );
-
-      // Estimate area size from bbox span
+      // Wide-area step (state, country)
       const lngSpan = Math.abs(viewBbox[2] - viewBbox[0]);
       const isCountryScale = lngSpan > 20;
-      const isStateScale = lngSpan > 3;
 
-      map.fitBounds(bounds, {
-        padding: isMobile
-          ? { top: 40, bottom: 60, left: 10, right: 10 }
-          : { top: 30, bottom: 20, left: 10, right: 160 },
-        pitch: isCountryScale ? 25 : 40,
-        bearing: -60, // strong eastern angle
-        duration: 2500,
-        essential: true,
-        maxZoom: isCountryScale ? 6 : isStateScale ? 9 : 14,
-      });
+      if (isCountryScale) {
+        // Country: fly to center point at fixed zoom — fitBounds with
+        // huge bboxes (US includes Alaska/Hawaii) zooms too far out
+        const centerLng = (viewBbox[0] + viewBbox[2]) / 2;
+        const centerLat = (viewBbox[1] + viewBbox[3]) / 2;
+        map.flyTo({
+          center: [centerLng, centerLat],
+          zoom: isMobile ? 3.5 : 4,
+          pitch: 30,
+          bearing: -60,
+          speed: 0.6,
+          curve: 1.4,
+          duration: 2500,
+          essential: true,
+        });
+      } else {
+        // State/region: fitBounds works fine at this scale
+        const bounds = new mapboxgl.LngLatBounds(
+          [viewBbox[0], viewBbox[1]],
+          [viewBbox[2], viewBbox[3]]
+        );
+        map.fitBounds(bounds, {
+          padding: isMobile
+            ? { top: 40, bottom: 60, left: 10, right: 10 }
+            : { top: 30, bottom: 20, left: 10, right: 160 },
+          pitch: 40,
+          bearing: -45,
+          duration: 2500,
+          essential: true,
+        });
+      }
 
       const onArrive = () => {
         if (flyCounterRef.current !== thisFlightId) return;
