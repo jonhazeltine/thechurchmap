@@ -491,8 +491,8 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
 
       map.fitBounds(bounds, {
         padding: isMobile
-          ? { top: 100, bottom: 120, left: 40, right: 40 }
-          : { top: 80, bottom: 60, left: 40, right: 220 },
+          ? { top: 60, bottom: 80, left: 20, right: 20 }
+          : { top: 40, bottom: 30, left: 20, right: 180 },
         pitch: 30,
         bearing: 0,
         duration: 2000,
@@ -518,7 +518,7 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
 
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: isMobile ? 17 : 17.5,
+        zoom: isMobile ? 17.5 : 18,
         pitch: 60,
         bearing,
         speed: 0.8,
