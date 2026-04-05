@@ -373,7 +373,7 @@ export default function JourneyViewer() {
               )}
               <div className="min-w-0 flex-1">
                 <StepBadge stepType={currentStep?.step_type || "custom"} />
-                <h2 className="text-sm font-bold leading-tight mt-0.5 truncate">
+                <h2 className="text-sm font-bold leading-tight mt-0.5 line-clamp-2">
                   {currentStep?.title || "Prayer Step"}
                 </h2>
               </div>
