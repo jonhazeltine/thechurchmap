@@ -489,14 +489,20 @@ export default function JourneyMap({ target, nextTarget, slideIndex = 0, onArriv
         [viewBbox[2], viewBbox[3]]
       );
 
+      // Estimate area size from bbox span
+      const lngSpan = Math.abs(viewBbox[2] - viewBbox[0]);
+      const isCountryScale = lngSpan > 20;
+      const isStateScale = lngSpan > 3;
+
       map.fitBounds(bounds, {
         padding: isMobile
-          ? { top: 60, bottom: 80, left: 20, right: 20 }
-          : { top: 40, bottom: 30, left: 20, right: 180 },
-        pitch: 30,
-        bearing: 0,
-        duration: 2000,
+          ? { top: 40, bottom: 60, left: 10, right: 10 }
+          : { top: 30, bottom: 20, left: 10, right: 160 },
+        pitch: isCountryScale ? 20 : 35,
+        bearing: -30, // eastern angle
+        duration: 2500,
         essential: true,
+        maxZoom: isCountryScale ? 5 : isStateScale ? 8 : 14,
       });
 
       const onArrive = () => {
