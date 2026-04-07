@@ -2004,7 +2004,7 @@ export default function Home() {
     
     const churchId = selectedChurch.id;
     const boundaries = selectedChurch.boundaries || [];
-    const hasPrimaryArea = !!selectedChurch.primary_ministry_area;
+    const hasPrimaryArea = !!selectedChurch.primary_ministry_area || !!(selectedChurch as any).has_primary_ministry_area;
     
     if (boundaries.length === 0) return;
     
@@ -2034,8 +2034,8 @@ export default function Home() {
     if (!selectedChurch) return;
     
     const churchId = selectedChurch.id;
-    const hasPrimaryArea = !!selectedChurch.primary_ministry_area;
-    
+    const hasPrimaryArea = !!selectedChurch.primary_ministry_area || !!(selectedChurch as any).has_primary_ministry_area;
+
     // Only initialize if not already set (prevents re-seeding on toggles)
     if (hasPrimaryArea && primaryAreaVisibleByChurch[churchId] === undefined) {
       setPrimaryAreaVisibleByChurch(prev => ({
@@ -2260,39 +2260,44 @@ export default function Home() {
         const hasChanged = 
           selectedChurch.name !== updatedChurch.name ||
           selectedChurch.boundaries?.length !== updatedChurch.boundaries?.length ||
-          JSON.stringify(selectedChurch.primary_ministry_area) !== JSON.stringify(updatedChurch.primary_ministry_area) ||
+          (selectedChurch as any).has_primary_ministry_area !== (updatedChurch as any).has_primary_ministry_area ||
           selectedChurch.callings?.length !== updatedChurch.callings?.length;
         
         if (hasChanged) {
-          setSelectedChurch(updatedChurch);
+          // Preserve primary_ministry_area from the detailed fetch if bulk response doesn't include it
+          setSelectedChurch(prev => ({
+            ...updatedChurch,
+            primary_ministry_area: updatedChurch.primary_ministry_area || prev?.primary_ministry_area || null
+          }));
         }
       }
     }
   }, [churches, selectedChurch]);
 
-  // Fetch full church details (with boundary geometry) when church is selected
+  // Fetch full church details (with boundary geometry + primary_ministry_area) when church is selected
   // The list endpoint doesn't include geometry for performance - we fetch it here
   useEffect(() => {
     if (!selectedChurch) return;
-    
-    // Check if boundaries already have geometry
+
+    // Check if we already have full details
     const hasGeometry = selectedChurch.boundaries?.some((b: any) => b.geometry);
-    if (hasGeometry || !selectedChurch.boundaries?.length) return;
-    
+    const needsMinistryArea = !selectedChurch.primary_ministry_area && (selectedChurch as any).has_primary_ministry_area;
+    if ((hasGeometry || !selectedChurch.boundaries?.length) && !needsMinistryArea) return;
+
     // Fetch full church details with geometry
     fetch(`/api/churches/${selectedChurch.id}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (data && data.boundaries?.length > 0) {
-          // Update selected church with boundary geometry
+        if (data) {
           setSelectedChurch(prev => prev && prev.id === data.id ? {
             ...prev,
-            boundaries: data.boundaries
+            boundaries: data.boundaries?.length > 0 ? data.boundaries : prev.boundaries,
+            primary_ministry_area: data.primary_ministry_area || prev.primary_ministry_area
           } : prev);
         }
       })
-      .catch(err => console.error('Failed to fetch church boundary geometry:', err));
-  }, [selectedChurch?.id, selectedChurch?.boundaries?.length]);
+      .catch(err => console.error('Failed to fetch church details:', err));
+  }, [selectedChurch?.id, selectedChurch?.boundaries?.length, (selectedChurch as any)?.has_primary_ministry_area]);
 
   // Handle deep linking from community feed and calling boundary drawing (/?church=id&calling=id&action=draw)
   // Also handles metric hotspot viewing from Area Intelligence (/?church=id&metric=obesity)

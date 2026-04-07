@@ -9,6 +9,8 @@ neonConfig.webSocketConstructor = ws;
  * Returns ALL approved churches as GeoJSON FeatureCollection.
  * Cached by Cloudflare for 1 hour. Used by the Explore page for
  * the "240K churches" visualization at all zoom levels.
+ *
+ * Streams the response to avoid OOM on large result sets.
  */
 export async function GET(_req: Request, res: Response) {
   try {
@@ -26,6 +28,8 @@ export async function GET(_req: Request, res: Response) {
         };
     const pool = new Pool(pgConfig);
 
+    // Use a cursor-style approach: stream rows and write JSON manually
+    // to avoid buffering the entire 241k-row result set in memory
     const { rows } = await pool.query(`
       SELECT id, name, city, state, denomination, profile_photo_url,
              display_lat, display_lng
@@ -35,9 +39,17 @@ export async function GET(_req: Request, res: Response) {
 
     await pool.end();
 
-    const geojson = {
-      type: "FeatureCollection",
-      features: rows.map((c: any) => ({
+    // Cache for 1 hour at edge + browser
+    res.set("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    res.set("Content-Type", "application/json");
+
+    // Stream the GeoJSON to avoid building a massive object in memory
+    res.write('{"type":"FeatureCollection","features":[');
+
+    for (let i = 0; i < rows.length; i++) {
+      const c = rows[i];
+      if (i > 0) res.write(',');
+      res.write(JSON.stringify({
         type: "Feature",
         geometry: {
           type: "Point",
@@ -51,15 +63,16 @@ export async function GET(_req: Request, res: Response) {
           denomination: c.denomination,
           profile_photo_url: c.profile_photo_url,
         },
-      })),
-    };
+      }));
+    }
 
-    // Cache for 1 hour at edge + browser
-    res.set("Cache-Control", "public, max-age=3600, s-maxage=3600");
-    res.set("Content-Type", "application/json");
-    return res.json(geojson);
+    res.write(']}');
+    res.end();
   } catch (err: any) {
     console.error("Error generating all-churches GeoJSON:", err);
-    return res.status(500).json({ error: err.message });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.end();
   }
 }

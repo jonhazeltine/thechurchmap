@@ -318,34 +318,26 @@ export async function GET(req: Request, res: Response) {
         location = c.location;
       }
 
-      // Parse primary_ministry_area (comes as GeoJSON from database)
-      let primary_ministry_area = null;
-      if (c.primary_ministry_area) {
-        if (typeof c.primary_ministry_area === 'string') {
-          try {
-            primary_ministry_area = JSON.parse(c.primary_ministry_area);
-          } catch (e) {
-            console.error('Failed to parse primary_ministry_area JSON for church', c.id);
-          }
-        } else if (typeof c.primary_ministry_area === 'object') {
-          primary_ministry_area = c.primary_ministry_area;
-        }
-      }
-      
+      // Don't include full primary_ministry_area geometry in bulk response —
+      // polygons can be huge and cause OOM. Send a boolean flag instead.
+      // Full geometry is fetched on-demand via GET /api/churches/:id
+      const has_primary_ministry_area = !!c.primary_ministry_area;
+
       // Get callings from the pre-fetched map (includes custom_boundary_enabled)
       const callings = callingsMap.get(c.id) || [];
-      
+
       const images = imagesMap.get(c.id) || {};
-      
+
       // Map boundary_ids to boundary objects
       const boundaries = (c.boundary_ids || [])
         .map((id: string) => boundariesMap.get(id))
         .filter(Boolean);
-      
+
       return {
         ...c,
         location,
-        primary_ministry_area,
+        primary_ministry_area: null,
+        has_primary_ministry_area,
         callings,
         boundaries,
         profile_photo_url: images.profile_photo_url || c.profile_photo_url || null,
