@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import * as healthzRoute from "../app/api/healthz/route";
 import * as churchesRoute from "../app/api/churches/route";
 import * as churchByIdRoute from "../app/api/churches/[id]/route";
 import * as churchesByPolygonRoute from "../app/api/churches/by-polygon/route";
@@ -266,6 +267,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next();
     }
   });
+
+  // Health check for Railway deploy gating and external uptime monitors.
+  // Returns 200 only when the DB is reachable; Railway will refuse to
+  // promote a new deploy if this endpoint fails.
+  app.get("/api/healthz", healthzRoute.GET);
 
   // Serve GeoJSON with no-cache headers to ensure fresh data
   app.get('/all-churches-sampled.geojson', (req, res) => {
