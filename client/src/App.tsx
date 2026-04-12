@@ -36,41 +36,66 @@ import SignatureVerification from "@/pages/SignatureVerification";
 import ChurchContractSigning from "@/pages/ChurchContractSigning";
 import AgentLandingPage from "@/pages/AgentLandingPage";
 
-const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
-const AdminChurches = lazy(() => import("@/pages/admin/Churches"));
-const AdminUsers = lazy(() => import("@/pages/admin/Users"));
-const AdminUserEdit = lazy(() => import("@/pages/admin/UserEdit"));
-const AdminPrayer = lazy(() => import("@/pages/admin/Prayer"));
-const AdminContentReview = lazy(() => import("@/pages/admin/ContentReview"));
-const AdminCommunity = lazy(() => import("@/pages/admin/Community"));
-const AdminCallings = lazy(() => import("@/pages/admin/Callings"));
-const AdminCollaboration = lazy(() => import("@/pages/admin/Collaboration"));
-const AdminInternalTags = lazy(() => import("@/pages/admin/InternalTags"));
-const AdminSettings = lazy(() => import("@/pages/admin/Settings"));
-const AdminCityPlatforms = lazy(() => import("@/pages/admin/CityPlatforms"));
-const AdminCityPlatformsMap = lazy(() => import("@/pages/admin/CityPlatformsMap"));
-const AdminCreateCityPlatform = lazy(() => import("@/pages/admin/CreateCityPlatform"));
-const AdminCityPlatformBoundaries = lazy(() => import("@/pages/admin/CityPlatformBoundaries"));
-const AdminMyPlatforms = lazy(() => import("@/pages/admin/MyPlatforms"));
-const AdminPlatformDashboard = lazy(() => import("@/pages/admin/PlatformDashboard"));
-const AdminPlatformMembers = lazy(() => import("@/pages/admin/PlatformMembers"));
-const AdminChurchClaims = lazy(() => import("@/pages/admin/ChurchClaims"));
-const AdminProfilesPending = lazy(() => import("@/pages/admin/ProfilesPending"));
-const AdminMembershipRequests = lazy(() => import("@/pages/admin/MembershipRequests"));
-const AdminPlatformSettings = lazy(() => import("@/pages/admin/PlatformSettings"));
-const AdminDataSources = lazy(() => import("@/pages/admin/DataSources"));
-const AdminModeration = lazy(() => import("@/pages/admin/Moderation"));
-const AdminSpreadsheetCompare = lazy(() => import("@/pages/admin/SpreadsheetCompare"));
-const AdminPartnershipApplications = lazy(() => import("@/pages/admin/PartnershipApplications"));
-const AdminSponsors = lazy(() => import("@/pages/admin/Sponsors"));
-const AdminMissionFundingSubmissions = lazy(() => import("@/pages/admin/MissionFundingSubmissions"));
-const AdminPartnerships = lazy(() => import("@/pages/admin/Partnerships"));
-const AdminMyChurches = lazy(() => import("@/pages/admin/MyChurches"));
+const AdminDashboard = lazyWithRetry(() => import("@/pages/admin/Dashboard"));
+const AdminChurches = lazyWithRetry(() => import("@/pages/admin/Churches"));
+const AdminUsers = lazyWithRetry(() => import("@/pages/admin/Users"));
+const AdminUserEdit = lazyWithRetry(() => import("@/pages/admin/UserEdit"));
+const AdminPrayer = lazyWithRetry(() => import("@/pages/admin/Prayer"));
+const AdminContentReview = lazyWithRetry(() => import("@/pages/admin/ContentReview"));
+const AdminCommunity = lazyWithRetry(() => import("@/pages/admin/Community"));
+const AdminCallings = lazyWithRetry(() => import("@/pages/admin/Callings"));
+const AdminCollaboration = lazyWithRetry(() => import("@/pages/admin/Collaboration"));
+const AdminInternalTags = lazyWithRetry(() => import("@/pages/admin/InternalTags"));
+const AdminSettings = lazyWithRetry(() => import("@/pages/admin/Settings"));
+const AdminCityPlatforms = lazyWithRetry(() => import("@/pages/admin/CityPlatforms"));
+const AdminCityPlatformsMap = lazyWithRetry(() => import("@/pages/admin/CityPlatformsMap"));
+const AdminCreateCityPlatform = lazyWithRetry(() => import("@/pages/admin/CreateCityPlatform"));
+const AdminCityPlatformBoundaries = lazyWithRetry(() => import("@/pages/admin/CityPlatformBoundaries"));
+const AdminMyPlatforms = lazyWithRetry(() => import("@/pages/admin/MyPlatforms"));
+const AdminPlatformDashboard = lazyWithRetry(() => import("@/pages/admin/PlatformDashboard"));
+const AdminPlatformMembers = lazyWithRetry(() => import("@/pages/admin/PlatformMembers"));
+const AdminChurchClaims = lazyWithRetry(() => import("@/pages/admin/ChurchClaims"));
+const AdminProfilesPending = lazyWithRetry(() => import("@/pages/admin/ProfilesPending"));
+const AdminMembershipRequests = lazyWithRetry(() => import("@/pages/admin/MembershipRequests"));
+const AdminPlatformSettings = lazyWithRetry(() => import("@/pages/admin/PlatformSettings"));
+const AdminDataSources = lazyWithRetry(() => import("@/pages/admin/DataSources"));
+const AdminModeration = lazyWithRetry(() => import("@/pages/admin/Moderation"));
+const AdminSpreadsheetCompare = lazyWithRetry(() => import("@/pages/admin/SpreadsheetCompare"));
+const AdminPartnershipApplications = lazyWithRetry(() => import("@/pages/admin/PartnershipApplications"));
+const AdminSponsors = lazyWithRetry(() => import("@/pages/admin/Sponsors"));
+const AdminMissionFundingSubmissions = lazyWithRetry(() => import("@/pages/admin/MissionFundingSubmissions"));
+const AdminPartnerships = lazyWithRetry(() => import("@/pages/admin/Partnerships"));
+const AdminMyChurches = lazyWithRetry(() => import("@/pages/admin/MyChurches"));
 
 // Prayer Journeys
-const JourneyList = lazy(() => import("@/pages/JourneyList"));
-const JourneyBuilder = lazy(() => import("@/pages/JourneyBuilder"));
-const JourneyViewer = lazy(() => import("@/pages/JourneyViewer"));
+const JourneyList = lazyWithRetry(() => import("@/pages/JourneyList"));
+const JourneyBuilder = lazyWithRetry(() => import("@/pages/JourneyBuilder"));
+const JourneyViewer = lazyWithRetry(() => import("@/pages/JourneyViewer"));
+
+/**
+ * Wrap a lazy import so that chunk-load failures (e.g. after a deploy
+ * changes JS hashes while the user has an old HTML shell cached) trigger
+ * a single page reload instead of a blank error screen. A sessionStorage
+ * flag prevents infinite reload loops.
+ */
+function lazyWithRetry(importFn: () => Promise<{ default: React.ComponentType<any> }>) {
+  return lazy(async () => {
+    const storageKey = 'chunk_reload_' + importFn.toString().slice(0, 80);
+    try {
+      const module = await importFn();
+      // Clear the flag on success so future deploys can retry again
+      sessionStorage.removeItem(storageKey);
+      return module;
+    } catch (error) {
+      // Only auto-reload once per chunk to prevent infinite loops
+      if (!sessionStorage.getItem(storageKey)) {
+        sessionStorage.setItem(storageKey, '1');
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
+}
 
 function AdminPageLoader() {
   return (
