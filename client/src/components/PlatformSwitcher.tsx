@@ -88,11 +88,24 @@ export function PlatformSwitcher() {
   const isLoading = user ? (platformLoading || accessLoading) : (platformLoading || publicPlatformsLoading);
 
   const handlePlatformSelect = (id: string | null) => {
-    setPlatformId(id);
-    
+    // Resolve slug early so we can pass it to setPlatformId (avoids
+    // a brief UUID-in-URL flash before the slug-redirect effect fires)
+    let slug: string | undefined;
+    if (id) {
+      if (user && userPlatforms) {
+        const userPlatform = userPlatforms.find(p => p.platform_id === id);
+        if (userPlatform?.platform_slug) slug = userPlatform.platform_slug;
+      } else if (publicPlatformsData?.platforms) {
+        const publicPlatform = publicPlatformsData.platforms.find(p => p.id === id);
+        if (publicPlatform?.slug) slug = publicPlatform.slug;
+      }
+    }
+
+    setPlatformId(id, slug);
+
     // Check if we're in the admin panel - if so, stay on the current admin page
     const isInAdminPanel = location.startsWith('/admin');
-    
+
     if (isInAdminPanel) {
       // For admin panel, update with query param for now
       const params = new URLSearchParams(window.location.search);
@@ -108,16 +121,7 @@ export function PlatformSwitcher() {
     } else {
       // For non-admin pages, navigate to platform map using path-based URL
       if (id) {
-        // Get slug from platform data if available
-        let slug = id;
-        if (user && userPlatforms) {
-          const userPlatform = userPlatforms.find(p => p.platform_id === id);
-          if (userPlatform?.platform_slug) slug = userPlatform.platform_slug;
-        } else if (publicPlatformsData?.platforms) {
-          const publicPlatform = publicPlatformsData.platforms.find(p => p.id === id);
-          if (publicPlatform?.slug) slug = publicPlatform.slug;
-        }
-        setLocation(`/${slug}/map`);
+        setLocation(`/${slug || id}/map`);
       } else {
         // National view - go to home
         setLocation('/');
