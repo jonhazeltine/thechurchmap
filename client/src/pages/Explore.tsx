@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
+import { usePlatformContext } from "@/contexts/PlatformContext";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Card, CardContent } from "@/components/ui/card";
@@ -486,6 +487,7 @@ function PlatformListItem({
 
 export default function Explore() {
   const [location, navigate] = useLocation();
+  const { setPlatformId } = usePlatformContext();
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -962,6 +964,11 @@ export default function Explore() {
     // Find the platform to get its slug
     const platform = platforms.find(p => p.id === platformIdOrSlug || p.slug === platformIdOrSlug);
     if (platform) {
+      // Pre-seed PlatformContext with the UUID so the churches query
+      // can fire immediately when Home mounts, instead of waiting for
+      // a redundant platform slug→UUID resolution (~500ms). The Explore
+      // page already has the full platform object in memory.
+      setPlatformId(platform.id, platform.slug);
       navigate(`/${platform.slug}/map`);
     } else {
       // Fallback to the slug-based URL if platform not found
