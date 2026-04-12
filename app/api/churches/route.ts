@@ -31,6 +31,36 @@ interface ChurchFetchParams {
  */
 const inFlightChurchRequests = new Map<string, Promise<any[]>>();
 
+/**
+ * Server-side response cache for slim church queries.
+ *
+ * Slim responses are the fast-path for pin rendering (~3-5s from DB).
+ * Caching them in memory means repeat visits and platform switches
+ * return instantly (0ms DB, ~200ms network). Cache is keyed by the
+ * dedupe key (normalized filter params) and entries expire after 5 min.
+ *
+ * Invalidated on church POST/PATCH/DELETE via invalidateChurchCache().
+ * The TTL provides a safety net if invalidation misses an edge case.
+ *
+ * Memory budget: Detroit slim = ~3.7MB. 8 platforms ≈ 30MB total.
+ * Well within the 2GB heap limit.
+ */
+interface CacheEntry {
+  data: any[];
+  timestamp: number;
+}
+const SLIM_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const slimResponseCache = new Map<string, CacheEntry>();
+
+/** Invalidate all cached slim responses. Called on church writes. */
+export function invalidateChurchCache() {
+  const count = slimResponseCache.size;
+  slimResponseCache.clear();
+  if (count > 0) {
+    console.log(`🗑️ Invalidated ${count} cached slim church responses`);
+  }
+}
+
 export async function GET(req: Request, res: Response) {
   try {
     const supabase = supabaseServer();
@@ -72,6 +102,15 @@ export async function GET(req: Request, res: Response) {
     // the same platform coalesce into one.
     const dedupeKey = JSON.stringify(params);
 
+    // Check server-side cache for slim requests (instant response on cache hit)
+    if (slim) {
+      const cached = slimResponseCache.get(dedupeKey);
+      if (cached && (Date.now() - cached.timestamp) < SLIM_CACHE_TTL_MS) {
+        console.log(`⚡ Cache hit for slim /api/churches: ${params.cityPlatformId || 'national'} (${cached.data.length} churches)`);
+        return res.json(cached.data);
+      }
+    }
+
     let pending = inFlightChurchRequests.get(dedupeKey);
     if (pending) {
       console.log(`🔁 Coalescing /api/churches request: ${dedupeKey}`);
@@ -83,6 +122,13 @@ export async function GET(req: Request, res: Response) {
     }
 
     const result = await pending;
+
+    // Cache slim responses for fast repeat loads
+    if (slim) {
+      slimResponseCache.set(dedupeKey, { data: result, timestamp: Date.now() });
+      console.log(`💾 Cached slim response: ${params.cityPlatformId || 'national'} (${result.length} churches)`);
+    }
+
     res.json(result);
   } catch (error: any) {
     console.error('GET /api/churches error:', error);
@@ -178,15 +224,16 @@ async function fetchFilteredChurches(params: ChurchFetchParams): Promise<any[]> 
 
     if (linkedChurchIds.length > 0) {
       // Fetch the actual church data for these specific IDs
-      // Use fn_get_churches_simple but filter by the platform's church IDs
-      // We need to batch if there are many IDs (Supabase has a limit on IN clause)
+      // slim mode uses fn_get_churches_slim (no ST_AsGeoJSON, ~4x faster)
+      // full mode uses fn_get_churches_simple (includes PostGIS geometry)
+      const rpcName = slim ? 'fn_get_churches_slim' : 'fn_get_churches_simple';
       const BATCH_SIZE = 500;
       const allPlatformChurches: any[] = [];
 
       for (let i = 0; i < linkedChurchIds.length; i += BATCH_SIZE) {
         const batch = linkedChurchIds.slice(i, i + BATCH_SIZE);
         const { data: batchData, error: batchError } = await supabase
-          .rpc('fn_get_churches_simple')
+          .rpc(rpcName)
           .in('id', batch);
 
         if (batchError) {
@@ -197,14 +244,15 @@ async function fetchFilteredChurches(params: ChurchFetchParams): Promise<any[]> 
       }
 
       churchesRaw = allPlatformChurches;
-      console.log(`✅ Got ${churchesRaw.length} platform churches from database`);
+      console.log(`✅ Got ${churchesRaw.length} platform churches from database (${rpcName})`);
     }
   } else {
     // NATIONAL VIEW: Use the existing approach with limit
     // For national view, we don't need all 320k churches - just a sample
+    const rpcName = slim ? 'fn_get_churches_slim' : 'fn_get_churches_simple';
     const [regionsResult, churchesResult] = await Promise.all([
       supabase.from('region_settings').select('region_id').eq('is_enabled', true),
-      supabase.rpc('fn_get_churches_simple').limit(10000),
+      supabase.rpc(rpcName).limit(10000),
     ]);
 
     enabledCountyFips = new Set(
@@ -380,7 +428,16 @@ async function fetchFilteredChurches(params: ChurchFetchParams): Promise<any[]> 
   const churches = visibleChurches.map((c: any) => {
     let location = null;
 
-    if (c.location && typeof c.location === 'string') {
+    if (slim) {
+      // Slim mode: build a GeoJSON Point from display_lat/display_lng
+      // (fn_get_churches_slim doesn't return a location geometry)
+      if (c.display_lat != null && c.display_lng != null) {
+        location = {
+          type: 'Point',
+          coordinates: [c.display_lng, c.display_lat],
+        };
+      }
+    } else if (c.location && typeof c.location === 'string') {
       try {
         location = JSON.parse(c.location);
       } catch (e) {
@@ -393,7 +450,7 @@ async function fetchFilteredChurches(params: ChurchFetchParams): Promise<any[]> 
     // Don't include full primary_ministry_area geometry in bulk response —
     // polygons can be huge and cause OOM. Send a boolean flag instead.
     // Full geometry is fetched on-demand via GET /api/churches/:id
-    const has_primary_ministry_area = !!c.primary_ministry_area;
+    const has_primary_ministry_area = slim ? false : !!c.primary_ministry_area;
 
     // Get callings from the pre-fetched map (includes custom_boundary_enabled)
     const callings = callingsMap.get(c.id) || [];
@@ -632,6 +689,7 @@ export async function POST(req: Request, res: Response) {
       }
     }
 
+    invalidateChurchCache();
     res.status(201).json(data);
   } catch (error: any) {
     res.status(400).json({ error: error.message });

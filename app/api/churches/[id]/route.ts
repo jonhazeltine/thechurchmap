@@ -3,6 +3,7 @@ import { supabaseServer } from "../../../../lib/supabaseServer";
 import { insertChurchSchema } from "@shared/schema";
 import { geocodeAddress } from "../../../../lib/geocoding";
 import { canEditChurch } from "../../../../lib/authMiddleware";
+import { invalidateChurchCache } from "../route";
 import wkx from 'wkx';
 
 function isValidAddress(address: string): boolean {
@@ -251,6 +252,7 @@ export async function PATCH(req: Request, res: Response) {
       return;
     }
 
+    invalidateChurchCache();
     res.json(church);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -277,6 +279,7 @@ export async function DELETE(req: Request, res: Response) {
 
     if (error) throw error;
 
+    invalidateChurchCache();
     res.status(204).send();
   } catch (error: any) {
     res.status(400).json({ error: error.message });
