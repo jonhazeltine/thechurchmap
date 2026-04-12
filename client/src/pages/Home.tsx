@@ -2143,38 +2143,69 @@ export default function Home() {
     } as ChurchWithCallings));
   }, [cachedPinData]);
 
-  const { data: churches = [], isLoading: churchesLoading, isFetching: churchesFetching } = useQuery<ChurchWithCallings[]>({
-    queryKey: ["/api/churches", baseFilters, platform?.id, activeRegionId],
-    enabled: platformId !== null && !!platform?.id, // Wait for platform to be fully loaded
-    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (survives platform switches)
-    placeholderData: (prev) => prev ?? cachedPinsAsChurches ?? undefined, // Use cached pins for instant first paint, then keep previous data
+  // Two-phase church loading:
+  // Phase 1 (slim): Fast fetch (~2s) with just pin data — no images, callings,
+  //   or boundary name resolution. Enough to render pins on the map and show
+  //   basic church info. This is what users see for the first few seconds.
+  // Phase 2 (full): Background enrichment (~7s) that adds callings, boundary
+  //   names, and re-fetched images. Replaces slim data seamlessly via React
+  //   Query's placeholderData. Users don't notice the switch because pin
+  //   positions don't change — only detail panel data gets richer.
+  const hasActiveFilters = !!(baseFilters.polygon || baseFilters.denomination || baseFilters.collabHave || baseFilters.collabNeed);
+
+  const buildChurchesUrl = (slimMode: boolean) => {
+    const params = buildPlatformQueryParams(platform?.id ?? null, {
+      denomination: baseFilters.denomination,
+      collab_have: baseFilters.collabHave,
+      collab_need: baseFilters.collabNeed,
+    });
+    if (activeRegionId) {
+      params.set('region_id', activeRegionId);
+    }
+    if (slimMode) {
+      params.set('slim', 'true');
+    }
+    return `/api/churches${params.toString() ? `?${params.toString()}` : ''}`;
+  };
+
+  // Phase 1: Slim fetch for fast pin rendering
+  const { data: slimChurches, isLoading: slimLoading } = useQuery<ChurchWithCallings[]>({
+    queryKey: ["/api/churches", "slim", baseFilters, platform?.id, activeRegionId],
+    enabled: platformId !== null && !!platform?.id && !baseFilters.polygon,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: (prev) => prev ?? cachedPinsAsChurches ?? undefined,
     queryFn: async () => {
-      if (baseFilters.polygon) {
-        return apiRequest("POST", "/api/churches/by-polygon", { polygon: baseFilters.polygon });
-      }
-
-      // For filters, use the main churches endpoint with platform context
-      // Search term is handled separately by the search dropdown - doesn't affect map pins
-      // IMPORTANT: Use platform?.id (resolved UUID) instead of platformId (could be slug)
-      const params = buildPlatformQueryParams(platform?.id ?? null, {
-        denomination: baseFilters.denomination,
-        collab_have: baseFilters.collabHave,
-        collab_need: baseFilters.collabNeed,
-      });
-      
-      // Add region filtering if a region is selected (server-side spatial filtering)
-      if (activeRegionId) {
-        params.set('region_id', activeRegionId);
-      }
-
-      const url = `/api/churches${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = buildChurchesUrl(true);
       return fetch(url).then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       });
     },
   });
+
+  // Phase 2: Full enrichment (images, callings, boundaries) — fires in background
+  const { data: fullChurches, isFetching: churchesFetching } = useQuery<ChurchWithCallings[]>({
+    queryKey: ["/api/churches", baseFilters, platform?.id, activeRegionId],
+    enabled: platformId !== null && !!platform?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: (prev) => prev ?? slimChurches ?? cachedPinsAsChurches ?? undefined,
+    queryFn: async () => {
+      if (baseFilters.polygon) {
+        return apiRequest("POST", "/api/churches/by-polygon", { polygon: baseFilters.polygon });
+      }
+      const url = buildChurchesUrl(false);
+      return fetch(url).then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      });
+    },
+  });
+
+  // Use full data when available, fall back to slim data for fast pin rendering
+  const churches: ChurchWithCallings[] = fullChurches ?? slimChurches ?? [];
+  const churchesLoading = slimLoading;
 
   // Note: Platform zoom is now handled in the platform navigation effect using combined_geometry
   // No longer need to wait for churches to load - the boundary geometry provides immediate bounds
