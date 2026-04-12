@@ -10,6 +10,7 @@ interface ChurchFetchParams {
   searchTerm: string | undefined;
   collabHave: string | undefined;
   collabNeed: string | undefined;
+  slim: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export async function GET(req: Request, res: Response) {
     const collabNeed = req.query.collab_need as string | undefined;
     let cityPlatformId = req.query.city_platform_id as string | undefined;
     const regionId = req.query.region_id as string | undefined; // Region filtering
+    const slim = req.query.slim === 'true'; // Skip enrichment (images, callings, boundaries)
 
     // Resolve platform slug to UUID if needed
     if (cityPlatformId && !UUID_REGEX.test(cityPlatformId)) {
@@ -63,6 +65,7 @@ export async function GET(req: Request, res: Response) {
       searchTerm,
       collabHave,
       collabNeed,
+      slim,
     };
 
     // Build dedupe key AFTER slug resolution so slug and UUID requests for
@@ -88,7 +91,7 @@ export async function GET(req: Request, res: Response) {
 }
 
 async function fetchFilteredChurches(params: ChurchFetchParams): Promise<any[]> {
-  const { cityPlatformId, regionId, searchTerm, collabHave, collabNeed } = params;
+  const { cityPlatformId, regionId, searchTerm, collabHave, collabNeed, slim } = params;
   const supabase = supabaseServer();
 
   // Phase 5C: Platform context filtering
@@ -217,72 +220,79 @@ async function fetchFilteredChurches(params: ChurchFetchParams): Promise<any[]> 
     console.log(`✅ Got ${churchesRaw.length} churches from database (national view)`);
   }
 
-  // Fetch images and callings - batch to avoid URL length limits
+  // Enrichment: images, callings, boundary names.
+  // Skipped in slim mode — the base RPC already includes profile_photo_url,
+  // banner_image_url, collaboration_have/need, and boundary_ids. Slim mode
+  // is ~3-5x faster because it avoids 3 rounds of batched IN queries.
   const churchIds = churchesRaw.map((c: any) => c.id);
   let imagesMap = new Map<string, { profile_photo_url?: string; banner_image_url?: string }>();
   let callingsMap = new Map<string, any[]>();
 
-  // Batch size for IN queries (Supabase has URL length limits)
-  const QUERY_BATCH_SIZE = 200;
+  if (!slim) {
+    // Batch size for IN queries (Supabase has URL length limits)
+    const QUERY_BATCH_SIZE = 200;
 
-  // Fetch images in batches
-  for (let i = 0; i < churchIds.length; i += QUERY_BATCH_SIZE) {
-    const batch = churchIds.slice(i, i + QUERY_BATCH_SIZE);
-    const { data: imagesData, error: imagesError } = await supabase
-      .from('churches')
-      .select('id, profile_photo_url, banner_image_url')
-      .or('profile_photo_url.neq.null,banner_image_url.neq.null')
-      .in('id', batch);
+    // Fetch images in batches
+    for (let i = 0; i < churchIds.length; i += QUERY_BATCH_SIZE) {
+      const batch = churchIds.slice(i, i + QUERY_BATCH_SIZE);
+      const { data: imagesData, error: imagesError } = await supabase
+        .from('churches')
+        .select('id, profile_photo_url, banner_image_url')
+        .or('profile_photo_url.neq.null,banner_image_url.neq.null')
+        .in('id', batch);
 
-    if (!imagesError && imagesData) {
-      imagesData.forEach((p: any) => {
-        imagesMap.set(p.id, {
-          profile_photo_url: p.profile_photo_url || undefined,
-          banner_image_url: p.banner_image_url || undefined
+      if (!imagesError && imagesData) {
+        imagesData.forEach((p: any) => {
+          imagesMap.set(p.id, {
+            profile_photo_url: p.profile_photo_url || undefined,
+            banner_image_url: p.banner_image_url || undefined
+          });
         });
-      });
+      }
     }
-  }
-  console.log(`📸 Found ${imagesMap.size} churches with images`);
+    console.log(`📸 Found ${imagesMap.size} churches with images`);
 
-  // Fetch callings in batches
-  for (let i = 0; i < churchIds.length; i += QUERY_BATCH_SIZE) {
-    const batch = churchIds.slice(i, i + QUERY_BATCH_SIZE);
-    const { data: callingsData, error: callingsError } = await supabase
-      .from('church_calling')
-      .select(`
-        church_id,
-        calling_id,
-        custom_boundary_enabled,
-        callings:calling_id (
-          id,
-          name,
-          type,
-          description,
-          color
-        )
-      `)
-      .in('church_id', batch);
+    // Fetch callings in batches
+    for (let i = 0; i < churchIds.length; i += QUERY_BATCH_SIZE) {
+      const batch = churchIds.slice(i, i + QUERY_BATCH_SIZE);
+      const { data: callingsData, error: callingsError } = await supabase
+        .from('church_calling')
+        .select(`
+          church_id,
+          calling_id,
+          custom_boundary_enabled,
+          callings:calling_id (
+            id,
+            name,
+            type,
+            description,
+            color
+          )
+        `)
+        .in('church_id', batch);
 
-    if (callingsError) {
-      console.error('Error fetching church callings batch:', callingsError);
-    } else if (callingsData) {
-      callingsData.forEach((cc: any) => {
-        if (cc.callings) {
-          const callingWithFlag = {
-            ...cc.callings,
-            custom_boundary_enabled: cc.custom_boundary_enabled ?? false
-          };
+      if (callingsError) {
+        console.error('Error fetching church callings batch:', callingsError);
+      } else if (callingsData) {
+        callingsData.forEach((cc: any) => {
+          if (cc.callings) {
+            const callingWithFlag = {
+              ...cc.callings,
+              custom_boundary_enabled: cc.custom_boundary_enabled ?? false
+            };
 
-          if (!callingsMap.has(cc.church_id)) {
-            callingsMap.set(cc.church_id, []);
+            if (!callingsMap.has(cc.church_id)) {
+              callingsMap.set(cc.church_id, []);
+            }
+            callingsMap.get(cc.church_id)!.push(callingWithFlag);
           }
-          callingsMap.get(cc.church_id)!.push(callingWithFlag);
-        }
-      });
+        });
+      }
     }
+    console.log(`📞 Fetched callings for ${callingsMap.size} churches`);
+  } else {
+    console.log(`⚡ Slim mode: skipping image/calling enrichment for ${churchIds.length} churches`);
   }
-  console.log(`📞 Fetched callings for ${callingsMap.size} churches`);
 
   // OPTIMIZATION: For platform view, all churches in churchesRaw are already the right ones
   // For national view, filter by enabled regions
@@ -335,30 +345,32 @@ async function fetchFilteredChurches(params: ChurchFetchParams): Promise<any[]> 
     console.log(`🗺️ National view: ${(churchesRaw || []).length} -> ${visibleChurches.length} churches (region-filtered)`);
   }
 
-  // Collect all unique boundary_ids from visible churches
-  const allBoundaryIds = new Set<string>();
-  visibleChurches.forEach((c: any) => {
-    (c.boundary_ids || []).forEach((id: string) => allBoundaryIds.add(id));
-  });
-
-  // Fetch boundary details (name, type) for all boundary_ids — batch to avoid URL length limits
+  // Collect boundary details — skipped in slim mode (returns raw boundary_ids instead)
   let boundariesMap = new Map<string, { id: string; name: string; type: string }>();
-  if (allBoundaryIds.size > 0) {
-    const boundaryIdArray = Array.from(allBoundaryIds);
-    const BOUNDARY_BATCH_SIZE = 200;
-    for (let i = 0; i < boundaryIdArray.length; i += BOUNDARY_BATCH_SIZE) {
-      const batch = boundaryIdArray.slice(i, i + BOUNDARY_BATCH_SIZE);
-      const { data: boundariesData, error: boundariesError } = await supabase
-        .from('boundaries')
-        .select('id, name, type')
-        .in('id', batch);
+  if (!slim) {
+    const allBoundaryIds = new Set<string>();
+    visibleChurches.forEach((c: any) => {
+      (c.boundary_ids || []).forEach((id: string) => allBoundaryIds.add(id));
+    });
 
-      if (boundariesError) {
-        console.error('Error fetching boundaries:', boundariesError);
-      } else if (boundariesData) {
-        boundariesData.forEach((b: any) => {
-          boundariesMap.set(b.id, { id: b.id, name: b.name, type: b.type });
-        });
+    // Fetch boundary details (name, type) for all boundary_ids — batch to avoid URL length limits
+    if (allBoundaryIds.size > 0) {
+      const boundaryIdArray = Array.from(allBoundaryIds);
+      const BOUNDARY_BATCH_SIZE = 200;
+      for (let i = 0; i < boundaryIdArray.length; i += BOUNDARY_BATCH_SIZE) {
+        const batch = boundaryIdArray.slice(i, i + BOUNDARY_BATCH_SIZE);
+        const { data: boundariesData, error: boundariesError } = await supabase
+          .from('boundaries')
+          .select('id, name, type')
+          .in('id', batch);
+
+        if (boundariesError) {
+          console.error('Error fetching boundaries:', boundariesError);
+        } else if (boundariesData) {
+          boundariesData.forEach((b: any) => {
+            boundariesMap.set(b.id, { id: b.id, name: b.name, type: b.type });
+          });
+        }
       }
     }
   }
