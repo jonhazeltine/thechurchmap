@@ -10,12 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePlatformContext, buildPlatformQueryParams } from "@/contexts/PlatformContext";
+import { usePlatformContext } from "@/contexts/PlatformContext";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { useAuth } from "@/contexts/AuthContext";
 import type { CityPlatformRole } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 
@@ -151,25 +151,16 @@ export function PlatformSwitcher() {
     setLocation(newUrl);
   };
 
-  // Prefetch churches data when hovering over a platform to improve perceived loading time
-  const handlePlatformHover = useCallback((hoveredPlatformId: string) => {
-    // Don't prefetch if already on this platform
-    if (platformId === hoveredPlatformId) return;
-    
-    // Prefetch churches for this platform
-    const emptyFilters = {};
-    queryClient.prefetchQuery({
-      queryKey: ["/api/churches", emptyFilters, hoveredPlatformId],
-      queryFn: async () => {
-        const params = buildPlatformQueryParams(hoveredPlatformId, {});
-        const url = `/api/churches${params.toString() ? `?${params.toString()}` : ''}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      },
-      staleTime: 60000, // Consider prefetched data fresh for 1 minute
-    });
-  }, [platformId]);
+  // NOTE: We used to prefetch /api/churches on hover for each platform in the
+  // dropdown to improve perceived switch latency. That turned out to be a
+  // server killer: a super-admin cursor moving through the list would fire 6+
+  // parallel full /api/churches?city_platform_id=X fetches (e.g. Detroit's
+  // 3,700+ churches × every other owned platform), each buffering thousands
+  // of church rows + images + callings into Node's heap simultaneously. That
+  // reliably OOM-killed the process on Railway. Removed intentionally — do
+  // not add back without a concurrency guard AND a much smaller payload.
+  // For perceived speed on switch, rely on the static platform pin GeoJSON
+  // cache served from /public, not live /api/churches calls.
 
   if (isLoading) {
     return (
@@ -307,7 +298,6 @@ export function PlatformSwitcher() {
                 <DropdownMenuItem
                   key={p.platform_id}
                   onClick={() => handlePlatformSelect(p.platform_id)}
-                  onMouseEnter={() => handlePlatformHover(p.platform_id)}
                   className={`flex items-center justify-between gap-2 cursor-pointer ${isInactive ? 'opacity-60' : ''}`}
                   data-testid={`menu-item-platform-${p.platform_id}`}
                 >
@@ -344,7 +334,6 @@ export function PlatformSwitcher() {
                 <DropdownMenuItem
                   key={p.id}
                   onClick={() => handlePlatformSelect(p.id)}
-                  onMouseEnter={() => handlePlatformHover(p.id)}
                   className="flex items-center justify-between gap-2 cursor-pointer"
                   data-testid={`menu-item-platform-${p.id}`}
                 >
