@@ -211,6 +211,32 @@ export default function Home() {
     return saved === 'true';
   });
   
+  // Reset platform-specific map layer states when switching platforms or
+  // going to National View. Without this, layers like prayer coverage
+  // polygons remain rendered on the map even after the controls disable
+  // themselves (because the Mapbox layers are keyed off the *state* value,
+  // and the state never gets cleared).
+  const prevPlatformIdRef = useRef(platformId);
+  useEffect(() => {
+    if (prevPlatformIdRef.current !== platformId) {
+      // Reset prayer-related overlays
+      setPrayerCoverageVisible(false);
+      setPrayerOverlayVisible(false);
+      setAllocationModeActive(false);
+      setAllocationModeChurchId(null);
+
+      // Reset health data overlay (platform-specific tract data)
+      setSelectedHealthMetric(null);
+
+      // Reset selected church and detail panels
+      setSelectedChurch(null);
+      setRightSidebarOpen(false);
+      setMobileDetailOpen(false);
+
+      prevPlatformIdRef.current = platformId;
+    }
+  }, [platformId]);
+
   // Persist performance mode to localStorage
   const handlePerformanceModeChange = (enabled: boolean) => {
     setPerformanceMode(enabled);
