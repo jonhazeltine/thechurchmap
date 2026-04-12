@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
-import { Building2, Users, Heart, MessageSquare, Link2, Globe, FileText, Activity } from "lucide-react";
+import { Building2, Users, Heart, MessageSquare, Link2, Globe, FileText, Activity, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlatformNavigation } from "@/hooks/usePlatformNavigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DashboardStats {
   pendingChurchClaims: number;
@@ -19,7 +20,7 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const { data: stats, isLoading } = useQuery<DashboardStats>({
+  const { data: stats, isLoading, isError, refetch } = useQuery<DashboardStats>({
     queryKey: ["/api/admin/dashboard/stats"],
   });
   const { buildPlatformUrl } = usePlatformNavigation();
@@ -127,6 +128,11 @@ export default function AdminDashboard() {
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-8 w-16" />
+            ) : isError ? (
+              <div className="text-sm text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4" />
+                Failed to load
+              </div>
             ) : (
               <div className="text-2xl font-bold">{card.value.toLocaleString()}</div>
             )}
@@ -148,6 +154,21 @@ export default function AdminDashboard() {
             Platform overview and pending items
           </p>
         </div>
+
+        {isError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>Failed to load dashboard stats. The server may be restarting.</span>
+              <button
+                onClick={() => refetch()}
+                className="ml-4 text-sm underline hover:no-underline"
+              >
+                Retry
+              </button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Platform Overview Stats */}
         <div className="mb-8">
@@ -191,6 +212,10 @@ export default function AdminDashboard() {
                   </div>
                   {isLoading ? (
                     <Skeleton className="h-8 w-12" />
+                  ) : isError ? (
+                    <div className="text-sm text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                    </div>
                   ) : (
                     <div className="text-2xl font-bold text-green-600">
                       {stats?.recentPostsCount ?? 0}

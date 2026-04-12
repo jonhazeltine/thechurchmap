@@ -6,6 +6,13 @@ import { supabase } from "../../../lib/supabaseClient";
 
 const PLATFORM_STORAGE_KEY = 'active_platform_id';
 
+// Admin paths manage their own routing — PlatformContext must never
+// rewrite the URL when on an admin page.
+function isAdminPath(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname.startsWith('/admin');
+}
+
 // Check if a string is a UUID
 function isUUID(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -100,23 +107,27 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     retry: false,
   });
 
-  // Update URL to use slug in path when platform data is loaded
+  // Update URL to use slug in path when platform data is loaded.
+  // SKIP for admin paths — admin uses ?platform= query params and manages
+  // its own routing. Without this guard, selecting a platform in the admin
+  // panel would rewrite /admin/dashboard?platform=X to /slug/dashboard,
+  // which doesn't match any route.
   const lastSlugRef = useRef<string | null>(null);
   useEffect(() => {
-    if (platform?.slug && typeof window !== 'undefined') {
+    if (platform?.slug && typeof window !== 'undefined' && !isAdminPath()) {
       const currentPathPlatform = extractPlatformFromPath();
       const urlParams = new URLSearchParams(window.location.search);
       const currentQueryPlatform = urlParams.get('platform');
-      
+
       // If URL used query param (old style) or ID in path, redirect to slug path
       if (currentQueryPlatform || (currentPathPlatform && isUUID(currentPathPlatform))) {
         if (platform.slug !== lastSlugRef.current) {
           lastSlugRef.current = platform.slug;
-          
+
           // Get the rest of the path after the platform segment
           const segments = window.location.pathname.split('/').filter(Boolean);
           const restPath = segments.length > 1 ? '/' + segments.slice(1).join('/') : '';
-          
+
           // Build new URL with slug in path (remove query param)
           const url = new URL(window.location.href);
           url.pathname = `/${platform.slug}${restPath}`;
@@ -124,7 +135,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           window.history.replaceState({}, '', url.toString());
         }
       }
-      
+
       // Also ensure localStorage has the actual ID for persistence
       if (platform.id) {
         localStorage.setItem(PLATFORM_STORAGE_KEY, platform.id);
@@ -134,41 +145,53 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const setPlatformId = useCallback((id: string | null, slug?: string) => {
     setPlatformIdState(id);
-    
+
     if (typeof window !== 'undefined') {
+      // Admin paths manage their own routing via PlatformSwitcher's
+      // handlePlatformSelect (query params). We must NOT do replaceState
+      // here — it would rewrite /admin/dashboard to /slug/admin/dashboard
+      // which doesn't match any route and causes a 404.
+      const skipUrlUpdate = isAdminPath();
+
       if (id) {
         localStorage.setItem(PLATFORM_STORAGE_KEY, id);
-        // Navigate to platform path using slug
-        const platformSlug = slug || id;
-        
-        // Get current path segments after the potential platform segment
-        const currentPathPlatform = extractPlatformFromPath();
-        const segments = window.location.pathname.split('/').filter(Boolean);
-        let restPath: string;
-        if (currentPathPlatform && segments.length > 1) {
-          // Already has a platform prefix — strip it, keep the rest
-          restPath = '/' + segments.slice(1).join('/');
-        } else if (!currentPathPlatform && segments.length > 0) {
-          // No platform prefix — preserve the entire current path (e.g., /church/xxx)
-          restPath = '/' + segments.join('/');
-        } else {
-          restPath = '';
+
+        if (!skipUrlUpdate) {
+          // Navigate to platform path using slug
+          const platformSlug = slug || id;
+
+          // Get current path segments after the potential platform segment
+          const currentPathPlatform = extractPlatformFromPath();
+          const segments = window.location.pathname.split('/').filter(Boolean);
+          let restPath: string;
+          if (currentPathPlatform && segments.length > 1) {
+            // Already has a platform prefix — strip it, keep the rest
+            restPath = '/' + segments.slice(1).join('/');
+          } else if (!currentPathPlatform && segments.length > 0) {
+            // No platform prefix — preserve the entire current path (e.g., /church/xxx)
+            restPath = '/' + segments.join('/');
+          } else {
+            restPath = '';
+          }
+
+          const url = new URL(window.location.href);
+          url.pathname = `/${platformSlug}${restPath}`;
+          url.searchParams.delete('platform'); // Remove old query param if present
+          window.history.replaceState({}, '', url.toString());
         }
-        
-        const url = new URL(window.location.href);
-        url.pathname = `/${platformSlug}${restPath}`;
-        url.searchParams.delete('platform'); // Remove old query param if present
-        window.history.replaceState({}, '', url.toString());
       } else {
         localStorage.removeItem(PLATFORM_STORAGE_KEY);
-        // Navigate to root (national view)
-        const url = new URL(window.location.href);
-        url.pathname = '/';
-        url.searchParams.delete('platform');
-        window.history.replaceState({}, '', url.toString());
+
+        if (!skipUrlUpdate) {
+          // Navigate to root (national view)
+          const url = new URL(window.location.href);
+          url.pathname = '/';
+          url.searchParams.delete('platform');
+          window.history.replaceState({}, '', url.toString());
+        }
       }
     }
-    
+
     queryClient.invalidateQueries({ queryKey: ['/api/churches'] });
   }, [queryClient]);
 
